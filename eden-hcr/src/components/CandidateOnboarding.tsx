@@ -41,6 +41,7 @@ export const CandidateOnboarding: React.FC<{ onComplete: () => void }> = ({ onCo
   const [step, setStep] = useState<OnboardingStep>(1);
   const [formData, setFormData] = useState<FormData>(INITIAL_STATE);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [serverError, setServerError] = useState('');
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -66,14 +67,54 @@ export const CandidateOnboarding: React.FC<{ onComplete: () => void }> = ({ onCo
   const nextStep = () => setStep(prev => (prev < 4 ? (prev + 1) as OnboardingStep : prev));
   const prevStep = () => setStep(prev => (prev > 1 ? (prev - 1) as OnboardingStep : prev));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    setTimeout(() => {
+    setServerError('');
+
+    // Mapping propre vers les propriétés du modèle Mongoose Candidat
+    const backendPayload = {
+      civilite: 'M.', // Valeur par défaut requise par l'énumérateur du modèle Mongoose
+      nom: formData.lastName,
+      prenom: formData.firstName,
+      email: formData.email,
+      telephone: formData.phone,
+      adresse: {
+        ville: formData.city,
+        codePostal: '75000' // Code postal temporaire par défaut pour valider le modèle imbriqué
+      },
+      metier: formData.role,
+      // Conversion vers les énumérateurs stricts de ta collection Mongoose
+      experience: formData.experienceYears === '0-1' ? 'sans_experience' 
+                : formData.experienceYears === '1-3' ? '1_2_ans' 
+                : formData.experienceYears === '3-5' ? '3_5_ans' 
+                : 'plus_5_ans',
+      competences: formData.availability, // Transfert des jours ou des compétences
+      cvUrl: "" // Initialisation de l'emplacement de fichier
+    };
+
+    try {
+      const response = await fetch('https://eden-hcr-backend.onrender.com/api/candidat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(backendPayload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        onComplete();
+      } else {
+        setServerError(data.message || "Impossible de finaliser la création de votre dossier.");
+      }
+    } catch (error) {
+      console.error("Erreur onboarding :", error);
+      setServerError("Erreur de liaison réseau avec l'infrastructure EDÈN.");
+    } finally {
       setIsSubmitting(false);
-      onComplete();
-    }, 2000);
+    }
   };
 
   const daysOfWeek = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -103,6 +144,11 @@ export const CandidateOnboarding: React.FC<{ onComplete: () => void }> = ({ onCo
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
+        {serverError && (
+          <div className="p-3 text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl">
+            {serverError}
+          </div>
+        )}
         
         {/* ÉTAPE 1 : INFORMATIONS PERSONNELLES */}
         {step === 1 && (

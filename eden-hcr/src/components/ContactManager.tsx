@@ -4,11 +4,36 @@ import { Mail, Phone, MapPin, Send, CheckCircle2 } from 'lucide-react';
 export const ContactManager: React.FC = () => {
   const [formState, setFormState] = useState({ name: '', email: '', subject: '', message: '' });
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulation d'envoi avant le raccordement Firebase
-    setIsSubmitted(true);
+    setLoading(true);
+    setErrorMessage('');
+
+    try {
+      const response = await fetch('https://eden-hcr-backend.onrender.com/api/messagerie', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formState),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setIsSubmitted(true);
+      } else {
+        setErrorMessage(data.message || "Une erreur est survenue lors de la transmission.");
+      }
+    } catch (error) {
+      console.error("Erreur réseau :", error);
+      setErrorMessage("Impossible de joindre le serveur EDÈN HCR. Vérifiez votre connexion.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (isSubmitted) {
@@ -65,6 +90,12 @@ export const ContactManager: React.FC = () => {
       {/* FORMULAIRE DE CONTACT LUXE (7 COLONNES) */}
       <div className="lg:col-span-7 bg-white p-8 rounded-2xl border border-eden-border shadow-sm">
         <form onSubmit={handleSubmit} className="space-y-5">
+          {errorMessage && (
+            <div className="p-3 text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl">
+              {errorMessage}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-[10px] font-semibold uppercase tracking-wider text-eden-navy">Votre nom complet</label>
@@ -116,9 +147,11 @@ export const ContactManager: React.FC = () => {
 
           <button 
             type="submit" 
-            className="w-full bg-eden-navy hover:bg-eden-light-navy text-white text-xs font-semibold py-3.5 px-6 rounded-xl border-none cursor-pointer flex items-center justify-center gap-2 transition-all shadow-md active:scale-98"
+            disabled={loading}
+            className="w-full bg-eden-navy hover:bg-eden-light-navy text-white text-xs font-semibold py-3.5 px-6 rounded-xl border-none cursor-pointer flex items-center justify-center gap-2 transition-all shadow-md active:scale-98 disabled:opacity-50"
           >
-            <Send size={13} className="text-eden-tan" /> Transmettre ma demande
+            <Send size={13} className="text-eden-tan" /> 
+            <span>{loading ? "Transmission..." : "Transmettre ma demande"}</span>
           </button>
         </form>
       </div>

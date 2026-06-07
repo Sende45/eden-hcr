@@ -7,6 +7,8 @@ import dotenv from 'dotenv';
 // ==========================================
 import messagerieRoutes from './routes/messagerieRoutes.js';
 import candidatRoutes from './routes/candidatRoutes.js';
+import etablissementRoutes from './routes/etablissementRoutes.js';
+import missionRoutes from './routes/missionRoutes.js';
 
 dotenv.config();
 
@@ -21,6 +23,8 @@ app.use(express.json());
 // ==========================================
 app.use('/api/messagerie', messagerieRoutes);
 app.use('/api/candidat', candidatRoutes);
+app.use('/api/etablissement', etablissementRoutes);
+app.use('/api/mission', missionRoutes);
 
 const connectDB = async () => {
   try {
