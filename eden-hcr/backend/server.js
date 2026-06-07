@@ -2,6 +2,10 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+// ==========================================
+// IMPORTS DES ROUTES
+// ==========================================
+import messagerieRoutes from './routes/messagerieRoutes.js';
 
 dotenv.config();
 
@@ -10,6 +14,11 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+
+// ==========================================
+// ROUTES DE L'API
+// ==========================================
+app.use('/api/messagerie', messagerieRoutes);
 
 const connectDB = async () => {
   try {
