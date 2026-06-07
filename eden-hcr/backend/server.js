@@ -9,6 +9,9 @@ import messagerieRoutes from './routes/messagerieRoutes.js';
 import candidatRoutes from './routes/candidatRoutes.js';
 import etablissementRoutes from './routes/etablissementRoutes.js';
 import missionRoutes from './routes/missionRoutes.js';
+import contratsRoutes from './routes/contratsRoutes.js';
+import planningRoutes from './routes/planningRoutes.js';
+import paiementsRoutes from './routes/paiementsRoutes.js';
 
 dotenv.config();
 
@@ -25,6 +28,9 @@ app.use('/api/messagerie', messagerieRoutes);
 app.use('/api/candidat', candidatRoutes);
 app.use('/api/etablissement', etablissementRoutes);
 app.use('/api/mission', missionRoutes);
+app.use('/api/contrats', contratsRoutes);
+app.use('/api/planning', planningRoutes);
+app.use('/api/paiements', paiementsRoutes);
 
 const connectDB = async () => {
   try {
