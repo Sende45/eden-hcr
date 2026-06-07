@@ -14,6 +14,7 @@ import missionRoutes from './routes/missionRoutes.js';
 import contratsRoutes from './routes/contratsRoutes.js';
 import planningRoutes from './routes/planningRoutes.js';
 import paiementsRoutes from './routes/paiementsRoutes.js';
+import authRoutes from './routes/authRoutes.js';
 
 // Import du middleware d'erreur centralisé
 import { errorHandler } from './middlewares/errorMiddleware.js';
@@ -42,6 +43,7 @@ app.use(express.json());
 // ==========================================
 // ROUTES DE L'API
 // ==========================================
+app.use('/api/auth', authRoutes);
 app.use('/api/messagerie', messagerieRoutes);
 app.use('/api/candidat', candidatRoutes);
 app.use('/api/etablissement', etablissementRoutes);
