@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --color-eden-navy: #0c3948;
+  --color-eden-light-navy: #164d60;
+  --color-eden-deep-navy: #081f28;
+  --color-eden-teal: #1d6b5a;
+  --color-eden-sage: #708662;
+  --color-eden-tan: #b2976a;
+  --color-eden-orange: #f39744;
+  --color-eden-bg: #f7f4ef;
+  --color-eden-bg2: #ffffff;
+  --color-eden-border: #ddd5c5;
+  --color-eden-border-light: #e8e1d6;
+  --color-eden-text-dark: #0c3948;
+  --color-eden-text-light: #6b7c70;
+
+  --font-serif: "Cormorant Garamond", serif;
+  --font-sans: "Jost", sans-serif;
+
+  --animate-slide-in: slide-in 0.3s ease-out;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
