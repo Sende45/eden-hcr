@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 // IMPORTS DES ROUTES
 // ==========================================
 import messagerieRoutes from './routes/messagerieRoutes.js';
+import candidatRoutes from './routes/candidatRoutes.js';
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ app.use(express.json());
 // ROUTES DE L'API
 // ==========================================
 app.use('/api/messagerie', messagerieRoutes);
+app.use('/api/candidat', candidatRoutes);
 
 const connectDB = async () => {
   try {
