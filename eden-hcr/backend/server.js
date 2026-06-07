@@ -2,6 +2,8 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import rateLimit from 'express-rate-limit';
+
 // ==========================================
 // IMPORTS DES ROUTES
 // ==========================================
@@ -13,11 +15,27 @@ import contratsRoutes from './routes/contratsRoutes.js';
 import planningRoutes from './routes/planningRoutes.js';
 import paiementsRoutes from './routes/paiementsRoutes.js';
 
+// Import du middleware d'erreur centralisé
+import { errorHandler } from './middlewares/errorMiddleware.js';
+
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Limitation des requêtes pour sécuriser la production
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // Fenêtre de 15 minutes
+  max: 100, // Limite chaque IP à 100 requêtes par fenêtre
+  message: {
+    status: 'error',
+    message: 'Trop de requêtes effectuées depuis cette adresse IP, réessayez plus tard.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(limiter);
 app.use(cors());
 app.use(express.json());
 
@@ -63,6 +81,9 @@ app.get('/api/health', (req, res) => {
         : 'Disconnected',
   });
 });
+
+// Middleware d'erreur global (doit impérativement être placé après toutes les routes)
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(
