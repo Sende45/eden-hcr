@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 // Fonction interne pour générer le Token JWT
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '30d', // Valide pendant 30 jours
+    expiresIn: '30d',
   });
 };
 
@@ -23,12 +23,11 @@ export const registerUser = async (req, res, next) => {
     const user = await User.create({
       email,
       password,
-      role: role || 'extra', // Rôle par défaut si non spécifié
+      role: role || 'extra',
       candidatRef,
       etablissementRef
     });
 
-    // Configuration de la réponse pour s'aligner sur le frontend (result.user)
     res.status(201).json({
       status: 'success',
       token: generateToken(user._id),
@@ -55,7 +54,6 @@ export const loginUser = async (req, res, next) => {
       throw new Error('Identifiants invalides (Email ou mot de passe incorrect).');
     }
 
-    // Configuration de la réponse pour s'aligner sur le frontend (result.user)
     res.status(200).json({
       status: 'success',
       token: generateToken(user._id),
@@ -66,6 +64,29 @@ export const loginUser = async (req, res, next) => {
         candidatRef: user.candidatRef,
         etablissementRef: user.etablissementRef
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Obtenir le profil de l'utilisateur connecté
+// @route   GET /api/auth/me
+export const getMe = async (req, res, next) => {
+  try {
+    // Le middleware 'protect' a déjà ajouté l'utilisateur à req.user
+    if (!req.user) {
+      res.status(404);
+      throw new Error("Utilisateur non trouvé.");
+    }
+
+    res.status(200).json({
+      status: 'success',
+      id: req.user._id,
+      email: req.user.email,
+      role: req.user.role,
+      candidatRef: req.user.candidatRef,
+      etablissementRef: req.user.etablissementRef
     });
   } catch (error) {
     next(error);
