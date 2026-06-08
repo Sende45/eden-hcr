@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 5000;
 // ── Rate limiting ──────────────────────────────────────────────────────────────
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 200, // MODIF : Augmenté à 200 pour supporter le chargement du Dashboard
   standardHeaders: true,
   legacyHeaders: false,
   message: { status: 'error', message: 'Trop de requêtes, réessayez plus tard.' }
@@ -38,7 +38,6 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Autorise Postman / appels serveur sans origine
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     console.warn(`[CORS] Origine bloquée : ${origin}`);
@@ -49,7 +48,6 @@ const corsOptions = {
   credentials: true,
 };
 
-// Application du middleware CORS (Gère automatiquement le preflight OPTIONS)
 app.use(cors(corsOptions));
 
 // ── Body parser ────────────────────────────────────────────────────────────────
@@ -86,6 +84,12 @@ app.get('/api/health', (req, res) => {
     message: 'Backend EDÈN HCR opérationnel',
     database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
   });
+});
+
+// ── MODIF : Catch-all pour le débogage des routes 404 ──────────────────────────
+app.use((req, res, next) => {
+  console.log(`[404] Route introuvable : ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ status: 'error', message: 'Route non définie' });
 });
 
 // ── Erreur globale ─────────────────────────────────────────────────────────────
