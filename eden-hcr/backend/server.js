@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 5000;
 // ── Rate limiting ──────────────────────────────────────────────────────────────
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200, // MODIF : Augmenté à 200 pour supporter le chargement du Dashboard
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: { status: 'error', message: 'Trop de requêtes, réessayez plus tard.' }
@@ -86,7 +86,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ── MODIF : Catch-all pour le débogage des routes 404 ──────────────────────────
+// ── GESTION DES 404 (Doit être après les routes, avant le middleware d'erreur) ──
 app.use((req, res, next) => {
   console.log(`[404] Route introuvable : ${req.method} ${req.originalUrl}`);
   res.status(404).json({ status: 'error', message: 'Route non définie' });
