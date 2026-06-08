@@ -1,5 +1,5 @@
-import React from 'react';
-import { Menu, User, Briefcase, Bell, Shield } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Menu, User, Briefcase, Bell, Shield, LogOut } from 'lucide-react';
 
 // Déclaration de l'interface pour le typage strict des props
 export type HeaderProps = {
@@ -15,6 +15,21 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateToContact,
   onNavigateToClientAuth // <-- Récupération de la prop
 }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Vérification de la présence du jeton MERN au montage pour adapter l'affichage
+  useEffect(() => {
+    const token = localStorage.getItem('userToken');
+    setIsAuthenticated(!!token);
+  }, []);
+
+  // Gestion de la déconnexion : purge du token de la stack et rechargement léger
+  const handleLogout = () => {
+    localStorage.removeItem('userToken');
+    setIsAuthenticated(false);
+    window.location.reload(); // Réinitialise l'état global de l'application proprement
+  };
+
   return (
     <header className="bg-eden-bg2/90 border-b border-eden-border px-6 py-4 sticky top-0 z-50 font-sans backdrop-blur-md shadow-2xs transition-all duration-300">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -73,13 +88,22 @@ export const Header: React.FC<HeaderProps> = ({
             <Shield size={14} className="text-eden-tan" /> Espace Agence
           </button>
 
-          {/* BOUTON ESPACE CLIENT DESORMAIS BRANCHÉ STRICTEMENT */}
-          <button 
-            onClick={onNavigateToClientAuth}
-            className="bg-eden-navy hover:bg-eden-light-navy text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide flex items-center gap-2 transition-all duration-200 shadow-md hover:shadow-eden-navy/10 active:scale-98 border-none cursor-pointer"
-          >
-            <User size={14} /> Espace Client
-          </button>
+          {/* BOUTON ESPACE CLIENT DYNAMIQUE AVEC GESTION DE DÉCONNEXION MERN */}
+          {isAuthenticated ? (
+            <button 
+              onClick={handleLogout}
+              className="bg-eden-orange hover:bg-eden-orange/90 text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide flex items-center gap-2 transition-all duration-200 shadow-md active:scale-98 border-none cursor-pointer"
+            >
+              <LogOut size={14} /> Déconnexion
+            </button>
+          ) : (
+            <button 
+              onClick={onNavigateToClientAuth}
+              className="bg-eden-navy hover:bg-eden-light-navy text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide flex items-center gap-2 transition-all duration-200 shadow-md hover:shadow-eden-navy/10 active:scale-98 border-none cursor-pointer"
+            >
+              <User size={14} /> Espace Client
+            </button>
+          )}
 
           <button className="md:hidden p-2 text-eden-navy hover:bg-eden-navy/5 rounded-lg transition-colors border-none bg-transparent cursor-pointer" aria-label="Menu principal">
             <Menu size={20} />
