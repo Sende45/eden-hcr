@@ -1,4 +1,4 @@
-import Contrats from '../models/Contrats.js';
+import Contrats from '../models/Contrat.js';
 
 export const createContrat = async (req, res) => {
   try {
