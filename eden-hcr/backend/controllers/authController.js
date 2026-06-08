@@ -23,15 +23,16 @@ export const registerUser = async (req, res, next) => {
     const user = await User.create({
       email,
       password,
-      role,
+      role: role || 'extra', // Rôle par défaut si non spécifié
       candidatRef,
       etablissementRef
     });
 
+    // Configuration de la réponse pour s'aligner sur le frontend (result.user)
     res.status(201).json({
       status: 'success',
       token: generateToken(user._id),
-      data: {
+      user: {
         id: user._id,
         email: user.email,
         role: user.role
@@ -54,10 +55,11 @@ export const loginUser = async (req, res, next) => {
       throw new Error('Identifiants invalides (Email ou mot de passe incorrect).');
     }
 
+    // Configuration de la réponse pour s'aligner sur le frontend (result.user)
     res.status(200).json({
       status: 'success',
       token: generateToken(user._id),
-      data: {
+      user: {
         id: user._id,
         email: user.email,
         role: user.role,
