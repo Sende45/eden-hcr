@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Home } from './pages/Home';
 import { Footer } from './components/Footer';
 import { Dashboard } from './pages/Dashboard';
 import { Login } from './pages/Login';
 import { Mail, Phone, MapPin, Send, CheckCircle2 } from 'lucide-react';
+import { getMe, isAuthenticated, logout } from './services/authService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -15,19 +16,43 @@ type AppView = 'landing' | 'login' | 'dashboard' | 'dashboard-prestataire' | 'co
 function App() {
   const [currentView, setCurrentView]       = useState<AppView>('landing');
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+  const [user, setUser] = useState<{ id: string; email: string; role: string } | null>(null);
   const [contactForm, setContactForm]       = useState({ name: '', email: '', subject: '', message: '' });
   const [contactSubmitted, setContactSubmitted] = useState<boolean>(false);
 
-  // ── ÉCRAN : Dashboard Admin ──────────────────────────────────────────────────
+  // Synchronisation de session automatique au chargement/rechargement
+  useEffect(() => {
+    if (isAuthenticated()) {
+      getMe()
+        .then((profile) => {
+          setUser(profile);
+          if (profile.role === 'admin' || profile.role === 'superadmin') {
+            setCurrentView('dashboard');
+          } else {
+            setCurrentView('dashboard-prestataire');
+          }
+        })
+        .catch(() => {
+          logout();
+          setUser(null);
+          setCurrentView('landing');
+        });
+    }
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    setUser(null);
+    setCurrentView('landing');
+  };
+
+  // ── ÉCRAN : Dashboard Admin / SuperAdmin ─────────────────────────────────────
   if (currentView === 'dashboard') {
     return (
       <div className="relative">
-        <Dashboard />
+        <Dashboard user={user} />
         <button
-          onClick={() => {
-            localStorage.removeItem('userToken');
-            setCurrentView('landing');
-          }}
+          onClick={handleLogout}
           className="fixed bottom-4 right-4 bg-eden-tan hover:bg-eden-navy text-white text-xs font-medium p-2 rounded-lg shadow-lg z-50 transition-colors cursor-pointer border-none"
         >
           ← Déconnexion Agence
@@ -41,13 +66,11 @@ function App() {
     return (
       <div className="relative">
         <div className="p-8 font-sans text-eden-navy">
-          Dashboard Prestataire — Connexion effectuée avec succès via Atlas.
+          <h1 className="text-xl font-bold font-serif mb-2">Espace Extra / Prestataire</h1>
+          <p className="text-xs text-eden-text-light font-light">Connexion effectuée avec succès via Atlas.</p>
         </div>
         <button
-          onClick={() => {
-            localStorage.removeItem('userToken');
-            setCurrentView('landing');
-          }}
+          onClick={handleLogout}
           className="fixed bottom-4 right-4 bg-eden-tan hover:bg-eden-navy text-white text-xs font-medium p-2 rounded-lg shadow-lg z-50 transition-colors cursor-pointer border-none"
         >
           ← Déconnexion
@@ -56,17 +79,24 @@ function App() {
     );
   }
 
-  // ── ÉCRAN : Mire de connexion unifiée (Connexion + Inscription) ──────────────
+  // ── ÉCRAN : Mire de connexion unifiée ─────────────────────────────────────────
   if (currentView === 'login') {
     return (
       <div className="relative">
         <Login
           onPrestataireLoginSuccess={(userData) => {
-            console.log('Prestataire connecté :', userData);
+            setUser(userData);
             setCurrentView('dashboard-prestataire');
           }}
           onAdminLoginSuccess={() => {
-            setCurrentView('dashboard');
+            getMe()
+              .then((profile) => {
+                setUser(profile);
+                setCurrentView('dashboard');
+              })
+              .catch(() => {
+                setCurrentView('dashboard');
+              });
           }}
         />
         <button
@@ -108,8 +138,6 @@ function App() {
             </div>
           ) : (
             <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-
-              {/* INFOS AGENCE */}
               <div className="lg:col-span-5 bg-eden-navy text-white p-8 rounded-2xl space-y-6 shadow-lg relative overflow-hidden">
                 <div className="absolute top-[-20%] right-[-20%] w-48 h-48 rounded-full border-[20px] border-[#b2976a]/5 pointer-events-none" />
                 <div className="space-y-1">
@@ -126,7 +154,6 @@ function App() {
                 </div>
               </div>
 
-              {/* FORMULAIRE */}
               <div className="lg:col-span-7 bg-eden-bg2 border border-eden-border rounded-2xl p-8 shadow-sm">
                 <form
                   onSubmit={(e) => { e.preventDefault(); setContactSubmitted(true); }}
@@ -174,7 +201,6 @@ function App() {
                   </button>
                 </form>
               </div>
-
             </div>
           )}
         </div>
@@ -184,7 +210,6 @@ function App() {
     return <Home showOnboarding={showOnboarding} setShowOnboarding={setShowOnboarding} />;
   };
 
-  // ── ÉCRAN : Landing page (défaut) ────────────────────────────────────────────
   return (
     <div className="flex flex-col min-h-screen bg-eden-bg selection:bg-eden-navy selection:text-white">
       <Header

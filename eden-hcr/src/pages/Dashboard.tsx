@@ -10,23 +10,27 @@ import { EstablishmentManager } from '../components/EstablishmentManager';
 import { MissionManager } from '../components/MissionManager';
 import { ReportManager } from '../components/ReportManager';
 import { PaymentManager } from '../components/PaymentManager';
-import { MessageManager } from '../components/MessageManager'; // <-- Importation de la messagerie
-import { SuperAdminDashboard } from '../components/SuperAdminDashboard'; // <-- Importation de la vue SuperAdmin
+import { MessageManager } from '../components/MessageManager'; 
+import { SuperAdminDashboard } from '../components/SuperAdminDashboard'; 
 import { CreateMissionModal } from '../components/CreateMissionModal';
 import { type CreateMissionInput } from '../types/missionForm';
 import { type DashboardView } from '../types/navigation';
 import { ShieldAlert, Loader2 } from 'lucide-react';
 
-export const Dashboard: React.FC = () => {
+interface DashboardProps {
+  user: { id: string; email: string; role: string } | null;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [view, setView] = useState<DashboardView>('dashboard');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [hasToken, setHasToken] = useState<boolean>(true);
 
-  // Vérification stricte de la session JWT au montage du tableau de bord d'administration
+  // Correction : Utilisation de la clé globale unifiée 'eden_token'
   useEffect(() => {
-    const token = localStorage.getItem('userToken');
+    const token = localStorage.getItem('eden_token');
     if (!token) {
       setHasToken(false);
     }
@@ -35,26 +39,26 @@ export const Dashboard: React.FC = () => {
   // ACTION DYNAMIQUE : ENVOI DE LA MISSION CRÉÉE VERS TON BACKEND MERN
   const handleCreateMission = useCallback(async (data: CreateMissionInput) => {
     setIsSubmitting(true);
-    const token = localStorage.getItem('userToken');
+    const token = localStorage.getItem('eden_token');
 
     // Mapping propre des données du formulaire vers ton schéma Mongoose `Mission`
     const missionPayload = {
-      etablissementId: "65f1a2b3c4d5e6f7a8b9c0d1", // Remplacer par l'ID réel ou l'ID de l'établissement connecté
-      posteRecherche: data.title, // Liaison directe avec ton input titre/poste
-      dateDebut: new Date(), // Ajuster avec le sélecteur de date de ta modale
-      dateFin: new Date(Date.now() + 8 * 60 * 60 * 1000), // Estimation d'un shift de 8h
+      etablissementId: "65f1a2b3c4d5e6f7a8b9c0d1", 
+      posteRecherche: data.title, 
+      dateDebut: new Date(), 
+      dateFin: new Date(Date.now() + 8 * 60 * 60 * 1000), 
       nombreExtras: 1,
-      tauxHoraireBrut: 19.5, // Taux par défaut ou extrait du formulaire
-      briefing: data.description || '', // Contenu de description
+      tauxHoraireBrut: 19.5, 
+      briefing: data.description || '', 
       statutMission: 'ouverte'
     };
 
     try {
-      const response = await fetch('https://eden-hcr-backend.onrender.com/api/mission', {
+      const response = await fetch('https://eden-hcr.onrender.com/api/mission', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // Barrière protect
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(missionPayload)
       });
@@ -65,7 +69,6 @@ export const Dashboard: React.FC = () => {
         setNotification(`La mission "${data.title}" a été enregistrée en base et publiée au sein de la brigade.`);
         setIsModalOpen(false);
         
-        // Rafraîchissement léger de la vue si l'utilisateur est sur l'onglet missions
         if (view === 'missions') {
           window.location.reload();
         }
@@ -98,7 +101,6 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-  // Rendu avec enveloppe d'animation native ou injectée via les keyframes CSS
   const renderMainContent = () => {
     switch (view) {
       case 'candidates':
@@ -143,13 +145,13 @@ export const Dashboard: React.FC = () => {
             <PaymentManager />
           </div>
         );
-      case 'messages': // <-- Intégration de la messagerie dans le routeur
+      case 'messages': 
         return (
           <div className="animate-[fadeInUp_0.35s_ease-out]">
             <MessageManager />
           </div>
         );
-      case 'superadmin': // <-- Routage chirurgical vers ton nouveau panneau directionnel
+      case 'superadmin': 
         return (
           <div className="animate-[fadeInUp_0.35s_ease-out]">
             <SuperAdminDashboard />
@@ -169,24 +171,19 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="flex h-screen w-full bg-eden-bg text-eden-text-dark antialiased overflow-hidden font-sans selection:bg-eden-navy selection:text-white">
       
-      {/* 1. Sidebar connectée à la charte et à la navigation épurée */}
       <Sidebar
         currentView={view}
         onViewChange={(newView: DashboardView) => setView(newView)}
       />
 
-      {/* 2. Conteneur principal */}
       <div className="flex-1 flex flex-col min-w-0 h-full relative">
         
-        {/* Barre supérieure fixe */}
         <Topbar onNewMissionClick={() => setIsModalOpen(true)} />
 
-        {/* Vue défilante isolée avec transition globale */}
         <main className="flex-1 overflow-y-auto scrollbar-thin scroll-smooth pb-12 transition-all duration-300">
           {renderMainContent()}
         </main>
 
-        {/* TOAST DE NOTIFICATION PRESTIGE ET FLUIDE */}
         {notification && (
           <div className="fixed bottom-6 right-6 z-50 bg-eden-navy border border-eden-tan/30 text-white p-[14px_24px] rounded-xl shadow-2xl flex items-center gap-3 transition-all duration-300 animate-[slideIn_0.3s_ease-out] backdrop-blur-md">
             {isSubmitting ? (
@@ -199,7 +196,6 @@ export const Dashboard: React.FC = () => {
         )}
       </div>
 
-      {/* 3. Fenêtre modale de saisie */}
       <CreateMissionModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
