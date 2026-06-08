@@ -38,7 +38,35 @@ const limiter = rateLimit({
 });
 
 app.use(limiter);
-app.use(cors());
+
+// ==========================================
+// CONFIGURATION CORS CONFIGURÉE POUR LA PRODUCTION
+// ==========================================
+const allowedOrigins = [
+  'https://eden-hcr.vercel.app', // Ton domaine Vercel en production
+  'http://localhost:5173',        // Ton environnement de développement local (Vite)
+  'http://localhost:3000'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Permet les requêtes sans origine (comme Postman ou outils système)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Bloqué par la politique CORS d\'EDÈN Group'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
+// Réponse explicite aux requêtes de Preflight (OPTIONS) sur tous les endpoints
+app.options('*', cors());
+
 app.use(express.json());
 
 // ==========================================
