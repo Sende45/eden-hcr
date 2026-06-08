@@ -1,11 +1,13 @@
-// Définition stricte de toutes les vues internes accessibles depuis la Sidebar d'EDÈN Group
+// src/types/navigation.ts
+
 export type DashboardView = 
-  | 'dashboard' 
-  | 'missions' 
-  | 'candidates' 
-  | 'establishments' 
-  | 'planning' 
-  | 'contracts' 
-  | 'reports'   // Gère le composant ReportManager
-  | 'payments'  // Gère le composant PaymentManager
-  | 'messages'; // Gère le composant MessageManager
+  | 'dashboard'
+  | 'candidates'
+  | 'planning'
+  | 'contracts'
+  | 'establishments'
+  | 'missions'
+  | 'reports'
+  | 'payments'
+  | 'messages'
+  | 'superadmin'; // <-- Ajoute cette ligne ici

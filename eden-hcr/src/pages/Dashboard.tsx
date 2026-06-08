@@ -11,6 +11,7 @@ import { MissionManager } from '../components/MissionManager';
 import { ReportManager } from '../components/ReportManager';
 import { PaymentManager } from '../components/PaymentManager';
 import { MessageManager } from '../components/MessageManager'; // <-- Importation de la messagerie
+import { SuperAdminDashboard } from '../components/SuperAdminDashboard'; // <-- Importation de la vue SuperAdmin
 import { CreateMissionModal } from '../components/CreateMissionModal';
 import { type CreateMissionInput } from '../types/missionForm';
 import { type DashboardView } from '../types/navigation';
@@ -146,6 +147,12 @@ export const Dashboard: React.FC = () => {
         return (
           <div className="animate-[fadeInUp_0.35s_ease-out]">
             <MessageManager />
+          </div>
+        );
+      case 'superadmin': // <-- Routage chirurgical vers ton nouveau panneau directionnel
+        return (
+          <div className="animate-[fadeInUp_0.35s_ease-out]">
+            <SuperAdminDashboard />
           </div>
         );
       case 'dashboard':

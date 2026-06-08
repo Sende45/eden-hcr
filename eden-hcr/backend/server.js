@@ -15,6 +15,7 @@ import contratsRoutes from './routes/contratsRoutes.js';
 import planningRoutes from './routes/planningRoutes.js';
 import paiementsRoutes from './routes/paiementsRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import adminRoutes from './routes/adminRoutes.js'; // <-- Ajout de la route SuperAdmin
 
 // Import du middleware d'erreur centralisé
 import { errorHandler } from './middlewares/errorMiddleware.js';
@@ -51,6 +52,7 @@ app.use('/api/mission', missionRoutes);
 app.use('/api/contrats', contratsRoutes);
 app.use('/api/planning', planningRoutes);
 app.use('/api/paiements', paiementsRoutes);
+app.use('/api/admin', adminRoutes); // <-- Liaison de l'API SuperAdmin Atlas
 
 const connectDB = async () => {
   try {
