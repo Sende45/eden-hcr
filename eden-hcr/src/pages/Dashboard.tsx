@@ -15,7 +15,7 @@ import { SuperAdminDashboard } from '../components/SuperAdminDashboard';
 import { CreateMissionModal } from '../components/CreateMissionModal';
 import { type CreateMissionInput } from '../types/missionForm';
 import { type DashboardView } from '../types/navigation';
-import { ShieldAlert, Loader2 } from 'lucide-react';
+import { ShieldAlert, Loader2, AlertTriangle } from 'lucide-react';
 
 interface DashboardProps {
   user: { id: string; email: string; role: string } | null;
@@ -24,11 +24,16 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [notification, setNotification] = useState<string | null>(null);
-  const [view, setView] = useState<DashboardView>('dashboard');
+  
+  // Initialisation de la vue par défaut selon le rôle
+  const [view, setView] = useState<DashboardView>(
+    user?.role === 'superadmin' ? 'superadmin' : 'dashboard'
+  );
+  
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [hasToken, setHasToken] = useState<boolean>(true);
 
-  // Correction : Utilisation de la clé globale unifiée 'eden_token'
+  // Synchronisation de la session JWT via la clé globale unifiée
   useEffect(() => {
     const token = localStorage.getItem('eden_token');
     if (!token) {
@@ -36,12 +41,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     }
   }, [view]);
 
-  // ACTION DYNAMIQUE : ENVOI DE LA MISSION CRÉÉE VERS TON BACKEND MERN
+  // Si l'utilisateur change ou rafraîchit, on ajuste sa vue de départ
+  useEffect(() => {
+    if (user?.role === 'superadmin') {
+      setView('superadmin');
+    } else {
+      setView('dashboard');
+    }
+  }, [user]);
+
+  // ACTION DYNAMIQUE : ENVOI DE LA MISSION CRÉÉE VERS LE BACKEND MERN
   const handleCreateMission = useCallback(async (data: CreateMissionInput) => {
     setIsSubmitting(true);
     const token = localStorage.getItem('eden_token');
 
-    // Mapping propre des données du formulaire vers ton schéma Mongoose `Mission`
     const missionPayload = {
       etablissementId: "65f1a2b3c4d5e6f7a8b9c0d1", 
       posteRecherche: data.title, 
@@ -58,7 +71,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify(missionPayload)
       });
@@ -151,12 +164,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <MessageManager />
           </div>
         );
+        
       case 'superadmin': 
+        // 🔒 VERROU DE SÉCURITÉ STRICT : Si le rôle n'est pas superadmin, on bloque le rendu
+        if (user?.role !== 'superadmin') {
+          return (
+            <div className="flex flex-col items-center justify-center min-h-[70vh] w-full text-center p-6 font-sans">
+              <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-3 shadow-inner">
+                <AlertTriangle size={22} />
+              </div>
+              <h3 className="font-serif font-bold text-base text-eden-navy">Privilèges Insuffisants</h3>
+              <p className="text-[11px] text-eden-text-light font-light max-w-xs mt-1 leading-relaxed">
+                Cette console contient des indicateurs stratégiques globaux. Votre niveau d'accès actuel ne vous permet pas de consulter cette vue.
+              </p>
+            </div>
+          );
+        }
         return (
           <div className="animate-[fadeInUp_0.35s_ease-out]">
             <SuperAdminDashboard />
           </div>
         );
+        
       case 'dashboard':
       default:
         return (
@@ -171,9 +200,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   return (
     <div className="flex h-screen w-full bg-eden-bg text-eden-text-dark antialiased overflow-hidden font-sans selection:bg-eden-navy selection:text-white">
       
+      {/* La Sidebar masquera l'onglet SuperAdmin si l'utilisateur n'a pas le bon rôle */}
       <Sidebar
         currentView={view}
-        onViewChange={(newView: DashboardView) => setView(newView)}
+        onViewChange={(newView: DashboardView) => {
+          // Sécurité préventive au clic : empêche de forcer le changement de vue si pas superadmin
+          if (newView === 'superadmin' && user?.role !== 'superadmin') {
+            return;
+          }
+          setView(newView);
+        }}
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-full relative">

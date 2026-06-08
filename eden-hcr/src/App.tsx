@@ -40,6 +40,7 @@ function App() {
     }
   }, []);
 
+  // Fonction centrale pour déconnecter et nettoyer l'état MERN
   const handleLogout = () => {
     logout();
     setUser(null);
@@ -52,7 +53,7 @@ function App() {
       <div className="relative">
         <Dashboard user={user} />
         <button
-          onClick={handleLogout}
+          onClick={handleLogout} // <-- CORRIGÉ : Appel de la fonction globale propre
           className="fixed bottom-4 right-4 bg-eden-tan hover:bg-eden-navy text-white text-xs font-medium p-2 rounded-lg shadow-lg z-50 transition-colors cursor-pointer border-none"
         >
           ← Déconnexion Agence
@@ -70,7 +71,7 @@ function App() {
           <p className="text-xs text-eden-text-light font-light">Connexion effectuée avec succès via Atlas.</p>
         </div>
         <button
-          onClick={handleLogout}
+          onClick={handleLogout} // <-- CORRIGÉ : Appel de la fonction globale propre
           className="fixed bottom-4 right-4 bg-eden-tan hover:bg-eden-navy text-white text-xs font-medium p-2 rounded-lg shadow-lg z-50 transition-colors cursor-pointer border-none"
         >
           ← Déconnexion
