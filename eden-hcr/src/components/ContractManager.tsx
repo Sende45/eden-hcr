@@ -1,66 +1,104 @@
-import React, { useState, useMemo } from 'react';
-import { FileText, Search, Clock, CheckCircle, Download, Send } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FileText, Search, Clock, CheckCircle, Download, Send, Loader2, AlertCircle } from 'lucide-react';
 import { type HcrContract, type ContractStatus } from '../types/contract';
 
-const INITIAL_CONTRACTS: HcrContract[] = [
-  {
-    id: 'CTR-2026-001',
-    candidateName: 'Koffi Diallo',
-    establishmentName: 'Le Grand Récamier',
-    role: 'Chef de partie',
-    startDate: '05/06/2026',
-    endDate: '05/06/2026',
-    totalHours: 7,
-    grossAmount: 115.50,
-    status: 'signed'
-  },
-  {
-    id: 'CTR-2026-002',
-    candidateName: 'Sophie Bernard',
-    establishmentName: 'Hôtel National',
-    role: 'Réceptionniste',
-    startDate: '05/06/2026',
-    endDate: '05/06/2026',
-    totalHours: 8,
-    grossAmount: 132.00,
-    status: 'pending_signature'
-  },
-  {
-    id: 'CTR-2026-003',
-    candidateName: 'Amine Mekki',
-    establishmentName: 'Rooftop National',
-    role: 'Mixologue',
-    startDate: '06/06/2026',
-    endDate: '07/06/2026',
-    totalHours: 16,
-    grossAmount: 264.00,
-    status: 'pending_signature'
-  }
-];
-
 export const ContractManager: React.FC = () => {
-  const [contracts] = useState<HcrContract[]>(INITIAL_CONTRACTS);
+  const [contracts, setContracts] = useState<HcrContract[]>([]);
   const [filterStatus, setFilterStatus] = useState<ContractStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+  const [actionMessage, setActionMessage] = useState<string>('');
 
+  // 1. RÉCUPÉRATION DES CONTRATS CTT DEPUIS ATLAS
+  const fetchContracts = async () => {
+    setIsLoading(true);
+    setError('');
+    const token = localStorage.getItem('eden_token');
+
+    try {
+      const response = await fetch('https://eden-hcr.onrender.com/api/admin/contracts', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const resData = await response.json();
+
+      if (response.ok) {
+        setContracts(resData.data || resData);
+      } else {
+        setError(resData.message || "Erreur lors du chargement des contrats.");
+      }
+    } catch (err) {
+      console.error("Erreur ContractManager fetch :", err);
+      setError("Liaison interrompue avec le registre des contrats EDÈN.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchContracts();
+  }, []);
+
+  // 2. ENVOI DE RELANCE DE SIGNATURE AU BACKEND MERN (SMS / EMAIL)
+  const handleRemindCandidate = async (contractId: string, name: string) => {
+    const token = localStorage.getItem('eden_token');
+    setActionMessage(`Notification de relance pour ${name} en préparation...`);
+
+    try {
+      const response = await fetch(`https://eden-hcr.onrender.com/api/admin/contracts/${contractId}/remind`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const resData = await response.json();
+
+      if (response.ok) {
+        setActionMessage(`Relance SMS & Email transmise avec succès à ${name}.`);
+      } else {
+        setActionMessage(`Erreur serveur : ${resData.message}`);
+      }
+    } catch (err) {
+      console.error("Erreur lors de la relance contractuelle :", err);
+      setActionMessage("Échec de l'envoi : Serveur injoignable.");
+    } finally {
+      setTimeout(() => setActionMessage(''), 4000);
+    }
+  };
+
+  // Filtrage et recherche optimisés via useMemo
   const filteredContracts = useMemo(() => {
     return contracts.filter(contract => {
+      const contractId = contract.id || (contract as any)._id || '';
       const matchesStatus = filterStatus === 'all' || contract.status === filterStatus;
       const matchesSearch =
         contract.candidateName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         contract.establishmentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        contract.id.toLowerCase().includes(searchQuery.toLowerCase());
+        contractId.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesStatus && matchesSearch;
     });
   }, [contracts, filterStatus, searchQuery]);
 
-  const handleRemindCandidate = (contractId: string, name: string) => {
-    alert(`Relance SMS & Email envoyée avec succès à ${name} pour le contrat ${contractId}.`);
-  };
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 min-h-[400px] space-y-3 font-sans">
+        <Loader2 className="animate-spin text-eden-tan" size={32} />
+        <p className="text-xs text-eden-text-light font-light tracking-wide">Synchronisation du registre des contrats légaux...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-[24px_30px] font-sans space-y-6">
 
+      {/* PANNEAU RECHERCHE & HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-eden-bg2 border border-eden-border rounded-xl p-5 shadow-xs">
         <div className="space-y-1">
           <h2 className="font-serif font-semibold text-xl text-eden-navy tracking-wide flex items-center gap-2">
@@ -83,15 +121,30 @@ export const ContractManager: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 select-none">
+      {error && (
+        <div className="p-4 text-xs text-red-600 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-2">
+          <AlertCircle size={16} className="shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {actionMessage && (
+        <div className="p-3 text-xs text-eden-navy bg-eden-tan/10 border border-eden-tan/30 rounded-xl font-medium animate-pulse">
+          {actionMessage}
+        </div>
+      )}
+
+      {/* FILTRES DE STATUTS */}
+      <div className="flex items-center gap-2 select-none overflow-x-auto pb-1 scrollbar-none">
         {(['all', 'pending_signature', 'signed', 'archived'] as const).map(status => (
           <button
             key={status}
+            type="button"
             onClick={() => setFilterStatus(status)}
-            className={`p-[6px_14px] rounded-full border text-xs font-medium transition-all cursor-pointer border-eden-border
+            className={`p-[6px_14px] rounded-full border text-xs font-medium transition-all cursor-pointer whitespace-nowrap
               ${filterStatus === status
                 ? 'bg-eden-navy/10 border-eden-navy text-eden-navy font-semibold'
-                : 'bg-transparent text-eden-text-light hover:border-eden-tan hover:text-eden-text-dark'
+                : 'bg-transparent text-eden-text-light border-eden-border hover:border-eden-tan hover:text-eden-text-dark'
               }`}
           >
             {status === 'all' && 'Tous les contrats'}
@@ -102,6 +155,7 @@ export const ContractManager: React.FC = () => {
         ))}
       </div>
 
+      {/* TABLEAU DES CONTRATS ATLAS */}
       <div className="bg-eden-bg2 border border-eden-border rounded-xl shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
@@ -116,59 +170,66 @@ export const ContractManager: React.FC = () => {
                 <th className="p-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-eden-border/40 text-eden-text-dark">
-              {filteredContracts.map(contract => (
-                <tr key={contract.id} className="hover:bg-eden-bg/10 transition-colors">
-                  <td className="p-4 font-mono font-medium text-eden-navy">{contract.id}</td>
-                  <td className="p-4 font-semibold">{contract.candidateName}</td>
-                  <td className="p-4 text-eden-text-light">{contract.establishmentName}</td>
-                  <td className="p-4 space-y-0.5">
-                    <div>{contract.startDate}</div>
-                    <div className="text-[10px] text-eden-text-light font-light">
-                      {contract.totalHours}h de shift · {contract.role}
-                    </div>
-                  </td>
-                  <td className="p-4 font-medium text-eden-navy">{contract.grossAmount.toFixed(2)} €</td>
-                  <td className="p-4">
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold p-[2px_8px] rounded-full
-                      ${contract.status === 'signed'
-                        ? 'bg-eden-teal/10 text-eden-teal'
-                        : 'bg-eden-orange/10 text-eden-orange'
-                      }`}
-                    >
-                      {contract.status === 'signed' ? (
-                        <><CheckCircle size={10} /> Signé</>
-                      ) : (
-                        <><Clock size={10} /> En attente</>
-                      )}
-                    </span>
-                  </td>
-                  <td className="p-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {contract.status === 'pending_signature' ? (
-                        <button
-                          onClick={() => handleRemindCandidate(contract.id, contract.candidateName)}
-                          title="Relancer l'extra"
-                          className="p-1.5 text-eden-tan hover:text-eden-navy rounded-lg hover:bg-eden-bg transition-colors border-none bg-transparent cursor-pointer"
-                        >
-                          <Send size={14} />
-                        </button>
-                      ) : (
-                        <button
-                          title="Télécharger le PDF CTT"
-                          className="p-1.5 text-eden-text-light hover:text-eden-navy rounded-lg hover:bg-eden-bg transition-colors border-none bg-transparent cursor-pointer"
-                        >
-                          <Download size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+            <tbody className="divide-y divide-eden-border/40 text-eden-text-dark bg-white">
+              {filteredContracts.map(contract => {
+                const contractId = contract.id || (contract as any)._id;
+                return (
+                  <tr key={contractId} className="hover:bg-eden-bg/10 transition-colors">
+                    <td className="p-4 font-mono font-medium text-eden-navy">{contractId}</td>
+                    <td className="p-4 font-semibold">{contract.candidateName}</td>
+                    <td className="p-4 text-eden-text-light">{contract.establishmentName}</td>
+                    <td className="p-4 space-y-0.5">
+                      <div>{contract.startDate}</div>
+                      <div className="text-[10px] text-eden-text-light font-light">
+                        {contract.totalHours}h de shift · {contract.role}
+                      </div>
+                    </td>
+                    <td className="p-4 font-medium text-eden-navy">{contract.grossAmount.toFixed(2)} €</td>
+                    <td className="p-4">
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-semibold p-[2px_8px] rounded-full
+                        ${contract.status === 'signed'
+                          ? 'bg-eden-teal/10 text-eden-teal'
+                          : contract.status === 'archived'
+                          ? 'bg-eden-navy/10 text-eden-text-light'
+                          : 'bg-eden-orange/10 text-eden-orange'
+                        }`}
+                      >
+                        {contract.status === 'signed' && <><CheckCircle size={10} /> Signé</>}
+                        {contract.status === 'pending_signature' && <><Clock size={10} /> En attente</>}
+                        {contract.status === 'archived' && <><FileText size={10} /> Archivé</>}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {contract.status === 'pending_signature' ? (
+                          <button
+                            type="button"
+                            onClick={() => handleRemindCandidate(contractId, contract.candidateName)}
+                            title="Relancer l'extra"
+                            className="p-1.5 text-eden-tan hover:text-eden-navy rounded-lg hover:bg-eden-bg transition-colors border-none bg-transparent cursor-pointer"
+                          >
+                            <Send size={14} />
+                          </button>
+                        ) : (
+                          <a
+                            href={`https://eden-hcr.onrender.com/api/admin/contracts/${contractId}/pdf`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Télécharger le PDF CTT"
+                            className="p-1.5 text-eden-text-light hover:text-eden-navy rounded-lg hover:bg-eden-bg transition-colors flex items-center"
+                          >
+                            <Download size={14} />
+                          </a>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
 
               {filteredContracts.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-12 text-center text-eden-text-light font-light text-xs">
+                  <td colSpan={7} className="p-12 text-center text-eden-text-light font-light text-xs bg-eden-bg2/10">
                     Aucun contrat CTT ne correspond à vos critères actuels.
                   </td>
                 </tr>

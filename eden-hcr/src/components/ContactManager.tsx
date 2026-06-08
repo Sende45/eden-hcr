@@ -13,7 +13,8 @@ export const ContactManager: React.FC = () => {
     setErrorMessage('');
 
     try {
-      const response = await fetch('https://eden-hcr-backend.onrender.com/api/messagerie', {
+      // CORRECTION : Alignement constant sur ton nom de domaine API principal unique
+      const response = await fetch('https://eden-hcr.onrender.com/api/messagerie', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -44,9 +45,10 @@ export const ContactManager: React.FC = () => {
         </div>
         <h3 className="font-serif font-semibold text-2xl text-eden-navy">Demande transmise avec succès</h3>
         <p className="text-xs text-eden-text-light max-w-md mx-auto leading-relaxed">
-          Votre message a bien été pris en compte par la direction d'EDÈN Group. Un conseiller de l'agence HCR vous recontactera sous 24 heures ouvrées.
+          Votre message a bien été pris en compte par la direction d'EDÈN Group. Un conseiller de l'agence HCR vous recontactera sous 24 heures heures ouvrées.
         </p>
         <button 
+          type="button"
           onClick={() => { setIsSubmitted(false); setFormState({ name: '', email: '', subject: '', message: '' }); }}
           className="mt-4 text-xs font-semibold text-eden-tan hover:text-eden-navy transition-colors border-none bg-transparent cursor-pointer"
         >
@@ -60,7 +62,7 @@ export const ContactManager: React.FC = () => {
     <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
       {/* INFORMATIONS INSTITUTIONNELLES (5 COLONNES) */}
       <div className="lg:col-span-5 bg-eden-navy text-white p-8 rounded-2xl space-y-6 shadow-lg relative overflow-hidden">
-        <div className="absolute top-[-20%] right-[-20%] w-48 h-48 rounded-full border-[20px] border-[#b2976a]/5 pointer-events-none" />
+        <div className="absolute top-[-20%] right-[-20%] w-48 h-48 rounded-full border-[20px] border-[rgba(178,151,106,0.05)] pointer-events-none" />
         
         <div className="space-y-2 relative z-10">
           <h2 className="font-serif font-semibold text-2xl tracking-wide">Maison EDÈN</h2>
@@ -141,7 +143,7 @@ export const ContactManager: React.FC = () => {
               value={formState.message}
               onChange={(e) => setFormState({ ...formState, message: e.target.value })}
               placeholder="Décrivez votre besoin ou votre projet de collaboration avec précision..." 
-              className="w-full p-3 rounded-xl border border-eden-border text-xs focus:outline-none focus:border-eden-tan transition-colors bg-eden-bg2/30 resize-none" 
+              className="w-full p-3 rounded-xl border border-eden-border text-xs focus:outline-none focus:border-eden-tan transition-colors bg-eden-bg2/30 resize-none text-eden-text-dark leading-relaxed" 
             />
           </div>
 

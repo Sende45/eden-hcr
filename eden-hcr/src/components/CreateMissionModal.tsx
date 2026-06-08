@@ -42,20 +42,28 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
       <div className="bg-eden-bg2 border border-eden-border rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col relative">
         
         {/* EN-TÊTE DE LA MODAL */}
-        <div className="p-5 border-b border-eden-border/60 flex items-center justify-between bg-gradient-to-r from-eden-bg2 to-eden-bg/30">
+        <div className="p-5 border-b border-eden-border/60 flex items-center justify-between bg-gradient-to-r from-eden-bg2 to-eden-bg/30 select-none">
           <div>
             <h3 className="font-serif font-semibold text-lg text-eden-navy tracking-wide flex items-center gap-2">
               <Utensils size={18} className="text-eden-tan" /> Planifier une nouvelle mission HCR
             </h3>
             <p className="text-xs text-eden-text-light font-light mt-0.5">Configurez le besoin et la structure horaire du shift.</p>
           </div>
-          <button onClick={onClose} className="p-1.5 text-eden-text-light hover:text-eden-navy rounded-lg hover:bg-eden-bg transition-colors cursor-pointer">
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="p-1.5 text-eden-text-light hover:text-eden-navy rounded-lg hover:bg-eden-bg transition-colors cursor-pointer border-none bg-transparent"
+          >
             <X size={18} />
           </button>
         </div>
 
         {/* FORMULAIRE CONTAINER (SCROLLABLE) */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 flex-1 text-xs">
+        <form 
+          id="create-mission-form"
+          onSubmit={handleSubmit} 
+          className="p-6 overflow-y-auto space-y-5 flex-1 text-xs"
+        >
           
           {/* INFORMATIONS PRINCIPALES */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -64,9 +72,10 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
               <div className="relative">
                 <FileText size={14} className="absolute left-3 top-3 text-eden-text-light/60" />
                 <input 
-                  type="text" required
+                  type="text" 
+                  required
                   placeholder="ex: Serveur Banquet Extra"
-                  className="w-full bg-eden-bg border border-eden-border rounded-lg p-[9px_12px_9px_34px] text-eden-text-dark outline-hidden focus:border-eden-tan text-xs"
+                  className="w-full bg-eden-bg border border-eden-border rounded-lg p-[9px_12px_9px_34px] text-eden-text-dark outline-none focus:border-eden-tan text-xs"
                   value={formData.title}
                   onChange={e => setFormData({...formData, title: e.target.value})}
                 />
@@ -78,9 +87,10 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
               <div className="relative">
                 <Building2 size={14} className="absolute left-3 top-3 text-eden-text-light/60" />
                 <input 
-                  type="text" required
+                  type="text" 
+                  required
                   placeholder="ex: Brasserie L'Opéra"
-                  className="w-full bg-eden-bg border border-eden-border rounded-lg p-[9px_12px_9px_34px] text-eden-text-dark outline-hidden focus:border-eden-tan text-xs"
+                  className="w-full bg-eden-bg border border-eden-border rounded-lg p-[9px_12px_9px_34px] text-eden-text-dark outline-none focus:border-eden-tan text-xs"
                   value={formData.establishmentName}
                   onChange={e => setFormData({...formData, establishmentName: e.target.value})}
                 />
@@ -93,7 +103,7 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
             <div className="space-y-1">
               <label className="font-medium text-eden-navy block">Secteur métier</label>
               <select 
-                className="w-full bg-eden-bg border border-eden-border rounded-lg p-[9px_12px] text-eden-text-dark outline-hidden focus:border-eden-tan text-xs cursor-pointer"
+                className="w-full bg-eden-bg border border-eden-border rounded-lg p-[9px_12px] text-eden-text-dark outline-none focus:border-eden-tan text-xs cursor-pointer"
                 value={formData.sector}
                 onChange={e => setFormData({...formData, sector: e.target.value as HcrSector})}
               >
@@ -110,17 +120,19 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
               <div className="relative">
                 <Euro size={14} className="absolute left-3 top-3 text-eden-text-light/60" />
                 <input 
-                  type="number" step="0.01" required
-                  className="w-full bg-eden-bg border border-eden-border rounded-lg p-[9px_12px_9px_34px] text-eden-text-dark outline-hidden focus:border-eden-tan text-xs"
+                  type="number" 
+                  step="0.01" 
+                  required
+                  className="w-full bg-eden-bg border border-eden-border rounded-lg p-[9px_12px_9px_34px] text-eden-text-dark outline-none focus:border-eden-tan text-xs"
                   value={formData.ratePerHour}
-                  onChange={e => setFormData({...formData, ratePerHour: parseFloat(e.target.value)})}
+                  onChange={e => setFormData({...formData, ratePerHour: parseFloat(e.target.value) || 0})}
                 />
               </div>
             </div>
 
             {/* TOGGLE INDEMNITÉ REPAS */}
             <div className="space-y-1 flex flex-col justify-between">
-              <label className="font-medium text-eden-navy block">Avantage nourriture (MG)</label>
+              <label className="font-medium text-eden-navy block select-none">Avantage nourriture (MG)</label>
               <button 
                 type="button"
                 onClick={() => setFormData({...formData, includeMealAllowance: !formData.includeMealAllowance})}
@@ -141,8 +153,9 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
             <div className="space-y-1">
               <label className="font-medium text-eden-navy block">Date de début</label>
               <input 
-                type="date" required
-                className="w-full bg-eden-bg border border-eden-border rounded-lg p-[9px_12px] text-eden-text-dark outline-hidden focus:border-eden-tan text-xs"
+                type="date" 
+                required
+                className="w-full bg-eden-bg border border-eden-border rounded-lg p-[9px_12px] text-eden-text-dark outline-none focus:border-eden-tan text-xs"
                 value={formData.startDate}
                 onChange={e => setFormData({...formData, startDate: e.target.value})}
               />
@@ -150,8 +163,9 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
             <div className="space-y-1">
               <label className="font-medium text-eden-navy block">Date de fin</label>
               <input 
-                type="date" required
-                className="w-full bg-eden-bg border border-eden-border rounded-lg p-[9px_12px] text-eden-text-dark outline-hidden focus:border-eden-tan text-xs"
+                type="date" 
+                required
+                className="w-full bg-eden-bg border border-eden-border rounded-lg p-[9px_12px] text-eden-text-dark outline-none focus:border-eden-tan text-xs"
                 value={formData.endDate}
                 onChange={e => setFormData({...formData, endDate: e.target.value})}
               />
@@ -160,7 +174,7 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
 
           {/* BLOC HORAIRES / COUPURES CRITIQUES */}
           <div className="border border-eden-border rounded-xl p-4 bg-eden-bg/30 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between select-none">
               <span className="font-serif font-semibold text-sm text-eden-navy flex items-center gap-1.5">
                 <Clock size={15} className="text-eden-tan" /> Organisation du temps de travail
               </span>
@@ -170,7 +184,7 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
                   ...formData,
                   schedule: { ...formData.schedule, hasCut: !formData.schedule.hasCut }
                 })}
-                className="text-eden-tan hover:text-eden-navy font-medium text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                className="text-eden-tan hover:text-eden-navy font-medium text-[11px] flex items-center gap-1 cursor-pointer transition-colors border-none bg-transparent"
               >
                 {formData.schedule.hasCut ? "Supprimer la coupure" : "Activer un service en coupure"}
               </button>
@@ -181,8 +195,9 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
               <div className="space-y-1">
                 <label className="text-eden-text-light block">{formData.schedule.hasCut ? "Début service 1 (Midi)" : "Heure de prise de poste"}</label>
                 <input 
-                  type="time" required
-                  className="w-full bg-eden-bg border border-eden-border rounded-lg p-[8px_12px] text-eden-text-dark outline-hidden text-xs"
+                  type="time" 
+                  required
+                  className="w-full bg-eden-bg border border-eden-border rounded-lg p-[8px_12px] text-eden-text-dark outline-none text-xs"
                   value={formData.schedule.startHour}
                   onChange={e => setFormData({
                     ...formData,
@@ -193,8 +208,9 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
               <div className="space-y-1">
                 <label className="text-eden-text-light block">{formData.schedule.hasCut ? "Fin service 1 (Midi)" : "Heure de fin de poste"}</label>
                 <input 
-                  type="time" required
-                  className="w-full bg-eden-bg border border-eden-border rounded-lg p-[8px_12px] text-eden-text-dark outline-hidden text-xs"
+                  type="time" 
+                  required
+                  className="w-full bg-eden-bg border border-eden-border rounded-lg p-[8px_12px] text-eden-text-dark outline-none text-xs"
                   value={formData.schedule.endHour}
                   onChange={e => setFormData({
                     ...formData,
@@ -210,8 +226,9 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
                 <div className="space-y-1">
                   <label className="text-eden-text-light block">Début service 2 (Soir)</label>
                   <input 
-                    type="time" required={formData.schedule.hasCut}
-                    className="w-full bg-eden-bg border border-eden-border rounded-lg p-[8px_12px] text-eden-text-dark outline-hidden text-xs"
+                    type="time" 
+                    required={formData.schedule.hasCut}
+                    className="w-full bg-eden-bg border border-eden-border rounded-lg p-[8px_12px] text-eden-text-dark outline-none text-xs"
                     value={formData.schedule.secondStartHour}
                     onChange={e => setFormData({
                       ...formData,
@@ -222,8 +239,9 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
                 <div className="space-y-1">
                   <label className="text-eden-text-light block">Fin service 2 (Soir)</label>
                   <input 
-                    type="time" required={formData.schedule.hasCut}
-                    className="w-full bg-eden-bg border border-eden-border rounded-lg p-[8px_12px] text-eden-text-dark outline-hidden text-xs"
+                    type="time" 
+                    required={formData.schedule.hasCut}
+                    className="w-full bg-eden-bg border border-eden-border rounded-lg p-[8px_12px] text-eden-text-dark outline-none text-xs"
                     value={formData.schedule.secondEndHour}
                     onChange={e => setFormData({
                       ...formData,
@@ -241,7 +259,7 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
             <textarea 
               rows={3}
               placeholder="ex: Tenue de limonadier exigée (Tablier noir, chemise blanche). Expérience en plateau obligatoire."
-              className="w-full bg-eden-bg border border-eden-border rounded-lg p-[9px_12px] text-eden-text-dark outline-hidden focus:border-eden-tan text-xs resize-none"
+              className="w-full bg-eden-bg border border-eden-border rounded-lg p-[9px_12px] text-eden-text-dark outline-none focus:border-eden-tan text-xs resize-none"
               value={formData.description}
               onChange={e => setFormData({...formData, description: e.target.value})}
             />
@@ -250,16 +268,18 @@ export const CreateMissionModal: React.FC<CreateMissionModalProps> = ({ isOpen, 
         </form>
 
         {/* FOOTER ACTIONS */}
-        <div className="p-4 border-t border-eden-border/60 bg-eden-bg/30 flex items-center justify-end gap-3">
+        <div className="p-4 border-t border-eden-border/60 bg-eden-bg/30 flex items-center justify-end gap-3 select-none">
           <button 
-            type="button" onClick={onClose}
-            className="border border-eden-border hover:border-eden-tan text-eden-text-dark px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer"
+            type="button" 
+            onClick={onClose}
+            className="border border-eden-border bg-white text-eden-text-dark hover:border-eden-tan px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer"
           >
             Annuler
           </button>
           <button 
-            type="submit" onClick={handleSubmit}
-            className="bg-eden-navy hover:bg-eden-light-navy text-white px-5 py-2 rounded-lg font-medium shadow-xs transition-colors cursor-pointer"
+            type="submit" 
+            form="create-mission-form" // CORRECTION : Relie le bouton externe au déclenchement natif onSubmit du formulaire
+            className="bg-eden-navy hover:bg-eden-light-navy text-white px-5 py-2 rounded-lg font-medium shadow-xs transition-colors cursor-pointer border-none"
           >
             Publier l'offre d'extra
           </button>

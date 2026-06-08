@@ -1,51 +1,43 @@
 import React, { useEffect, useState } from 'react';
 import { Menu, User, Briefcase, Bell, Shield, LogOut } from 'lucide-react';
 
-// Déclaration de l'interface pour le typage strict des props
 export type HeaderProps = {
   onNavigateToDashboard: () => void;
   onNavigateToOnboarding: () => void;
   onNavigateToContact: () => void;
-  onNavigateToClientAuth: () => void; // <-- Ajout strict de la prop manquante
+  onNavigateToClientAuth: () => void;
 };
 
 export const Header: React.FC<HeaderProps> = ({ 
   onNavigateToDashboard, 
   onNavigateToOnboarding, 
   onNavigateToContact,
-  onNavigateToClientAuth // <-- Récupération de la prop
+  onNavigateToClientAuth
 }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
-  // Vérification de la présence du jeton MERN au montage pour adapter l'affichage
+  // Vérification de la présence du jeton MERN unifié au montage
   useEffect(() => {
-    const token = localStorage.getItem('userToken');
+    const token = localStorage.getItem('eden_token');
     setIsAuthenticated(!!token);
   }, []);
 
-  // Gestion de la déconnexion : purge du token de la stack et rechargement léger
+  // Gestion propre de la déconnexion : purge de la stack locale
   const handleLogout = () => {
-    localStorage.removeItem('userToken');
+    localStorage.removeItem('eden_token');
     setIsAuthenticated(false);
-    window.location.reload(); // Réinitialise l'état global de l'application proprement
+    window.location.href = '/'; // Redirection propre vers la racine vitrine
   };
 
   return (
     <header className="bg-eden-bg2/90 border-b border-eden-border px-6 py-4 sticky top-0 z-50 font-sans backdrop-blur-md shadow-2xs transition-all duration-300">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         
-        {/* LOGO RECOMPOSÉ CONVERTI EN BOUTON DE RETOUR À L'ACCUEIL */}
+        {/* LOGO EDÈN - BOUTON DE RETOUR À L'ACCUEIL VITRINE */}
         <button 
-          onClick={() => {
-            // Déclenche le retour à la vue d'accueil vitrine et ferme l'onboarding si ouvert
-            window.location.href = '#'; 
-            // On utilise la navigation standard pour réinitialiser la vue principale (similaire au clic sur Accueil)
-            // Si tu as un callback direct comme onNavigateToHome, tu peux aussi le mettre ici.
-            // Par défaut, rediriger vers la landing se fait via la gestion d'état ou le hash.
-            const homeBtn = document.querySelector('button[onClick*="Onboarding"]');
-            if(homeBtn) window.location.reload();
-          }}
-          className="flex items-center select-none group cursor-pointer transition-all duration-300 border-none bg-transparent text-left p-0 font-sans"
+          type="button"
+          onClick={() => { window.location.href = '/'; }}
+          className="flex items-center select-none group cursor-pointer transition-all duration-300 border-none bg-transparent text-left p-0 font-sans outline-none"
         >
           <div className="h-[42px] w-[58px] flex items-center justify-center overflow-hidden rounded-xl bg-eden-navy/5 p-1 border border-eden-border/30 transition-all duration-300 group-hover:bg-eden-navy/10 group-hover:border-eden-tan/40 shadow-2xs">
             <img 
@@ -66,10 +58,11 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* NAVIGATION DESKTOP */}
         <nav className="hidden md:flex items-center gap-8 text-[13px] font-semibold text-eden-text-dark/70 tracking-wide select-none">
-          <a href="#solutions" className="hover:text-eden-tan transition-colors duration-200 relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1.5px] after:bg-eden-tan hover:after:w-full after:transition-all after:duration-300">Nos Solutions</a>
-          <a href="#etablissements" className="hover:text-eden-tan transition-colors duration-200 relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1.5px] after:bg-eden-tan hover:after:w-full after:transition-all after:duration-300">Établissements</a>
+          <a href="#solutions" className="hover:text-eden-tan transition-colors duration-200 relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1.5px] after:bg-eden-tan hover:after:w-full after:transition-all after:duration-300 text-decoration-none">Nos Solutions</a>
+          <a href="#etablissements" className="hover:text-eden-tan transition-colors duration-200 relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1.5px] after:bg-eden-tan hover:after:w-full after:transition-all after:duration-300 text-decoration-none">Établissements</a>
           
           <button 
+            type="button"
             onClick={onNavigateToOnboarding}
             className="bg-transparent border-none p-0 font-sans font-semibold text-[13px] text-eden-text-dark/70 tracking-wide hover:text-eden-tan cursor-pointer transition-colors duration-200 relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1.5px] after:bg-eden-tan hover:after:w-full after:transition-all after:duration-300"
           >
@@ -77,6 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
           
           <button 
+            type="button"
             onClick={onNavigateToContact}
             className="bg-transparent border-none p-0 font-sans font-semibold text-[13px] text-eden-text-dark/70 tracking-wide hover:text-eden-tan cursor-pointer transition-colors duration-200 relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1.5px] after:bg-eden-tan hover:after:w-full after:transition-all after:duration-300"
           >
@@ -84,24 +78,25 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </nav>
 
-        {/* ACTIONS */}
+        {/* ACTIONS DE COMPTES ET ACCÈS ÉCOSYSTÈME */}
         <div className="flex items-center gap-4">
-          <button className="p-2 text-eden-text-light hover:text-eden-navy transition-colors relative border-none bg-transparent cursor-pointer group" aria-label="Notifications">
+          <button type="button" className="p-2 text-eden-text-light hover:text-eden-navy transition-colors relative border-none bg-transparent cursor-pointer group" aria-label="Notifications">
             <Bell size={18} className="transition-transform duration-300 group-hover:rotate-12" />
             <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-eden-orange rounded-full ring-2 ring-eden-bg2" />
           </button>
           
-          <a href="https://eden-group.co" className="hidden lg:flex items-center gap-2 border border-eden-border hover:border-eden-tan/60 hover:bg-eden-navy/[0.02] text-eden-text-dark px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 bg-transparent shadow-2xs">
+          <a href="https://eden-group.co" target="_blank" rel="noopener noreferrer" className="hidden lg:flex items-center gap-2 border border-eden-border hover:border-eden-tan/60 hover:bg-eden-navy/[0.02] text-eden-text-dark px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 bg-transparent shadow-2xs text-decoration-none">
             <Briefcase size={14} className="text-eden-text-light" /> Accès Nettoyage
           </a>
 
-          <button onClick={onNavigateToDashboard} className="hidden sm:flex items-center gap-2 text-eden-text-light hover:text-eden-navy hover:bg-eden-navy/5 px-3 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 border-none bg-transparent cursor-pointer">
+          <button type="button" onClick={onNavigateToDashboard} className="hidden sm:flex items-center gap-2 text-eden-text-light hover:text-eden-navy hover:bg-eden-navy/5 px-3 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 border-none bg-transparent cursor-pointer">
             <Shield size={14} className="text-eden-tan" /> Espace Agence
           </button>
 
-          {/* BOUTON ESPACE CLIENT DYNAMIQUE AVEC GESTION DE DÉCONNEXION MERN */}
+          {/* DYNAMISATION ESPACE CLIENT AVEC DECONNEXION UNIFIÉE */}
           {isAuthenticated ? (
             <button 
+              type="button"
               onClick={handleLogout}
               className="bg-eden-orange hover:bg-eden-orange/90 text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide flex items-center gap-2 transition-all duration-200 shadow-md active:scale-98 border-none cursor-pointer"
             >
@@ -109,6 +104,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           ) : (
             <button 
+              type="button"
               onClick={onNavigateToClientAuth}
               className="bg-eden-navy hover:bg-eden-light-navy text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide flex items-center gap-2 transition-all duration-200 shadow-md hover:shadow-eden-navy/10 active:scale-98 border-none cursor-pointer"
             >
@@ -116,7 +112,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          <button className="md:hidden p-2 text-eden-navy hover:bg-eden-navy/5 rounded-lg transition-colors border-none bg-transparent cursor-pointer" aria-label="Menu principal">
+          <button type="button" className="md:hidden p-2 text-eden-navy hover:bg-eden-navy/5 rounded-lg transition-colors border-none bg-transparent cursor-pointer" aria-label="Menu principal">
             <Menu size={20} />
           </button>
         </div>
