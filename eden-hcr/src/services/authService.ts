@@ -1,6 +1,6 @@
 // src/services/authService.ts
 
-const API_URL = 'https://eden-hcr.onrender.com/api';;
+const API_URL = 'https://eden-hcr.onrender.com/api';
 const TOKEN_KEY = 'eden_token';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -8,10 +8,9 @@ const TOKEN_KEY = 'eden_token';
 export interface AuthUser {
   id: string;
   email: string;
-  role: 'extra' | 'admin' | 'client';
+  role: 'extra' | 'admin' | 'superadmin' | 'client'; // <-- Ajout de superadmin pour coller à Atlas
   nom?: string;
   prenom?: string;
-  
 }
 
 export interface LoginResponse {
@@ -45,13 +44,15 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-/** Connexion prestataire — stocke automatiquement le token */
+/** Connexion unifiée — stocke automatiquement le token */
 export const login = async (email: string, password: string): Promise<LoginResponse> => {
-  const data = await apiFetch<{ token: string; data: AuthUser }>('/auth/login', {
+  // CORRECTION : Aligné sur le backend qui renvoie directement { token, user }
+  const data = await apiFetch<{ token: string; user: AuthUser }>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
-  const result: LoginResponse = { token: data.token, user: data.data };
+  
+  const result: LoginResponse = { token: data.token, user: data.user };
   setToken(result.token);
   return result;
 };
@@ -64,22 +65,25 @@ export const getMe = async (): Promise<AuthUser> => {
   const response = await fetch(`${API_URL}/auth/me`, { headers: authHeaders() });
   const data = await response.json();
   if (!response.ok) throw new Error(data.message ?? 'Session expirée.');
-  return data.data as AuthUser;
+  // CORRECTION : Aligné sur la structure unifiée user du backend
+  return data.user as AuthUser;
 };
 
-// ✅ Corrigé
+/** Inscription nouveau candidat — stocke automatiquement le token */
 export const register = async (payload: {
   email: string;
   password: string;
   nom: string;
   prenom: string;
-  role?: 'extra';   // ← cette ligne
+  role?: 'extra';
 }): Promise<LoginResponse> => {
-  const data = await apiFetch<{ token: string; data: AuthUser }>('/auth/register', {
+  // CORRECTION : Aligné sur le backend qui renvoie directement { token, user }
+  const data = await apiFetch<{ token: string; user: AuthUser }>('/auth/register', {
     method: 'POST',
     body: JSON.stringify({ role: 'extra', ...payload }),
   });
-  const result: LoginResponse = { token: data.token, user: data.data };
+  
+  const result: LoginResponse = { token: data.token, user: data.user };
   setToken(result.token);
   return result;
 };

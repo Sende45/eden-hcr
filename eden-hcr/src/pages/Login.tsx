@@ -70,15 +70,15 @@ export const Login: React.FC<LoginProps> = ({
           />
         </div>
 
-        {/* FORMULAIRES DYNAMISÉS */}
+        {/* FORMULAIRES DYNAMISÉS AVEC CASSE DU CACHE DE COMPOSANT (KEY) */}
         {activeTab === 'prestataire' && (
-          <PrestataireForm onSuccess={onPrestataireLoginSuccess} />
+          <PrestataireForm key="login-prestataire" onSuccess={onPrestataireLoginSuccess} />
         )}
         {activeTab === 'agence' && (
-          <AgenceForm onSuccess={onAdminLoginSuccess} />
+          <AgenceForm key="login-agence" onSuccess={onAdminLoginSuccess} />
         )}
         {activeTab === 'inscription' && (
-          <InscriptionForm onSuccess={onPrestataireLoginSuccess} />
+          <InscriptionForm key="register-candidat" onSuccess={onPrestataireLoginSuccess} />
         )}
 
       </div>
@@ -218,7 +218,8 @@ const AgenceForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
     try {
       const result = await login(email, password);
       
-      if (result.user.role === 'admin') {
+      // On autorise ici à la fois le rôle 'admin' et 'superadmin' provenant d'Atlas
+      if (result.user.role === 'admin' || result.user.role === 'superadmin') {
         onSuccess();
       } else {
         setError("Accès refusé. Ce compte ne possède pas les privilèges Agence.");
@@ -298,10 +299,10 @@ const LoginForm: React.FC<LoginFormProps> = ({
       </div>
     )}
 
-    <form onSubmit={onSubmit} className="space-y-4 text-xs">
+    <form onSubmit={onSubmit} className="space-y-4 text-xs" autoComplete="off">
 
       {isRegister && onPrenomChange && onNomChange && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 animate-[fadeIn_0.2s_ease-out]">
           <div className="space-y-1">
             <label className="font-medium text-eden-navy block">Prénom</label>
             <input
@@ -338,6 +339,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
             type="email"
             required
             disabled={isLoading}
+            autoComplete="none"
             placeholder={emailPlaceholder}
             value={email}
             onChange={e => onEmailChange(e.target.value)}
@@ -346,7 +348,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
         </div>
       </div>
 
-      {/* Mot de passe avec sécurité anti-remplissage automatique */}
+      {/* Mot de passe */}
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <label className="font-medium text-eden-navy block">Mot de passe</label>
@@ -362,7 +364,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
             type={showPassword ? 'text' : 'password'}
             required
             disabled={isLoading}
-            autoComplete="new-password" // <-- Force le navigateur à laisser le champ vide
+            autoComplete={isRegister ? "new-password" : "current-password"}
             placeholder="••••••••"
             value={password}
             onChange={e => onPasswordChange(e.target.value)}

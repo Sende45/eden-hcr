@@ -7,8 +7,8 @@ import Paiements from '../models/Paiements.js';
 // @route   GET /api/admin/metrics
 export const getSuperAdminMetrics = async (req, res, next) => {
   try {
-    // Sécurité supplémentaire : Vérification du rôle de l'utilisateur injecté par le middleware protect
-    if (req.user.role !== 'admin') {
+    // CORRECTION : On autorise 'admin' ET 'superadmin' à interroger les métriques Atlas
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       res.status(403);
       throw new Error("Accès refusé. Réservé à la direction EDÈN Group.");
     }
