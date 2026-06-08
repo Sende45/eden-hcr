@@ -5,8 +5,7 @@ import Paiements from '../models/Paiements.js';
 import Planning from '../models/Planning.js';
 import Contrat from '../models/Contrat.js';
 import Rapport from '../models/Rapport.js';
-import Message from '../models/Messagerie.js';
-import Channel from '../models/Channel.js';
+import Messagerie from '../models/Messagerie.js';
 
 // @desc    Obtenir les métriques globales du SuperAdmin
 // @route   GET /api/admin/metrics
@@ -99,16 +98,14 @@ export const getPayments = async (req, res, next) => {
 // @desc    Gestion Messagerie
 export const getMessages = async (req, res, next) => {
   try {
-    const channels = await Channel.find({});
-    const messages = await Message.find({});
-    res.status(200).json({ status: 'success', data: { channels, messages } });
+    const messages = await Messagerie.find({}).sort({ createdAt: -1 });
+    res.status(200).json({ status: 'success', data: messages });
   } catch (error) { next(error); }
 };
 
 export const sendMessage = async (req, res, next) => {
   try {
-    const { text } = req.body;
-    const newMessage = await Message.create({ channelId: req.params.channelId, sender: 'admin', text });
+    const newMessage = await Messagerie.create(req.body);
     res.status(201).json({ status: 'success', data: newMessage });
   } catch (error) { next(error); }
 };
