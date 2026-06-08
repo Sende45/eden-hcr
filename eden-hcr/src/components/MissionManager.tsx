@@ -39,7 +39,19 @@ export const MissionManager: React.FC = () => {
       const resData = await response.json();
 
       if (response.ok) {
-        setMissions(resData.data || resData);
+        console.log("Réponse missions :", resData);
+
+        const missionsData = Array.isArray(resData?.data)
+          ? resData.data
+          : Array.isArray(resData)
+          ? resData
+          : [];
+
+        setMissions(missionsData);
+
+        if (!Array.isArray(missionsData)) {
+          console.error("Les missions ne sont pas un tableau :", resData);
+        }
       } else {
         setError(resData.message || "Erreur lors du chargement du registre des missions.");
       }
