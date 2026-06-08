@@ -34,8 +34,19 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="bg-eden-bg2/90 border-b border-eden-border px-6 py-4 sticky top-0 z-50 font-sans backdrop-blur-md shadow-2xs transition-all duration-300">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         
-        {/* LOGO RECOMPOSÉ */}
-        <div className="flex items-center select-none group cursor-pointer transition-all duration-300">
+        {/* LOGO RECOMPOSÉ CONVERTI EN BOUTON DE RETOUR À L'ACCUEIL */}
+        <button 
+          onClick={() => {
+            // Déclenche le retour à la vue d'accueil vitrine et ferme l'onboarding si ouvert
+            window.location.href = '#'; 
+            // On utilise la navigation standard pour réinitialiser la vue principale (similaire au clic sur Accueil)
+            // Si tu as un callback direct comme onNavigateToHome, tu peux aussi le mettre ici.
+            // Par défaut, rediriger vers la landing se fait via la gestion d'état ou le hash.
+            const homeBtn = document.querySelector('button[onClick*="Onboarding"]');
+            if(homeBtn) window.location.reload();
+          }}
+          className="flex items-center select-none group cursor-pointer transition-all duration-300 border-none bg-transparent text-left p-0 font-sans"
+        >
           <div className="h-[42px] w-[58px] flex items-center justify-center overflow-hidden rounded-xl bg-eden-navy/5 p-1 border border-eden-border/30 transition-all duration-300 group-hover:bg-eden-navy/10 group-hover:border-eden-tan/40 shadow-2xs">
             <img 
               src="https://i.ibb.co/zTQJj8Tk/logo23-AJ.png" 
@@ -51,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
               HCR
             </div>
           </div>
-        </div>
+        </button>
 
         {/* NAVIGATION DESKTOP */}
         <nav className="hidden md:flex items-center gap-8 text-[13px] font-semibold text-eden-text-dark/70 tracking-wide select-none">
