@@ -15,7 +15,7 @@ import contratsRoutes from './routes/contratsRoutes.js';
 import planningRoutes from './routes/planningRoutes.js';
 import paiementsRoutes from './routes/paiementsRoutes.js';
 import authRoutes from './routes/authRoutes.js';
-import adminRoutes from './routes/adminRoutes.js'; // <-- Ajout de la route SuperAdmin
+import adminRoutes from './routes/adminRoutes.js';
 
 // Import du middleware d'erreur centralisé
 import { errorHandler } from './middlewares/errorMiddleware.js';
@@ -25,10 +25,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Limitation des requêtes pour sécuriser la production
+// ==========================================
+// RATE LIMITING
+// ==========================================
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // Fenêtre de 15 minutes
-  max: 100, // Limite chaque IP à 100 requêtes par fenêtre
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: {
     status: 'error',
     message: 'Trop de requêtes effectuées depuis cette adresse IP, réessayez plus tard.'
@@ -40,23 +42,21 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // ==========================================
-// CONFIGURATION CORS CONFIGURÉE POUR LA PRODUCTION
+// CONFIGURATION CORS
 // ==========================================
 const allowedOrigins = [
-  'https://eden-hcr.vercel.app', // Ton domaine Vercel en production
-  'http://localhost:5173',        // Ton environnement de développement local (Vite)
+  'https://eden-hcr.vercel.app',
+  'http://localhost:5173',
   'http://localhost:3000'
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Permet les requêtes sans origine (comme Postman ou outils système)
     if (!origin) return callback(null, true);
-    
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error('Bloqué par la politique CORS d\'EDÈN Group'));
+      callback(new Error("Bloqué par la politique CORS d'EDÈN Group"));
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -64,8 +64,8 @@ app.use(cors({
   credentials: true
 }));
 
-// Réponse explicite aux requêtes de Preflight (OPTIONS) sur tous les endpoints
-app.options('*', cors());
+// ✅ FIX : wildcard *splat compatible path-to-regexp v8 (remplace l'ancien *)
+app.options('*splat', cors());
 
 app.use(express.json());
 
@@ -80,45 +80,42 @@ app.use('/api/mission', missionRoutes);
 app.use('/api/contrats', contratsRoutes);
 app.use('/api/planning', planningRoutes);
 app.use('/api/paiements', paiementsRoutes);
-app.use('/api/admin', adminRoutes); // <-- Liaison de l'API SuperAdmin Atlas
+app.use('/api/admin', adminRoutes);
 
+// ==========================================
+// CONNEXION MONGODB
+// ==========================================
 const connectDB = async () => {
   try {
     if (!process.env.MONGO_URI) {
-      throw new Error('MONGO_URI manquante dans les variables d’environnement.');
+      throw new Error("MONGO_URI manquante dans les variables d'environnement.");
     }
-
     const conn = await mongoose.connect(process.env.MONGO_URI);
-
-    console.log(
-      `[MongoDB] Connecté avec succès. Base active : ${conn.connection.name}`
-    );
+    console.log(`[MongoDB] Connecté avec succès. Base active : ${conn.connection.name}`);
   } catch (error) {
-    console.error(
-      `[Erreur MongoDB] ${error.message}`
-    );
+    console.error(`[Erreur MongoDB] ${error.message}`);
     process.exit(1);
   }
 };
 
 connectDB();
 
+// ==========================================
+// ROUTE SANTÉ
+// ==========================================
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'success',
     message: 'Backend EDÈN HCR opérationnel',
-    database:
-      mongoose.connection.readyState === 1
-        ? 'Connected'
-        : 'Disconnected',
+    database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
   });
 });
 
-// Middleware d'erreur global (doit impérativement être placé après toutes les routes)
+// ==========================================
+// MIDDLEWARE ERREUR GLOBAL
+// ==========================================
 app.use(errorHandler);
 
 app.listen(PORT, () => {
-  console.log(
-    `[Serveur] Instance Express lancée sur le port ${PORT}`
-  );
+  console.log(`[Serveur] Instance Express lancée sur le port ${PORT}`);
 });
