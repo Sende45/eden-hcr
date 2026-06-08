@@ -4,9 +4,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 
-// ==========================================
-// IMPORTS DES ROUTES
-// ==========================================
 import messagerieRoutes from './routes/messagerieRoutes.js';
 import candidatRoutes from './routes/candidatRoutes.js';
 import etablissementRoutes from './routes/etablissementRoutes.js';
@@ -16,93 +13,75 @@ import planningRoutes from './routes/planningRoutes.js';
 import paiementsRoutes from './routes/paiementsRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
-
-// Import du middleware d'erreur centralisé
 import { errorHandler } from './middlewares/errorMiddleware.js';
 
 dotenv.config();
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 5000;
 
-// ==========================================
-// RATE LIMITING
-// ==========================================
-const limiter = rateLimit({
+// ── Rate limiting ──────────────────────────────────────────────────────────────
+app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  message: {
-    status: 'error',
-    message: 'Trop de requêtes effectuées depuis cette adresse IP, réessayez plus tard.'
-  },
   standardHeaders: true,
   legacyHeaders: false,
-});
+  message: { status: 'error', message: 'Trop de requêtes, réessayez plus tard.' }
+}));
 
-app.use(limiter);
-
-// ==========================================
-// CONFIGURATION CORS
-// ==========================================
+// ── CORS ───────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
   'https://eden-hcr.vercel.app',
   'http://localhost:5173',
-  'http://localhost:3000'
+  'http://localhost:3000',
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Autorise Postman / appels serveur sans origine
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error("Bloqué par la politique CORS d'EDÈN Group"));
-    }
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    console.warn(`[CORS] Origine bloquée : ${origin}`);
+    callback(new Error("Bloqué par la politique CORS d'EDÈN Group"));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
+  credentials: true,
+};
 
-// ✅ FIX : wildcard *splat compatible path-to-regexp v8 (remplace l'ancien *)
-app.options('*splat', cors());
+// Preflight sur toutes les routes (doit être AVANT app.use(cors()))
+app.options('*splat', cors(corsOptions));
+// CORS sur toutes les requêtes
+app.use(cors(corsOptions));
 
+// ── Body parser ────────────────────────────────────────────────────────────────
 app.use(express.json());
 
-// ==========================================
-// ROUTES DE L'API
-// ==========================================
-app.use('/api/auth', authRoutes);
-app.use('/api/messagerie', messagerieRoutes);
-app.use('/api/candidat', candidatRoutes);
+// ── Routes ─────────────────────────────────────────────────────────────────────
+app.use('/api/auth',          authRoutes);
+app.use('/api/messagerie',    messagerieRoutes);
+app.use('/api/candidat',      candidatRoutes);
 app.use('/api/etablissement', etablissementRoutes);
-app.use('/api/mission', missionRoutes);
-app.use('/api/contrats', contratsRoutes);
-app.use('/api/planning', planningRoutes);
-app.use('/api/paiements', paiementsRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/mission',       missionRoutes);
+app.use('/api/contrats',      contratsRoutes);
+app.use('/api/planning',      planningRoutes);
+app.use('/api/paiements',     paiementsRoutes);
+app.use('/api/admin',         adminRoutes);
 
-// ==========================================
-// CONNEXION MONGODB
-// ==========================================
+// ── MongoDB ────────────────────────────────────────────────────────────────────
 const connectDB = async () => {
   try {
-    if (!process.env.MONGO_URI) {
-      throw new Error("MONGO_URI manquante dans les variables d'environnement.");
-    }
+    if (!process.env.MONGO_URI) throw new Error("MONGO_URI manquante.");
     const conn = await mongoose.connect(process.env.MONGO_URI);
-    console.log(`[MongoDB] Connecté avec succès. Base active : ${conn.connection.name}`);
+    console.log(`[MongoDB] Connecté : ${conn.connection.name}`);
   } catch (error) {
     console.error(`[Erreur MongoDB] ${error.message}`);
     process.exit(1);
   }
 };
-
 connectDB();
 
-// ==========================================
-// ROUTE SANTÉ
-// ==========================================
+// ── Health check ───────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'success',
@@ -111,11 +90,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ==========================================
-// MIDDLEWARE ERREUR GLOBAL
-// ==========================================
+// ── Erreur globale ─────────────────────────────────────────────────────────────
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`[Serveur] Instance Express lancée sur le port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`[Serveur] Port ${PORT}`));
