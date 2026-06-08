@@ -12,7 +12,13 @@ const generateToken = (id) => {
 // @route   POST /api/auth/register
 export const registerUser = async (req, res, next) => {
   try {
-    const { email, password, role, candidatRef, etablissementRef } = req.body;
+    const { email, password, nom, prenom, role, candidatRef, etablissementRef } = req.body;
+
+    // Vérification basique pour éviter les erreurs serveur 500
+    if (!email || !password) {
+      res.status(400);
+      throw new Error('Email et mot de passe sont obligatoires.');
+    }
 
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -23,20 +29,29 @@ export const registerUser = async (req, res, next) => {
     const user = await User.create({
       email,
       password,
+      nom,
+      prenom,
       role: role || 'extra',
       candidatRef,
       etablissementRef
     });
 
-    res.status(201).json({
-      status: 'success',
-      token: generateToken(user._id),
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role
-      }
-    });
+    if (user) {
+      res.status(201).json({
+        status: 'success',
+        token: generateToken(user._id),
+        user: {
+          id: user._id,
+          email: user.email,
+          role: user.role,
+          nom: user.nom,
+          prenom: user.prenom
+        }
+      });
+    } else {
+      res.status(400);
+      throw new Error('Données utilisateur invalides.');
+    }
   } catch (error) {
     next(error);
   }
@@ -61,6 +76,8 @@ export const loginUser = async (req, res, next) => {
         id: user._id,
         email: user.email,
         role: user.role,
+        nom: user.nom,
+        prenom: user.prenom,
         candidatRef: user.candidatRef,
         etablissementRef: user.etablissementRef
       }
@@ -85,6 +102,8 @@ export const getMe = async (req, res, next) => {
       id: req.user._id,
       email: req.user.email,
       role: req.user.role,
+      nom: req.user.nom,
+      prenom: req.user.prenom,
       candidatRef: req.user.candidatRef,
       etablissementRef: req.user.etablissementRef
     });

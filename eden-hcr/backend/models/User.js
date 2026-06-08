@@ -19,8 +19,18 @@ const userSchema = new mongoose.Schema({
     enum: ['admin', 'superadmin', 'extra', 'etablissement'],
     required: [true, "Le rôle de l'utilisateur est obligatoire."]
   },
-  nom: { type: String, trim: true },
-  prenom: { type: String, trim: true },
+  nom: { 
+    type: String, 
+    trim: true,
+    // Rend le nom obligatoire uniquement si l'utilisateur est un extra
+    required: function() { return this.role === 'extra'; }
+  },
+  prenom: { 
+    type: String, 
+    trim: true,
+    // Rend le prénom obligatoire uniquement si l'utilisateur est un extra
+    required: function() { return this.role === 'extra'; }
+  },
   candidatRef: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Candidat'
