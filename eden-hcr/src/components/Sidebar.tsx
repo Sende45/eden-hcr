@@ -8,18 +8,20 @@ import {
   FileText, 
   BarChart3, 
   Coins, 
-  MessageSquare, // Corrigé pour correspondre à l'icône premium du MessageManager
+  MessageSquare, 
   Settings, 
-  ChevronRight 
+  ChevronRight,
+  ShieldCheck // Ajouté pour le bouton SuperAdmin
 } from 'lucide-react';
 import { type DashboardView } from '../types/navigation';
 
 export type SidebarProps = {
   currentView: DashboardView;
   onViewChange: (view: DashboardView) => void;
+  userRole?: string; // Ajouté pour filtrer l'affichage
 };
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, userRole }) => {
   return (
     <aside className="bg-eden-navy w-60 flex flex-col relative overflow-hidden min-h-screen font-sans select-none shrink-0">
       
@@ -54,6 +56,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) =
 
       {/* NAVIGATION INTERACTIVE */}
       <nav className="p-[22px_14px] flex-1 space-y-6 overflow-y-auto scrollbar-none relative z-10">
+        
+        {/* SECTION DIRECTION (SuperAdmin uniquement) */}
+        {userRole === 'superadmin' && (
+          <div className="space-y-0.5">
+            <div className="text-[9px] text-[#b2976a]/55 tracking-[3px] font-semibold uppercase px-2.5 mb-1.5">Direction</div>
+            <button 
+              onClick={() => onViewChange('superadmin')}
+              className={`w-full flex items-center gap-2.5 p-[9px_12px] rounded-lg text-xs tracking-wide cursor-pointer border-none text-left transition-all
+                ${currentView === 'superadmin' ? 'bg-[#b2976a]/18 text-eden-tan font-medium' : 'text-white/55 hover:bg-white/7 hover:text-white/90'}`}
+            >
+              <ShieldCheck size={16} className="opacity-90" /> Console SuperAdmin
+            </button>
+          </div>
+        )}
         
         {/* SECTION PRINCIPAL */}
         <div className="space-y-0.5">
@@ -114,7 +130,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) =
             <span className="ml-auto bg-eden-teal text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">3</span>
           </button>
           
-          {/* RACCORDÉ : RAPPORTS AGENCE */}
           <button 
             onClick={() => onViewChange('reports')}
             className={`w-full flex items-center gap-2.5 p-[9px_12px] rounded-lg text-xs tracking-wide cursor-pointer border-none text-left transition-all
@@ -123,7 +138,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) =
             <BarChart3 size={16} className="opacity-90" /> Rapports
           </button>
           
-          {/* RACCORDÉ : PAIEMENTS EXTRAS */}
           <button 
             onClick={() => onViewChange('payments')}
             className={`w-full flex items-center gap-2.5 p-[9px_12px] rounded-lg text-xs tracking-wide cursor-pointer border-none text-left transition-all
@@ -137,7 +151,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) =
         <div className="space-y-0.5">
           <div className="text-[9px] text-[#b2976a]/55 tracking-[3px] font-semibold uppercase px-2.5 mb-1.5">Outils</div>
           
-          {/* RACCORDÉ : MESSAGERIE CENTRALISÉE */}
           <button 
             onClick={() => onViewChange('messages')}
             className={`w-full flex items-center gap-2.5 p-[9px_12px] rounded-lg text-xs tracking-wide cursor-pointer border-none text-left transition-all

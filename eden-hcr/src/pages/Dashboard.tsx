@@ -41,7 +41,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     }
   }, [view]);
 
-  // Si l'utilisateur change ou rafraîchit, on ajuste sa vue de départ
+  // Si l'utilisateur change ou rafraîchit, on force l'ajustement de la vue
   useEffect(() => {
     if (user?.role === 'superadmin') {
       setView('superadmin');
@@ -117,56 +117,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const renderMainContent = () => {
     switch (view) {
       case 'candidates':
-        return (
-          <div className="animate-[fadeInUp_0.35s_ease-out]">
-            <CandidateManager />
-          </div>
-        );
+        return <div className="animate-[fadeInUp_0.35s_ease-out]"><CandidateManager /></div>;
       case 'planning':
-        return (
-          <div className="animate-[fadeInUp_0.35s_ease-out]">
-            <HcrCalendar />
-          </div>
-        );
+        return <div className="animate-[fadeInUp_0.35s_ease-out]"><HcrCalendar /></div>;
       case 'contracts':
-        return (
-          <div className="animate-[fadeInUp_0.35s_ease-out]">
-            <ContractManager />
-          </div>
-        );
+        return <div className="animate-[fadeInUp_0.35s_ease-out]"><ContractManager /></div>;
       case 'establishments':
-        return (
-          <div className="animate-[fadeInUp_0.35s_ease-out]">
-            <EstablishmentManager />
-          </div>
-        );
+        return <div className="animate-[fadeInUp_0.35s_ease-out]"><EstablishmentManager /></div>;
       case 'missions':
-        return (
-          <div className="animate-[fadeInUp_0.35s_ease-out]">
-            <MissionManager />
-          </div>
-        );
+        return <div className="animate-[fadeInUp_0.35s_ease-out]"><MissionManager /></div>;
       case 'reports':
-        return (
-          <div className="animate-[fadeInUp_0.35s_ease-out]">
-            <ReportManager />
-          </div>
-        );
+        return <div className="animate-[fadeInUp_0.35s_ease-out]"><ReportManager /></div>;
       case 'payments':
-        return (
-          <div className="animate-[fadeInUp_0.35s_ease-out]">
-            <PaymentManager />
-          </div>
-        );
+        return <div className="animate-[fadeInUp_0.35s_ease-out]"><PaymentManager /></div>;
       case 'messages': 
-        return (
-          <div className="animate-[fadeInUp_0.35s_ease-out]">
-            <MessageManager />
-          </div>
-        );
+        return <div className="animate-[fadeInUp_0.35s_ease-out]"><MessageManager /></div>;
         
       case 'superadmin': 
-        // 🔒 VERROU DE SÉCURITÉ STRICT : Si le rôle n'est pas superadmin, on bloque le rendu
         if (user?.role !== 'superadmin') {
           return (
             <div className="flex flex-col items-center justify-center min-h-[70vh] w-full text-center p-6 font-sans">
@@ -174,17 +141,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 <AlertTriangle size={22} />
               </div>
               <h3 className="font-serif font-bold text-base text-eden-navy">Privilèges Insuffisants</h3>
-              <p className="text-[11px] text-eden-text-light font-light max-w-xs mt-1 leading-relaxed">
-                Cette console contient des indicateurs stratégiques globaux. Votre niveau d'accès actuel ne vous permet pas de consulter cette vue.
-              </p>
             </div>
           );
         }
-        return (
-          <div className="animate-[fadeInUp_0.35s_ease-out]">
-            <SuperAdminDashboard />
-          </div>
-        );
+        return <div className="animate-[fadeInUp_0.35s_ease-out]"><SuperAdminDashboard /></div>;
         
       case 'dashboard':
       default:
@@ -200,11 +160,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   return (
     <div className="flex h-screen w-full bg-eden-bg text-eden-text-dark antialiased overflow-hidden font-sans selection:bg-eden-navy selection:text-white">
       
-      {/* La Sidebar masquera l'onglet SuperAdmin si l'utilisateur n'a pas le bon rôle */}
       <Sidebar
         currentView={view}
+        userRole={user?.role} // Transmission du rôle ici
         onViewChange={(newView: DashboardView) => {
-          // Sécurité préventive au clic : empêche de forcer le changement de vue si pas superadmin
           if (newView === 'superadmin' && user?.role !== 'superadmin') {
             return;
           }
@@ -213,20 +172,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-full relative">
-        
         <Topbar onNewMissionClick={() => setIsModalOpen(true)} />
-
         <main className="flex-1 overflow-y-auto scrollbar-thin scroll-smooth pb-12 transition-all duration-300">
           {renderMainContent()}
         </main>
 
         {notification && (
           <div className="fixed bottom-6 right-6 z-50 bg-eden-navy border border-eden-tan/30 text-white p-[14px_24px] rounded-xl shadow-2xl flex items-center gap-3 transition-all duration-300 animate-[slideIn_0.3s_ease-out] backdrop-blur-md">
-            {isSubmitting ? (
-              <Loader2 className="animate-spin text-eden-tan" size={14} />
-            ) : (
-              <span className="w-2 h-2 rounded-full bg-eden-teal animate-pulse" />
-            )}
+            {isSubmitting ? <Loader2 className="animate-spin text-eden-tan" size={14} /> : <span className="w-2 h-2 rounded-full bg-eden-teal animate-pulse" />}
             <p className="text-xs font-medium tracking-wide font-sans">{notification}</p>
           </div>
         )}

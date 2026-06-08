@@ -4,7 +4,8 @@ import { protect } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// Route sécurisée par JWT
+// On utilise le contrôleur getSuperAdminMetrics que tu as déjà défini
+// et qui contient toute ta logique (aggregate, countDocuments, etc.)
 router.get('/metrics', protect, getSuperAdminMetrics);
 
 export default router;

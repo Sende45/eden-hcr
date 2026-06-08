@@ -17,7 +17,7 @@ import { errorHandler } from './middlewares/errorMiddleware.js';
 
 dotenv.config();
 
-const app  = express();
+const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ── Rate limiting ──────────────────────────────────────────────────────────────
@@ -49,9 +49,7 @@ const corsOptions = {
   credentials: true,
 };
 
-// Preflight sur toutes les routes (doit être AVANT app.use(cors()))
-app.options('*splat', cors(corsOptions));
-// CORS sur toutes les requêtes
+// Application du middleware CORS (Gère automatiquement le preflight OPTIONS)
 app.use(cors(corsOptions));
 
 // ── Body parser ────────────────────────────────────────────────────────────────

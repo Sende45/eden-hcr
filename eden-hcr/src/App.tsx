@@ -9,7 +9,7 @@ import { getMe, isAuthenticated, logout } from './services/authService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type AppView = 'landing' | 'login' | 'dashboard' | 'dashboard-prestataire' | 'contact';
+type AppView = 'landing' | 'login' | 'dashboard' | 'superadmin' | 'dashboard-prestataire' | 'contact';
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -26,7 +26,9 @@ function App() {
       getMe()
         .then((profile) => {
           setUser(profile);
-          if (profile.role === 'admin' || profile.role === 'superadmin') {
+          if (profile.role === 'superadmin') {
+            setCurrentView('superadmin');
+          } else if (profile.role === 'admin') {
             setCurrentView('dashboard');
           } else {
             setCurrentView('dashboard-prestataire');
@@ -47,13 +49,28 @@ function App() {
     setCurrentView('landing');
   };
 
-  // ── ÉCRAN : Dashboard Admin / SuperAdmin ─────────────────────────────────────
+  // ── ÉCRAN : Dashboard SuperAdmin ─────────────────────────────────────────────
+  if (currentView === 'superadmin') {
+    return (
+      <div className="relative">
+        <Dashboard user={user} />
+        <button
+          onClick={handleLogout}
+          className="fixed bottom-4 right-4 bg-eden-tan hover:bg-eden-navy text-white text-xs font-medium p-2 rounded-lg shadow-lg z-50 transition-colors cursor-pointer border-none"
+        >
+          ← Déconnexion SuperAdmin
+        </button>
+      </div>
+    );
+  }
+
+  // ── ÉCRAN : Dashboard Admin ────────────────────────────────────────────────
   if (currentView === 'dashboard') {
     return (
       <div className="relative">
         <Dashboard user={user} />
         <button
-          onClick={handleLogout} // <-- CORRIGÉ : Appel de la fonction globale propre
+          onClick={handleLogout}
           className="fixed bottom-4 right-4 bg-eden-tan hover:bg-eden-navy text-white text-xs font-medium p-2 rounded-lg shadow-lg z-50 transition-colors cursor-pointer border-none"
         >
           ← Déconnexion Agence
@@ -71,7 +88,7 @@ function App() {
           <p className="text-xs text-eden-text-light font-light">Connexion effectuée avec succès via Atlas.</p>
         </div>
         <button
-          onClick={handleLogout} // <-- CORRIGÉ : Appel de la fonction globale propre
+          onClick={handleLogout}
           className="fixed bottom-4 right-4 bg-eden-tan hover:bg-eden-navy text-white text-xs font-medium p-2 rounded-lg shadow-lg z-50 transition-colors cursor-pointer border-none"
         >
           ← Déconnexion
@@ -93,7 +110,11 @@ function App() {
             getMe()
               .then((profile) => {
                 setUser(profile);
-                setCurrentView('dashboard');
+                if (profile.role === 'superadmin') {
+                  setCurrentView('superadmin');
+                } else {
+                  setCurrentView('dashboard');
+                }
               })
               .catch(() => {
                 setCurrentView('dashboard');
