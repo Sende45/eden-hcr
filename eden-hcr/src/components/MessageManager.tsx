@@ -94,16 +94,49 @@ export const MessageManager: React.FC = () => {
     setNewMessageText('');
   };
 
-  // ENVOI D'UN BROADCAST (ALERTE MASSIVE)
-  const handleSendBroadcast = (e: React.FormEvent) => {
+  // ENVOI D'UN BROADCAST (ALERTE MASSIVE & PUBLICATION DE SHIFT DE PRODUCTION)
+  const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!broadcastText.trim()) return;
 
-    console.log(`Pousse d'alerte de masse aux profils [${broadcastTarget}] :`, broadcastText);
-    alert(`Alerte PUSH & SMS envoyée avec succès à tous les profils "${broadcastTarget}" actifs !`);
-    
-    setBroadcastText('');
-    setBroadcastMode(false);
+    // 1. Récupération du jeton JWT indispensable
+    const token = localStorage.getItem('userToken');
+
+    // 2. Structuration du payload conforme au modèle Mongoose Mission
+    const missionPayload = {
+      etablissementId: "65f1a2b3c4d5e6f7a8b9c0d1", // ID temporaire de validation
+      posteRecherche: broadcastTarget === 'serveur' ? 'Chef de Rang' : broadcastTarget === 'barman' ? 'Mixologue' : 'Chef de Partie',
+      dateDebut: new Date(),
+      dateFin: new Date(Date.now() + 8 * 60 * 60 * 1000), // Shift standard de 8h
+      nombreExtras: 1,
+      tauxHoraireBrut: 19.5,
+      briefing: broadcastText,
+      statutMission: 'ouverte'
+    };
+
+    try {
+      const response = await fetch('https://eden-hcr-backend.onrender.com/api/mission', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Protection JWT active
+        },
+        body: JSON.stringify(missionPayload)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(`Alerte Coup de feu diffusée et enregistrée dans MongoDB avec succès !`);
+        setBroadcastText('');
+        setBroadcastMode(false);
+      } else {
+        alert(`Erreur de transmission : ${data.message}`);
+      }
+    } catch (error) {
+      console.error("Erreur réseau broadcast :", error);
+      alert("Impossible de joindre le serveur pour publier la mission d'urgence.");
+    }
   };
 
   return (

@@ -1,9 +1,11 @@
 import express from 'express';
 import { createContrat, getContratsByCandidat } from '../controllers/contratsController.js';
+import { protect } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-router.post('/', createContrat);
-router.get('/candidat/:candidatId', getContratsByCandidat);
+// Seuls les utilisateurs connectés peuvent manipuler les contrats
+router.post('/', protect, createContrat);
+router.get('/candidat/:candidatId', protect, getContratsByCandidat);
 
 export default router;

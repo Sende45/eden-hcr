@@ -93,11 +93,16 @@ export const CandidateOnboarding: React.FC<{ onComplete: () => void }> = ({ onCo
       cvUrl: "" // Initialisation de l'emplacement de fichier
     };
 
+    // 1. Récupération du jeton de sécurité stocké au moment de la connexion
+    const token = localStorage.getItem('userToken');
+
     try {
       const response = await fetch('https://eden-hcr-backend.onrender.com/api/candidat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          // 2. Injection du Token JWT pour ouvrir la barrière du middleware protect
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(backendPayload),
       });
