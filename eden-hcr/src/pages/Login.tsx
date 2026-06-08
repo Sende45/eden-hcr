@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import {
-  Mail, Lock, Loader2, ArrowRight,
+  Mail, Lock, Loader2, ArrowRight, UserPlus,
   Eye, EyeOff, ShieldCheck, UserCheck, AlertCircle
 } from 'lucide-react';
 import { AuthLayout } from '../components/AuthLayout';
-import { login } from '../services/authService';
+import { login, register } from '../services/authService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'prestataire' | 'agence';
+type Tab = 'prestataire' | 'agence' | 'inscription';
 
 export type LoginProps = {
   onPrestataireLoginSuccess: (userData: { id: string; email: string; role: string }) => void;
   onAdminLoginSuccess: () => void;
 };
 
-// ─── Composant racine renommé ─────────────────────────────────────────────────
+// ─── Composant racine unifié ──────────────────────────────────────────────────
 
 export const Login: React.FC<LoginProps> = ({
   onPrestataireLoginSuccess,
@@ -39,16 +39,22 @@ export const Login: React.FC<LoginProps> = ({
 
         {/* ONGLETS */}
         <div className="relative flex bg-eden-bg2 border border-eden-border rounded-xl p-1 gap-1">
-          {/* Curseur glissant */}
           <div
-            className="absolute top-1 bottom-1 w-[calc(50%-6px)] bg-white rounded-lg shadow-sm transition-all duration-300 ease-in-out"
-            style={{ left: activeTab === 'prestataire' ? '4px' : 'calc(50% + 2px)' }}
+            className="absolute top-1 bottom-1 bg-white rounded-lg shadow-sm transition-all duration-300 ease-in-out"
+            style={{
+              width: 'calc(33.33% - 4px)',
+              left: activeTab === 'prestataire' 
+                ? '4px' 
+                : activeTab === 'agence' 
+                  ? 'calc(33.33% + 2px)' 
+                  : 'calc(66.66% + 2px)'
+            }}
           />
           <TabButton
             active={activeTab === 'prestataire'}
             onClick={() => setActiveTab('prestataire')}
             icon={<UserCheck size={13} />}
-            label="Prestataire / Extra"
+            label="Connexion Extra"
           />
           <TabButton
             active={activeTab === 'agence'}
@@ -56,13 +62,23 @@ export const Login: React.FC<LoginProps> = ({
             icon={<ShieldCheck size={13} />}
             label="Admin Agence"
           />
+          <TabButton
+            active={activeTab === 'inscription'}
+            onClick={() => setActiveTab('inscription')}
+            icon={<UserPlus size={13} />}
+            label="Rejoindre"
+          />
         </div>
 
         {/* FORMULAIRES DYNAMISÉS */}
-        {activeTab === 'prestataire' ? (
+        {activeTab === 'prestataire' && (
           <PrestataireForm onSuccess={onPrestataireLoginSuccess} />
-        ) : (
+        )}
+        {activeTab === 'agence' && (
           <AgenceForm onSuccess={onAdminLoginSuccess} />
+        )}
+        {activeTab === 'inscription' && (
+          <InscriptionForm onSuccess={onPrestataireLoginSuccess} />
         )}
 
       </div>
@@ -81,7 +97,7 @@ const TabButton: React.FC<{
   <button
     type="button"
     onClick={onClick}
-    className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-[11px] font-semibold tracking-wide transition-colors duration-200 border-none cursor-pointer bg-transparent ${
+    className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2.5 px-1 rounded-lg text-[10px] font-semibold tracking-wide transition-colors duration-200 border-none cursor-pointer bg-transparent ${
       active ? 'text-eden-navy' : 'text-eden-text-light hover:text-eden-navy/60'
     }`}
   >
@@ -90,7 +106,7 @@ const TabButton: React.FC<{
   </button>
 );
 
-// ─── Formulaire Prestataire ───────────────────────────────────────────────────
+// ─── Formulaire Connexion Prestataire ─────────────────────────────────────────
 
 const PrestataireForm: React.FC<{
   onSuccess: (userData: { id: string; email: string; role: string }) => void;
@@ -134,6 +150,57 @@ const PrestataireForm: React.FC<{
   );
 };
 
+// ─── Formulaire Inscription Nouveau Candidat ───────────────────────────────────
+
+const InscriptionForm: React.FC<{
+  onSuccess: (userData: { id: string; email: string; role: string }) => void;
+}> = ({ onSuccess }) => {
+  const [nom, setNom]                 = useState('');
+  const [prenom, setPrenom]           = useState('');
+  const [email, setEmail]             = useState('');
+  const [password, setPassword]       = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading]     = useState(false);
+  const [error, setError]             = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await register({ email, password, nom, prenom, role: 'extra' });
+      onSuccess({ id: result.user.id, email: result.user.email, role: String(result.user.role) });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur lors de l'inscription.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <LoginForm
+      subtitle="Rejoignez la brigade EDÈN HCR et accédez aux meilleures missions de prestige."
+      error={error}
+      onSubmit={handleSubmit}
+      isLoading={isLoading}
+      email={email}
+      onEmailChange={setEmail}
+      password={password}
+      onPasswordChange={setPassword}
+      showPassword={showPassword}
+      onTogglePassword={() => setShowPassword(v => !v)}
+      emailPlaceholder="Ex: jean.dupont@email.com"
+      submitLabel="Créer mon compte candidat"
+      loadingLabel="Création du profil..."
+      isRegister={true}
+      nom={nom}
+      onNomChange={setNom}
+      prenom={prenom}
+      onPrenomChange={setPrenom}
+    />
+  );
+};
+
 // ─── Formulaire Admin DYNAMIQUE ATLAS MERN ────────────────────────────────────
 
 const AgenceForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
@@ -149,7 +216,6 @@ const AgenceForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
     setIsLoading(true);
     
     try {
-      // Appel API réel pour vérifier l'admin dans MongoDB Atlas
       const result = await login(email, password);
       
       if (result.user.role === 'admin') {
@@ -182,7 +248,7 @@ const AgenceForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
         onPasswordChange={setPassword}
         showPassword={showPassword}
         onTogglePassword={() => setShowPassword(v => !v)}
-        emailPlaceholder="yohannesende@gmail.com"
+        emailPlaceholder="Saisissez votre email administrateur"
         submitLabel="Accéder à la console"
         loadingLabel="Vérification des accès..."
       />
@@ -190,7 +256,7 @@ const AgenceForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
   );
 };
 
-// ─── Formulaire générique partagé ─────────────────────────────────────────────
+// ─── Formulaire générique partagé unifié ───────────────────────────────────────
 
 type LoginFormProps = {
   subtitle?: string;
@@ -206,6 +272,11 @@ type LoginFormProps = {
   emailPlaceholder: string;
   submitLabel: string;
   loadingLabel: string;
+  isRegister?: boolean;
+  nom?: string;
+  onNomChange?: (v: string) => void;
+  prenom?: string;
+  onPrenomChange?: (v: string) => void;
 };
 
 const LoginForm: React.FC<LoginFormProps> = ({
@@ -213,6 +284,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
   email, onEmailChange, password, onPasswordChange,
   showPassword, onTogglePassword,
   emailPlaceholder, submitLabel, loadingLabel,
+  isRegister = false, nom = '', onNomChange, prenom = '', onPrenomChange
 }) => (
   <div className="space-y-4">
     {subtitle && (
@@ -227,6 +299,35 @@ const LoginForm: React.FC<LoginFormProps> = ({
     )}
 
     <form onSubmit={onSubmit} className="space-y-4 text-xs">
+
+      {isRegister && onPrenomChange && onNomChange && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="font-medium text-eden-navy block">Prénom</label>
+            <input
+              type="text"
+              required
+              disabled={isLoading}
+              placeholder="Jean"
+              value={prenom}
+              onChange={e => onPrenomChange(e.target.value)}
+              className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_12px] text-eden-text-dark outline-hidden focus:border-eden-tan text-xs disabled:opacity-60 transition-all"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="font-medium text-eden-navy block">Nom</label>
+            <input
+              type="text"
+              required
+              disabled={isLoading}
+              placeholder="Dupont"
+              value={nom}
+              onChange={e => onNomChange(e.target.value)}
+              className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_12px] text-eden-text-dark outline-hidden focus:border-eden-tan text-xs disabled:opacity-60 transition-all"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Email */}
       <div className="space-y-1">
@@ -245,13 +346,15 @@ const LoginForm: React.FC<LoginFormProps> = ({
         </div>
       </div>
 
-      {/* Mot de passe */}
+      {/* Mot de passe avec sécurité anti-remplissage automatique */}
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <label className="font-medium text-eden-navy block">Mot de passe</label>
-          <button type="button" className="text-[11px] text-eden-tan hover:text-eden-navy font-medium border-none bg-transparent cursor-pointer">
-            Oublié ?
-          </button>
+          {!isRegister && (
+            <button type="button" className="text-[11px] text-eden-tan hover:text-eden-navy font-medium border-none bg-transparent cursor-pointer">
+              Oublié ?
+            </button>
+          )}
         </div>
         <div className="relative">
           <Lock size={14} className="absolute left-3 top-3.5 text-eden-text-light/60" />
@@ -259,6 +362,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
             type={showPassword ? 'text' : 'password'}
             required
             disabled={isLoading}
+            autoComplete="new-password" // <-- Force le navigateur à laisser le champ vide
             placeholder="••••••••"
             value={password}
             onChange={e => onPasswordChange(e.target.value)}
