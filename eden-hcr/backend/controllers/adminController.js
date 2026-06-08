@@ -5,7 +5,7 @@ import Paiements from '../models/Paiements.js';
 import Planning from '../models/Planning.js';
 import Contrat from '../models/Contrat.js';
 import Rapport from '../models/Rapport.js';
-import Message from '../models/Message.js';
+import Message from '../models/Messagerie.js';
 import Channel from '../models/Channel.js';
 
 // @desc    Obtenir les métriques globales du SuperAdmin
