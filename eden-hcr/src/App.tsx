@@ -5,6 +5,7 @@ import { Footer } from './components/Footer';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { ClientLogin } from './pages/ClientLogin'; // <-- Importation de l'écran Client
+import { AuthLogin } from './components/AuthLogin'; // <-- Importation de l'écran générique pour couplage direct
 import { Mail, Phone, MapPin, Send, CheckCircle2 } from 'lucide-react'; // Ajout des icônes pour le contact premium
 
 type AppView = 'landing' | 'login' | 'dashboard' | 'contact' | 'client-login'; // <-- Ajout strict de 'client-login'
@@ -24,7 +25,10 @@ function App() {
       <div className="relative">
         <Dashboard />
         <button
-          onClick={() => setCurrentView('landing')}
+          onClick={() => {
+            localStorage.removeItem('userToken'); // Purge de sécurité
+            setCurrentView('landing');
+          }}
           className="fixed bottom-4 right-4 bg-eden-tan hover:bg-eden-navy text-white text-xs font-medium p-2 rounded-lg shadow-lg z-50 transition-colors cursor-pointer border-none"
         >
           ← Déconnexion Agence
@@ -36,8 +40,20 @@ function App() {
   // ÉCRAN 2 : Formulaire de connexion sécurisé (Login)
   if (currentView === 'login') {
     return (
-      <div className="relative">
-        <Login onLoginSuccess={() => setCurrentView('dashboard')} />
+      <div className="relative min-h-screen bg-eden-bg flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        {/* Intégration dynamique d'AuthLogin pour router intelligemment selon le rôle bdd */}
+        <AuthLogin 
+          onLoginSuccess={(userData) => {
+            if (userData.role === 'admin') {
+              setCurrentView('dashboard');
+            } else {
+              alert(`Connexion réussie en tant que ${userData.role}. Espace Intérimaire en cours d'intégration.`);
+              setCurrentView('landing');
+            }
+          }}
+          onNavigateToAdmin={() => setCurrentView('dashboard')} // Permet d'ouvrir le Dashboard (qui bloquera si pas de token)
+        />
+        
         <button
           onClick={() => setCurrentView('landing')}
           className="fixed bottom-4 right-4 bg-eden-navy hover:bg-eden-light-navy text-white text-xs font-medium p-2.5 rounded-xl shadow-lg z-50 transition-colors cursor-pointer border-none"
@@ -131,7 +147,7 @@ function App() {
                         className="bg-eden-bg border border-eden-border rounded-xl p-3 text-xs outline-hidden focus:border-eden-tan text-eden-text-dark" 
                       />
                     </div>
-                    <div className="flex flex-col gap-1.5">
+                    <div className="grid flex flex-col gap-1.5">
                       <label className="text-[10px] font-semibold uppercase tracking-wider text-eden-navy">Adresse Email</label>
                       <input 
                         type="email" required value={contactForm.email}
