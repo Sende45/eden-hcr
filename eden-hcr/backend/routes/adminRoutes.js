@@ -4,9 +4,9 @@ import { protect } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// Si ton frontend appelle /api/admin/metrics
-// Dans server.js tu as : app.use('/api/admin', adminRoutes);
-// Donc ici, la route doit être juste '/metrics'
+// On fait pointer les anciennes routes vers la fonction consolidée
 router.get('/metrics', protect, getSuperAdminMetrics);
+router.get('/dashboard/stats', protect, getSuperAdminMetrics); // Alias pour ton front
+router.get('/missions', protect, getSuperAdminMetrics);       // Alias pour ton front
 
 export default router;
