@@ -1,7 +1,6 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const adminMetricSchema = new mongoose.Schema({
-  // Utilise '_id' pour correspondre à MongoDB
   stats: {
     totalExtras: { type: Number, default: 0 },
     totalEntreprises: { type: Number, default: 0 },
@@ -15,6 +14,11 @@ const adminMetricSchema = new mongoose.Schema({
     }]
   },
   agence: { type: String, default: 'AGENCE PARIS' }
-}, { collection: 'adminmetrics' }); // Force le nom de la collection ici
+}, { 
+  collection: 'adminmetrics',
+  timestamps: true // Ajouté pour gérer createdAt/updatedAt automatiquement
+});
 
-module.exports = mongoose.model('AdminMetric', adminMetricSchema);
+const AdminMetric = mongoose.model('AdminMetric', adminMetricSchema);
+
+export default AdminMetric;
