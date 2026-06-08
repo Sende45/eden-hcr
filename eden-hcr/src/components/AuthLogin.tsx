@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Lock, LogIn, ShieldCheck, AlertCircle, ShieldAlert } from 'lucide-react';
+// 1. Importation du service d'authentification centralisé MERN
+import { login as apiLogin } from '../services/authService';
 
 interface AuthLoginProps {
   onLoginSuccess: (userData: { id: string; email: string; role: string }) => void;
@@ -18,28 +20,19 @@ export const AuthLogin: React.FC<AuthLoginProps> = ({ onLoginSuccess, onNavigate
     setError('');
 
     try {
-      const response = await fetch('https://eden-hcr-backend.onrender.com/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      // 2. Utilisation de ton service à la place du fetch brut pour normaliser la réponse
+      const result = await apiLogin(email, password);
+
+      // 3. Déclenchement du callback parent avec les infos normalisées
+      onLoginSuccess({
+        id: result.user.id,
+        email: result.user.email,
+        role: result.user.role
       });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // 1. Stockage du jeton de sécurité indispensable pour le middleware protect
-        localStorage.setItem('userToken', data.token);
-        
-        // 2. Déclenchement du callback avec les infos de l'utilisateur
-        onLoginSuccess(data.data);
-      } else {
-        setError(data.message || 'Identifiants incorrects.');
-      }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erreur connexion :', err);
-      setError('Impossible de joindre le serveur d’authentification EDÈN.');
+      // Récupération propre du message d'erreur renvoyé par ton instance Render
+      setError(err.message || 'Identifiants incorrects.');
     } finally {
       setIsLoading(false);
     }
