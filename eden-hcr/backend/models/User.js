@@ -16,10 +16,11 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'extra', 'etablissement'],
+    enum: ['admin', 'superadmin', 'extra', 'etablissement'],
     required: [true, "Le rôle de l'utilisateur est obligatoire."]
   },
-  // Références optionnelles selon le type de compte
+  nom: { type: String, trim: true },
+  prenom: { type: String, trim: true },
   candidatRef: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Candidat'
@@ -33,19 +34,19 @@ const userSchema = new mongoose.Schema({
     default: Date.now
   }
 }, {
+  timestamps: true,
   collection: 'users'
 });
 
-// Middleware pour hacher le mot de passe avant la sauvegarde
+// Hash du mot de passe avant sauvegarde
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
 
-// Méthode pour comparer les mots de passe lors du login
+// Comparaison mot de passe lors du login
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
