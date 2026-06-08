@@ -1,6 +1,6 @@
 // src/types/navigation.ts
 
-export type DashboardView = 
+export type DashboardView =
   | 'dashboard'
   | 'candidates'
   | 'planning'
@@ -10,4 +10,4 @@ export type DashboardView =
   | 'reports'
   | 'payments'
   | 'messages'
-  | 'superadmin'; // <-- Ajoute cette ligne ici
+  | 'superadmin';

@@ -1,8 +1,7 @@
 // src/services/authService.ts
-// Service centralisé pour toutes les opérations d'authentification EDÈN HCR
 
-const API_URL = 'https://eden-hcr-backend.onrender.com/api';
-const TOKEN_KEY = 'userToken';
+const API_URL   = 'https://eden-hcr-backend.onrender.com/api';
+const TOKEN_KEY = 'eden_token';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -12,6 +11,7 @@ export interface AuthUser {
   role: 'extra' | 'admin' | 'client';
   nom?: string;
   prenom?: string;
+  
 }
 
 export interface LoginResponse {
@@ -19,118 +19,67 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
-// ─── Helpers token ────────────────────────────────────────────────────────────
+// ─── Gestion du token ─────────────────────────────────────────────────────────
 
-/** Récupère le token JWT stocké */
-export const getToken = (): string | null =>
-  localStorage.getItem(TOKEN_KEY);
+export const getToken         = (): string | null => localStorage.getItem(TOKEN_KEY);
+export const setToken         = (token: string)   => localStorage.setItem(TOKEN_KEY, token);
+export const removeToken      = ()                 => localStorage.removeItem(TOKEN_KEY);
+export const isAuthenticated  = (): boolean        => Boolean(getToken());
 
-/** Stocke le token JWT */
-export const setToken = (token: string): void =>
-  localStorage.setItem(TOKEN_KEY, token);
-
-/** Supprime le token (déconnexion) */
-export const removeToken = (): void =>
-  localStorage.removeItem(TOKEN_KEY);
-
-/** Retourne true si un token est présent */
-export const isAuthenticated = (): boolean =>
-  Boolean(getToken());
-
-/** Headers JSON + Authorization pour les requêtes protégées */
 export const authHeaders = (): HeadersInit => ({
   'Content-Type': 'application/json',
   Authorization: `Bearer ${getToken() ?? ''}`,
 });
 
-// ─── Requête générique avec gestion d'erreur ──────────────────────────────────
+// ─── Helper fetch ─────────────────────────────────────────────────────────────
 
-async function apiFetch<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
+async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${endpoint}`, {
+    headers: { 'Content-Type': 'application/json' },
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers, // Permet d'injecter authHeaders() si passé en option
-    },
   });
-
   const data = await response.json();
-
-  if (!response.ok) {
-    // On remonte le message backend si disponible
-    throw new Error(data.message ?? `Erreur ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(data.message ?? `Erreur ${response.status}`);
   return data as T;
 }
 
-// ─── Auth API ─────────────────────────────────────────────────────────────────
+// ─── Auth ─────────────────────────────────────────────────────────────────────
 
-/**
- * Connexion prestataire / extra via le backend Render.
- * Stocke automatiquement le token JWT dans localStorage.
- */
-export const login = async (
-  email: string,
-  password: string
-): Promise<LoginResponse> => {
+/** Connexion prestataire — stocke automatiquement le token */
+export const login = async (email: string, password: string): Promise<LoginResponse> => {
   const data = await apiFetch<{ token: string; data: AuthUser }>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
-
-  // Normalise la réponse backend (data.data → data.user)
-  const result: LoginResponse = {
-    token: data.token,
-    user: data.data,
-  };
-
+  const result: LoginResponse = { token: data.token, user: data.data };
   setToken(result.token);
   return result;
 };
 
-/**
- * Déconnexion — supprime le token et redirige si besoin.
- */
-export const logout = (): void => {
-  removeToken();
-};
+/** Déconnexion */
+export const logout = (): void => removeToken();
 
-/**
- * Récupère le profil de l'utilisateur connecté.
- * Nécessite un token valide.
- */
+/** Profil utilisateur connecté */
 export const getMe = async (): Promise<AuthUser> => {
-  // Utilisation de l'apiFetch optimisé avec les headers d'autorisation passés proprement
-  return apiFetch<AuthUser>('/auth/me', {
-    method: 'GET',
-    headers: authHeaders(),
-  });
+  const response = await fetch(`${API_URL}/auth/me`, { headers: authHeaders() });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message ?? 'Session expirée.');
+  return data.data as AuthUser;
 };
 
-/**
- * Inscription d'un nouveau prestataire / extra.
- */
+// ✅ Corrigé
 export const register = async (payload: {
   email: string;
   password: string;
   nom: string;
   prenom: string;
-  role?: 'extra';
+  role?: 'extra';   // ← cette ligne
 }): Promise<LoginResponse> => {
   const data = await apiFetch<{ token: string; data: AuthUser }>('/auth/register', {
     method: 'POST',
     body: JSON.stringify({ role: 'extra', ...payload }),
   });
-
-  const result: LoginResponse = {
-    token: data.token,
-    user: data.data,
-  };
-
+  const result: LoginResponse = { token: data.token, user: data.data };
   setToken(result.token);
   return result;
 };

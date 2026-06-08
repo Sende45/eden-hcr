@@ -2,31 +2,30 @@ import React, { useState } from 'react';
 import { Header } from './components/Header';
 import { Home } from './pages/Home';
 import { Footer } from './components/Footer';
-import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
-import { ClientLogin } from './pages/ClientLogin'; // <-- Importation de l'écran Client
-import { AuthLogin } from './components/AuthLogin'; // <-- Importation de l'écran générique pour couplage direct
-import { Mail, Phone, MapPin, Send, CheckCircle2 } from 'lucide-react'; // Ajout des icônes pour le contact premium
+import { Login } from './pages/Login';
+import { Mail, Phone, MapPin, Send, CheckCircle2 } from 'lucide-react';
 
-type AppView = 'landing' | 'login' | 'dashboard' | 'contact' | 'client-login'; // <-- Ajout strict de 'client-login'
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type AppView = 'landing' | 'login' | 'dashboard' | 'dashboard-prestataire' | 'contact';
+
+// ─── App ──────────────────────────────────────────────────────────────────────
 
 function App() {
-  const [currentView, setCurrentView] = useState<AppView>('landing');
-  // Déclaration de l'état partagé pour l'onboarding de la vitrine
+  const [currentView, setCurrentView]       = useState<AppView>('landing');
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
-  
-  // États locaux pour gérer le formulaire de contact en ligne
-  const [contactForm, setContactForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [contactForm, setContactForm]       = useState({ name: '', email: '', subject: '', message: '' });
   const [contactSubmitted, setContactSubmitted] = useState<boolean>(false);
 
-  // ÉCRAN 1 : Interface d'administration complète (Dashboard)
+  // ── ÉCRAN : Dashboard Admin ──────────────────────────────────────────────────
   if (currentView === 'dashboard') {
     return (
       <div className="relative">
         <Dashboard />
         <button
           onClick={() => {
-            localStorage.removeItem('userToken'); // Purge de sécurité
+            localStorage.removeItem('userToken');
             setCurrentView('landing');
           }}
           className="fixed bottom-4 right-4 bg-eden-tan hover:bg-eden-navy text-white text-xs font-medium p-2 rounded-lg shadow-lg z-50 transition-colors cursor-pointer border-none"
@@ -37,44 +36,39 @@ function App() {
     );
   }
 
-  // ÉCRAN 2 : Formulaire de connexion sécurisé (Login)
-  if (currentView === 'login') {
-    return (
-      <div className="relative min-h-screen bg-eden-bg flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        {/* Intégration dynamique d'AuthLogin pour router intelligemment selon le rôle bdd */}
-        <AuthLogin 
-          onLoginSuccess={(userData) => {
-            if (userData.role === 'admin') {
-              setCurrentView('dashboard');
-            } else {
-              alert(`Connexion réussie en tant que ${userData.role}. Espace Intérimaire en cours d'intégration.`);
-              setCurrentView('landing');
-            }
-          }}
-          onNavigateToAdmin={() => setCurrentView('dashboard')} // Permet d'ouvrir le Dashboard (qui bloquera si pas de token)
-        />
-        
-        <button
-          onClick={() => setCurrentView('landing')}
-          className="fixed bottom-4 right-4 bg-eden-navy hover:bg-eden-light-navy text-white text-xs font-medium p-2.5 rounded-xl shadow-lg z-50 transition-colors cursor-pointer border-none"
-        >
-          ← Retour à la Vitrine
-        </button>
-        <button
-          onClick={() => setCurrentView('dashboard')}
-          className="fixed bottom-4 left-4 bg-eden-tan/20 text-eden-navy hover:bg-eden-tan hover:text-white text-[10px] p-2 rounded-lg z-50 transition-all cursor-pointer border-none"
-        >
-          Bypass Login (Dev) →
-        </button>
-      </div>
-    );
-  }
-
-  // ÉCRAN NOUVEAU : Formulaire de connexion Espace Client Établissement
-  if (currentView === 'client-login') {
+  // ── ÉCRAN : Dashboard Prestataire ────────────────────────────────────────────
+  if (currentView === 'dashboard-prestataire') {
     return (
       <div className="relative">
-        <ClientLogin onLoginSuccess={() => alert("Connexion réussie ! Interface de commande Hôtel/Restaurant en cours d'intégration.")} />
+        <div className="p-8 font-sans text-eden-navy">
+          Dashboard Prestataire — Connexion effectuée avec succès via Atlas.
+        </div>
+        <button
+          onClick={() => {
+            localStorage.removeItem('userToken');
+            setCurrentView('landing');
+          }}
+          className="fixed bottom-4 right-4 bg-eden-tan hover:bg-eden-navy text-white text-xs font-medium p-2 rounded-lg shadow-lg z-50 transition-colors cursor-pointer border-none"
+        >
+          ← Déconnexion
+        </button>
+      </div>
+    );
+  }
+
+  // ── ÉCRAN : Mire de connexion unifiée (Connexion + Inscription) ──────────────
+  if (currentView === 'login') {
+    return (
+      <div className="relative">
+        <Login
+          onPrestataireLoginSuccess={(userData) => {
+            console.log('Prestataire connecté :', userData);
+            setCurrentView('dashboard-prestataire');
+          }}
+          onAdminLoginSuccess={() => {
+            setCurrentView('dashboard');
+          }}
+        />
         <button
           onClick={() => setCurrentView('landing')}
           className="fixed bottom-4 right-4 bg-eden-navy hover:bg-eden-light-navy text-white text-xs font-medium p-2.5 rounded-xl shadow-lg z-50 transition-colors cursor-pointer border-none"
@@ -85,13 +79,13 @@ function App() {
     );
   }
 
-  // ÉCRAN INTERMÉDIAIRE : Vue de Contact dédiée intégrée
+  // ── VUE CONTACT ──────────────────────────────────────────────────────────────
   const renderMainContent = () => {
     if (currentView === 'contact') {
       return (
         <div className="bg-eden-bg min-h-[80vh] py-12 px-6 animate-[fadeInUp_0.35s_ease-out]">
           <div className="max-w-5xl mx-auto mb-6 select-none">
-            <button 
+            <button
               onClick={() => {
                 setCurrentView('landing');
                 setContactSubmitted(false);
@@ -114,8 +108,8 @@ function App() {
             </div>
           ) : (
             <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              
-              {/* CARTES D'INFOS AGENCE (5 COLONNES) */}
+
+              {/* INFOS AGENCE */}
               <div className="lg:col-span-5 bg-eden-navy text-white p-8 rounded-2xl space-y-6 shadow-lg relative overflow-hidden">
                 <div className="absolute top-[-20%] right-[-20%] w-48 h-48 rounded-full border-[20px] border-[#b2976a]/5 pointer-events-none" />
                 <div className="space-y-1">
@@ -126,54 +120,54 @@ function App() {
                   Prenez contact avec nos équipes de Paris pour planifier vos renforts de brigades ou l'intégration de nos extras certifiés.
                 </p>
                 <div className="space-y-4 pt-4 text-xs font-light">
-                  <div className="flex items-center gap-3"><Mail size={15} className="text-eden-tan" /> <span>contact@eden-group.co</span></div>
-                  <div className="flex items-center gap-3"><Phone size={15} className="text-eden-tan" /> <span>+33 (0)1 00 00 00 00</span></div>
-                  <div className="flex items-center gap-3"><MapPin size={15} className="text-eden-tan" /> <span>Paris, France</span></div>
+                  <div className="flex items-center gap-3"><Mail size={15} className="text-eden-tan" /><span>contact@eden-group.co</span></div>
+                  <div className="flex items-center gap-3"><Phone size={15} className="text-eden-tan" /><span>+33 (0)1 00 00 00 00</span></div>
+                  <div className="flex items-center gap-3"><MapPin size={15} className="text-eden-tan" /><span>Paris, France</span></div>
                 </div>
               </div>
 
-              {/* FORMULAIRE DESIGN PRESTIGE (7 COLONNES) */}
+              {/* FORMULAIRE */}
               <div className="lg:col-span-7 bg-eden-bg2 border border-eden-border rounded-2xl p-8 shadow-sm">
-                <form 
-                  onSubmit={(e) => { e.preventDefault(); setContactSubmitted(true); }} 
+                <form
+                  onSubmit={(e) => { e.preventDefault(); setContactSubmitted(true); }}
                   className="space-y-5"
                 >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-semibold uppercase tracking-wider text-eden-navy">Nom Complet</label>
-                      <input 
+                      <input
                         type="text" required value={contactForm.name}
                         onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
-                        className="bg-eden-bg border border-eden-border rounded-xl p-3 text-xs outline-hidden focus:border-eden-tan text-eden-text-dark" 
+                        className="bg-eden-bg border border-eden-border rounded-xl p-3 text-xs outline-hidden focus:border-eden-tan text-eden-text-dark"
                       />
                     </div>
-                    <div className="grid flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-semibold uppercase tracking-wider text-eden-navy">Adresse Email</label>
-                      <input 
+                      <input
                         type="email" required value={contactForm.email}
                         onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                        className="bg-eden-bg border border-eden-border rounded-xl p-3 text-xs outline-hidden focus:border-eden-tan text-eden-text-dark" 
+                        className="bg-eden-bg border border-eden-border rounded-xl p-3 text-xs outline-hidden focus:border-eden-tan text-eden-text-dark"
                       />
                     </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-semibold uppercase tracking-wider text-eden-navy">Objet</label>
-                    <input 
+                    <input
                       type="text" required value={contactForm.subject}
                       onChange={(e) => setContactForm({ ...contactForm, subject: e.target.value })}
-                      className="bg-eden-bg border border-eden-border rounded-xl p-3 text-xs outline-hidden focus:border-eden-tan text-eden-text-dark" 
+                      className="bg-eden-bg border border-eden-border rounded-xl p-3 text-xs outline-hidden focus:border-eden-tan text-eden-text-dark"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-semibold uppercase tracking-wider text-eden-navy">Message</label>
-                    <textarea 
+                    <textarea
                       required rows={4} value={contactForm.message}
                       onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-                      className="bg-eden-bg border border-eden-border rounded-xl p-3 text-xs outline-hidden focus:border-eden-tan text-eden-text-dark resize-none leading-relaxed" 
+                      className="bg-eden-bg border border-eden-border rounded-xl p-3 text-xs outline-hidden focus:border-eden-tan text-eden-text-dark resize-none leading-relaxed"
                     />
                   </div>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="w-full bg-eden-navy hover:bg-eden-light-navy text-white text-xs font-semibold py-3.5 px-6 rounded-xl border-none cursor-pointer flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98"
                   >
                     <Send size={13} className="text-eden-tan" /> Transmettre ma demande
@@ -190,15 +184,14 @@ function App() {
     return <Home showOnboarding={showOnboarding} setShowOnboarding={setShowOnboarding} />;
   };
 
-  // ÉCRAN 3 (Vue par défaut) : Landing page vitrine avec le vrai logo
+  // ── ÉCRAN : Landing page (défaut) ────────────────────────────────────────────
   return (
     <div className="flex flex-col min-h-screen bg-eden-bg selection:bg-eden-navy selection:text-white">
-      {/* Configuration du Header avec toutes ses fonctions de routage public */}
-      <Header 
+      <Header
         onNavigateToDashboard={() => {
           setShowOnboarding(false);
           setCurrentView('login');
-        }} 
+        }}
         onNavigateToOnboarding={() => {
           setCurrentView('landing');
           setShowOnboarding(true);
@@ -209,7 +202,7 @@ function App() {
         }}
         onNavigateToClientAuth={() => {
           setShowOnboarding(false);
-          setCurrentView('client-login');
+          setCurrentView('login');
         }}
       />
       <main className="flex-1">
