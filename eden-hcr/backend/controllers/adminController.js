@@ -72,3 +72,35 @@ export const getSuperAdminMetrics = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Obtenir la liste complète des candidats
+// @route   GET /api/admin/candidates
+export const getCandidates = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+      res.status(403);
+      throw new Error("Accès refusé.");
+    }
+
+    const candidates = await Candidat.find({}).sort({ createdAt: -1 });
+    res.status(200).json({ status: 'success', data: candidates });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Obtenir la liste complète des établissements
+// @route   GET /api/admin/establishments
+export const getEstablishments = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+      res.status(403);
+      throw new Error("Accès refusé.");
+    }
+
+    const establishments = await Etablissement.find({}).sort({ createdAt: -1 });
+    res.status(200).json({ status: 'success', data: establishments });
+  } catch (error) {
+    next(error);
+  }
+};
