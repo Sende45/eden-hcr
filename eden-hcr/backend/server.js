@@ -86,6 +86,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// ── MODIF : Réponse explicite pour la racine (gère GET et HEAD) ───────────────
+app.all('/', (req, res) => {
+  res.status(200).json({ status: 'success', message: 'Bienvenue sur l\'API EDÈN HCR' });
+});
+
 // ── GESTION DES 404 (Doit être après les routes, avant le middleware d'erreur) ──
 app.use((req, res, next) => {
   console.log(`[404] Route introuvable : ${req.method} ${req.originalUrl}`);
