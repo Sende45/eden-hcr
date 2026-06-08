@@ -1,6 +1,6 @@
 // src/services/authService.ts
 
-const API_URL   = 'https://eden-hcr-backend.onrender.com/api';
+const API_URL = 'https://eden-hcr.onrender.com/api';;
 const TOKEN_KEY = 'eden_token';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
