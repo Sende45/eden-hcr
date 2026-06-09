@@ -12,6 +12,7 @@ import { ReportManager } from '../components/ReportManager';
 import { PaymentManager } from '../components/PaymentManager';
 import { MessageManager } from '../components/MessageManager'; 
 import { SuperAdminDashboard } from '../components/SuperAdminDashboard'; 
+import { ExtraDashboard } from '../components/ExtraDashboard'; // Nouveau composant à créer
 import { CreateMissionModal } from '../components/CreateMissionModal';
 import { type CreateMissionInput } from '../types/missionForm';
 import { type DashboardView } from '../types/navigation';
@@ -27,7 +28,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   
   // Initialisation de la vue par défaut selon le rôle
   const [view, setView] = useState<DashboardView>(
-    user?.role === 'superadmin' ? 'superadmin' : 'dashboard'
+    user?.role === 'superadmin' ? 'superadmin' : (user?.role === 'extra' ? 'dashboard' : 'dashboard')
   );
   
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -115,6 +116,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }
 
   const renderMainContent = () => {
+    // Gestion spécifique de l'interface Prestataire/Extra
+    if (user?.role === 'extra') {
+      return <div className="animate-[fadeInUp_0.35s_ease-out]"><ExtraDashboard user={user} /></div>;
+    }
+
     switch (view) {
       case 'candidates':
         return <div className="animate-[fadeInUp_0.35s_ease-out]"><CandidateManager /></div>;
@@ -162,7 +168,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       
       <Sidebar
         currentView={view}
-        userRole={user?.role} // Transmission du rôle ici
+        userRole={user?.role}
         onViewChange={(newView: DashboardView) => {
           if (newView === 'superadmin' && user?.role !== 'superadmin') {
             return;
