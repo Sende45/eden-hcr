@@ -8,7 +8,7 @@ const TOKEN_KEY = 'eden_token';
 export interface AuthUser {
   id: string;
   email: string;
-  role: 'extra' | 'admin' | 'superadmin' | 'client'; // <-- Ajout de superadmin pour coller à Atlas
+  role: 'extra' | 'admin' | 'superadmin' | 'client';
   nom?: string;
   prenom?: string;
 }
@@ -20,10 +20,17 @@ export interface LoginResponse {
 
 // ─── Gestion du token ─────────────────────────────────────────────────────────
 
-export const getToken        = (): string | null => localStorage.getItem(TOKEN_KEY);
-export const setToken        = (token: string)   => localStorage.setItem(TOKEN_KEY, token);
-export const removeToken     = ()                => localStorage.removeItem(TOKEN_KEY);
-export const isAuthenticated = (): boolean       => Boolean(getToken());
+export const getToken = (): string | null =>
+  localStorage.getItem(TOKEN_KEY);
+
+export const setToken = (token: string): void =>
+  localStorage.setItem(TOKEN_KEY, token);
+
+export const removeToken = (): void =>
+  localStorage.removeItem(TOKEN_KEY);
+
+export const isAuthenticated = (): boolean =>
+  Boolean(getToken());
 
 export const authHeaders = (): HeadersInit => ({
   'Content-Type': 'application/json',
@@ -32,44 +39,115 @@ export const authHeaders = (): HeadersInit => ({
 
 // ─── Helper fetch ─────────────────────────────────────────────────────────────
 
-async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
+async function apiFetch<T>(
+  endpoint: string,
+  options?: RequestInit
+): Promise<T> {
   const response = await fetch(`${API_URL}${endpoint}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
     ...options,
   });
+
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message ?? `Erreur ${response.status}`);
+
+  console.log('==============================');
+  console.log('API CALL =>', endpoint);
+  console.log('STATUS =>', response.status);
+  console.log('RESPONSE =>', data);
+  console.log('==============================');
+
+  if (!response.ok) {
+    throw new Error(data.message ?? `Erreur ${response.status}`);
+  }
+
   return data as T;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-/** Connexion unifiée — stocke automatiquement le token */
-export const login = async (email: string, password: string): Promise<LoginResponse> => {
-  // CORRECTION : Aligné sur le backend qui renvoie directement { token, user }
-  const data = await apiFetch<{ token: string; user: AuthUser }>('/auth/login', {
+/**
+ * Connexion unifiée
+ */
+export const login = async (
+  email: string,
+  password: string
+): Promise<LoginResponse> => {
+
+  const data = await apiFetch<{
+    token: string;
+    user: AuthUser;
+  }>('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({
+      email,
+      password,
+    }),
   });
-  
-  const result: LoginResponse = { token: data.token, user: data.user };
+
+  console.log('========== LOGIN RESPONSE ==========');
+  console.log('TOKEN =>', data.token);
+  console.log('USER =>', data.user);
+  console.log('ROLE =>', data.user?.role);
+  console.log('====================================');
+
+  const result: LoginResponse = {
+    token: data.token,
+    user: data.user,
+  };
+
   setToken(result.token);
+
+  console.log('TOKEN STOCKÉ DANS LOCALSTORAGE');
+  console.log(localStorage.getItem(TOKEN_KEY));
+
   return result;
 };
 
-/** Déconnexion */
-export const logout = (): void => removeToken();
+/**
+ * Déconnexion
+ */
+export const logout = (): void => {
+  console.log('LOGOUT');
+  removeToken();
+};
 
-/** Profil utilisateur connecté */
+/**
+ * Profil utilisateur connecté
+ */
 export const getMe = async (): Promise<AuthUser> => {
-  const response = await fetch(`${API_URL}/auth/me`, { headers: authHeaders() });
+
+  console.log('========== GET ME ==========');
+  console.log('TOKEN ENVOYÉ =>', getToken());
+
+  const response = await fetch(
+    `${API_URL}/auth/me`,
+    {
+      headers: authHeaders(),
+    }
+  );
+
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message ?? 'Session expirée.');
-  // CORRECTION : Aligné sur la structure unifiée user du backend
+
+  console.log('GET /auth/me STATUS =>', response.status);
+  console.log('GET /auth/me RESPONSE =>', data);
+
+  if (!response.ok) {
+    throw new Error(
+      data.message ?? 'Session expirée.'
+    );
+  }
+
+  console.log('USER CONNECTÉ =>', data.user);
+  console.log('ROLE CONNECTÉ =>', data.user?.role);
+
   return data.user as AuthUser;
 };
 
-/** Inscription nouveau candidat — stocke automatiquement le token */
+/**
+ * Inscription candidat
+ */
 export const register = async (payload: {
   email: string;
   password: string;
@@ -77,13 +155,29 @@ export const register = async (payload: {
   prenom: string;
   role?: 'extra';
 }): Promise<LoginResponse> => {
-  // CORRECTION : Aligné sur le backend qui renvoie directement { token, user }
-  const data = await apiFetch<{ token: string; user: AuthUser }>('/auth/register', {
+
+  const data = await apiFetch<{
+    token: string;
+    user: AuthUser;
+  }>('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ role: 'extra', ...payload }),
+    body: JSON.stringify({
+      role: 'extra',
+      ...payload,
+    }),
   });
-  
-  const result: LoginResponse = { token: data.token, user: data.user };
+
+  console.log('========== REGISTER RESPONSE ==========');
+  console.log('USER =>', data.user);
+  console.log('ROLE =>', data.user?.role);
+  console.log('=======================================');
+
+  const result: LoginResponse = {
+    token: data.token,
+    user: data.user,
+  };
+
   setToken(result.token);
+
   return result;
 };

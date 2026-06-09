@@ -6,6 +6,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Login } from './pages/Login';
 import { Mail, Phone, MapPin, Send, CheckCircle2 } from 'lucide-react';
 import { getMe, isAuthenticated, logout } from './services/authService';
+import { ExtraDashboard } from './components/ExtraDashboard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,21 +83,19 @@ function App() {
 
   // ── ÉCRAN : Dashboard Prestataire ────────────────────────────────────────────
   if (currentView === 'dashboard-prestataire') {
-    return (
-      <div className="relative min-h-screen bg-eden-bg">
-        <div className="p-8 font-sans text-eden-navy">
-          <h1 className="text-xl font-bold font-serif mb-2">Espace Extra / Prestataire</h1>
-          <p className="text-xs text-eden-text-light font-light">Connexion effectuée avec succès via Atlas.</p>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="fixed bottom-4 right-4 bg-eden-tan hover:bg-eden-navy text-white text-xs font-medium p-2 rounded-lg shadow-lg z-50 transition-colors cursor-pointer border-none"
-        >
-          ← Déconnexion
-        </button>
-      </div>
-    );
-  }
+  return (
+    <div className="relative">
+      <ExtraDashboard user={user} />
+
+      <button
+        onClick={handleLogout}
+        className="fixed bottom-4 right-4 bg-eden-tan hover:bg-eden-navy text-white text-xs font-medium p-2 rounded-lg shadow-lg z-50 transition-colors cursor-pointer border-none"
+      >
+        ← Déconnexion
+      </button>
+    </div>
+  );
+}
 
   // ── ÉCRAN : Mire de connexion unifiée ─────────────────────────────────────────
   if (currentView === 'login') {
