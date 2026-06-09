@@ -10,25 +10,41 @@ import { ExtraDashboard } from './components/ExtraDashboard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type AppView = 'landing' | 'login' | 'dashboard' | 'superadmin' | 'dashboard-prestataire' | 'contact';
+type AppView =
+  | 'landing'
+  | 'login'
+  | 'dashboard'
+  | 'superadmin'
+  | 'dashboard-prestataire'
+  | 'contact';
+
+interface AppUser {
+  id: string;
+  email: string;
+  role: string;
+  nom?: string;
+  prenom?: string;
+  candidatRef?: string;
+  etablissementRef?: string;
+}
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 function App() {
-  const [currentView, setCurrentView]       = useState<AppView>('landing');
-  const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
-  const [user, setUser] = useState<{ id: string; email: string; role: string } | null>(null);
-  const [contactForm, setContactForm]       = useState({ name: '', email: '', subject: '', message: '' });
+  const [currentView, setCurrentView]           = useState<AppView>('landing');
+  const [showOnboarding, setShowOnboarding]     = useState<boolean>(false);
+  const [user, setUser]                         = useState<AppUser | null>(null);
+  const [contactForm, setContactForm]           = useState({ name: '', email: '', subject: '', message: '' });
   const [contactSubmitted, setContactSubmitted] = useState<boolean>(false);
 
-  // Fonction centrale pour orienter l'utilisateur selon son rôle
+  // Oriente l'utilisateur selon son rôle
   const determineDashboardView = (role: string): AppView => {
     if (role === 'superadmin') return 'superadmin';
-    if (role === 'admin') return 'dashboard';
+    if (role === 'admin')      return 'dashboard';
     return 'dashboard-prestataire';
   };
 
-  // Synchronisation de session automatique au chargement/rechargement
+  // Synchronisation de session au chargement
   useEffect(() => {
     if (isAuthenticated()) {
       getMe()
@@ -44,14 +60,14 @@ function App() {
     }
   }, []);
 
-  // Fonction centrale pour déconnecter et nettoyer l'état MERN
+  // Déconnexion globale
   const handleLogout = () => {
     logout();
     setUser(null);
     setCurrentView('landing');
   };
 
-  // ── ÉCRAN : Dashboard SuperAdmin ─────────────────────────────────────────────
+  // ── SuperAdmin ───────────────────────────────────────────────────────────────
   if (currentView === 'superadmin') {
     return (
       <div className="relative">
@@ -66,7 +82,7 @@ function App() {
     );
   }
 
-  // ── ÉCRAN : Dashboard Admin ────────────────────────────────────────────────
+  // ── Admin ────────────────────────────────────────────────────────────────────
   if (currentView === 'dashboard') {
     return (
       <div className="relative">
@@ -81,23 +97,17 @@ function App() {
     );
   }
 
-  // ── ÉCRAN : Dashboard Prestataire ────────────────────────────────────────────
+  // ── Extra / Prestataire ──────────────────────────────────────────────────────
   if (currentView === 'dashboard-prestataire') {
-  return (
-    <div className="relative">
-      <ExtraDashboard user={user} />
+    return (
+      <ExtraDashboard
+        user={user ?? {}}
+        onLogout={handleLogout}
+      />
+    );
+  }
 
-      <button
-        onClick={handleLogout}
-        className="fixed bottom-4 right-4 bg-eden-tan hover:bg-eden-navy text-white text-xs font-medium p-2 rounded-lg shadow-lg z-50 transition-colors cursor-pointer border-none"
-      >
-        ← Déconnexion
-      </button>
-    </div>
-  );
-}
-
-  // ── ÉCRAN : Mire de connexion unifiée ─────────────────────────────────────────
+  // ── Login ────────────────────────────────────────────────────────────────────
   if (currentView === 'login') {
     return (
       <div className="relative">
@@ -127,7 +137,7 @@ function App() {
     );
   }
 
-  // ── VUE CONTACT ──────────────────────────────────────────────────────────────
+  // ── Landing + Contact ────────────────────────────────────────────────────────
   const renderMainContent = () => {
     if (currentView === 'contact') {
       return (
