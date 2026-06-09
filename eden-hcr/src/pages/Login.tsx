@@ -70,7 +70,7 @@ export const Login: React.FC<LoginProps> = ({
           />
         </div>
 
-        {/* FORMULAIRES DYNAMISÉS AVEC CASSE DU CACHE DE COMPOSANT (KEY) */}
+        {/* FORMULAIRES DYNAMISÉS */}
         {activeTab === 'prestataire' && (
           <PrestataireForm key="login-prestataire" onSuccess={onPrestataireLoginSuccess} />
         )}
@@ -201,7 +201,7 @@ const InscriptionForm: React.FC<{
   );
 };
 
-// ─── Formulaire Admin DYNAMIQUE ATLAS MERN ────────────────────────────────────
+// ─── Formulaire Admin ────────────────────────────────────────────────────────
 
 const AgenceForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
   const [email, setEmail]             = useState('');
@@ -218,14 +218,13 @@ const AgenceForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
     try {
       const result = await login(email, password);
       
-      // On autorise ici à la fois le rôle 'admin' et 'superadmin' provenant d'Atlas
       if (result.user.role === 'admin' || result.user.role === 'superadmin') {
         onSuccess();
       } else {
         setError("Accès refusé. Ce compte ne possède pas les privilèges Agence.");
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Identifiants invalides (Email ou mot de passe incorrect).');
+      setError(err instanceof Error ? err.message : 'Identifiants invalides.');
     } finally {
       setIsLoading(false);
     }
@@ -235,9 +234,7 @@ const AgenceForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
     <div className="space-y-3">
       <div className="flex items-center gap-2 bg-eden-navy/5 border border-eden-navy/10 rounded-xl px-3 py-2.5">
         <ShieldCheck size={13} className="text-eden-tan shrink-0" />
-        <p className="text-[11px] text-eden-navy font-medium">
-          Accès restreint — Console de gestion interne EDÈN
-        </p>
+        <p className="text-[11px] text-eden-navy font-medium">Accès restreint — Console interne EDÈN</p>
       </div>
       <LoginForm
         error={error}
@@ -251,13 +248,13 @@ const AgenceForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
         onTogglePassword={() => setShowPassword(v => !v)}
         emailPlaceholder="Saisissez votre email administrateur"
         submitLabel="Accéder à la console"
-        loadingLabel="Vérification des accès..."
+        loadingLabel="Vérification..."
       />
     </div>
   );
 };
 
-// ─── Formulaire générique partagé unifié ───────────────────────────────────────
+// ─── Formulaire générique partagé ─────────────────────────────────────────────
 
 type LoginFormProps = {
   subtitle?: string;
@@ -288,110 +285,33 @@ const LoginForm: React.FC<LoginFormProps> = ({
   isRegister = false, nom = '', onNomChange, prenom = '', onPrenomChange
 }) => (
   <div className="space-y-4">
-    {subtitle && (
-      <p className="text-[11px] text-eden-text-light font-light">{subtitle}</p>
-    )}
-
+    {subtitle && <p className="text-[11px] text-eden-text-light font-light">{subtitle}</p>}
     {error && (
       <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 text-[11px] p-3 rounded-xl font-medium">
         <AlertCircle size={13} className="shrink-0 mt-0.5" />
         <span>{error}</span>
       </div>
     )}
-
     <form onSubmit={onSubmit} className="space-y-4 text-xs" autoComplete="off">
-
       {isRegister && onPrenomChange && onNomChange && (
         <div className="grid grid-cols-2 gap-3 animate-[fadeIn_0.2s_ease-out]">
-          <div className="space-y-1">
-            <label className="font-medium text-eden-navy block">Prénom</label>
-            <input
-              type="text"
-              required
-              disabled={isLoading}
-              placeholder="Jean"
-              value={prenom}
-              onChange={e => onPrenomChange(e.target.value)}
-              className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_12px] text-eden-text-dark outline-hidden focus:border-eden-tan text-xs disabled:opacity-60 transition-all"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="font-medium text-eden-navy block">Nom</label>
-            <input
-              type="text"
-              required
-              disabled={isLoading}
-              placeholder="Dupont"
-              value={nom}
-              onChange={e => onNomChange(e.target.value)}
-              className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_12px] text-eden-text-dark outline-hidden focus:border-eden-tan text-xs disabled:opacity-60 transition-all"
-            />
-          </div>
+          <div className="space-y-1"><label className="font-medium text-eden-navy block">Prénom</label>
+            <input type="text" required disabled={isLoading} placeholder="Jean" value={prenom} onChange={e => onPrenomChange(e.target.value)} className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_12px] focus:border-eden-tan outline-none transition-all" /></div>
+          <div className="space-y-1"><label className="font-medium text-eden-navy block">Nom</label>
+            <input type="text" required disabled={isLoading} placeholder="Dupont" value={nom} onChange={e => onNomChange(e.target.value)} className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_12px] focus:border-eden-tan outline-none transition-all" /></div>
         </div>
       )}
-
-      {/* Email */}
-      <div className="space-y-1">
-        <label className="font-medium text-eden-navy block">Adresse email</label>
-        <div className="relative">
-          <Mail size={14} className="absolute left-3 top-3.5 text-eden-text-light/60" />
-          <input
-            type="email"
-            required
-            disabled={isLoading}
-            autoComplete="none"
-            placeholder={emailPlaceholder}
-            value={email}
-            onChange={e => onEmailChange(e.target.value)}
-            className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_12px_11px_36px] text-eden-text-dark outline-hidden focus:border-eden-tan text-xs disabled:opacity-60 transition-all"
-          />
+      <div className="space-y-1"><label className="font-medium text-eden-navy block">Adresse email</label>
+        <div className="relative"><Mail size={14} className="absolute left-3 top-3.5 text-eden-text-light/60" />
+          <input type="email" required disabled={isLoading} placeholder={emailPlaceholder} value={email} onChange={e => onEmailChange(e.target.value)} className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_12px_11px_36px] outline-none focus:border-eden-tan transition-all" /></div></div>
+      <div className="space-y-1"><div className="flex items-center justify-between"><label className="font-medium text-eden-navy block">Mot de passe</label></div>
+        <div className="relative"><Lock size={14} className="absolute left-3 top-3.5 text-eden-text-light/60" />
+          <input type={showPassword ? 'text' : 'password'} required disabled={isLoading} placeholder="••••••••" value={password} onChange={e => onPasswordChange(e.target.value)} className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_38px_11px_36px] outline-none focus:border-eden-tan transition-all" />
+          <button type="button" onClick={onTogglePassword} className="absolute right-3 top-3.5 text-eden-text-light/60 hover:text-eden-navy"><Eye size={14} /></button>
         </div>
       </div>
-
-      {/* Mot de passe */}
-      <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <label className="font-medium text-eden-navy block">Mot de passe</label>
-          {!isRegister && (
-            <button type="button" className="text-[11px] text-eden-tan hover:text-eden-navy font-medium border-none bg-transparent cursor-pointer">
-              Oublié ?
-            </button>
-          )}
-        </div>
-        <div className="relative">
-          <Lock size={14} className="absolute left-3 top-3.5 text-eden-text-light/60" />
-          <input
-            type={showPassword ? 'text' : 'password'}
-            required
-            disabled={isLoading}
-            autoComplete={isRegister ? "new-password" : "current-password"}
-            placeholder="••••••••"
-            value={password}
-            onChange={e => onPasswordChange(e.target.value)}
-            className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_38px_11px_36px] text-eden-text-dark outline-hidden focus:border-eden-tan text-xs disabled:opacity-60 transition-all"
-          />
-          <button
-            type="button"
-            disabled={isLoading}
-            onClick={onTogglePassword}
-            className="absolute right-3 top-3.5 text-eden-text-light/60 hover:text-eden-navy border-none bg-transparent cursor-pointer flex items-center"
-          >
-            {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="w-full bg-eden-navy hover:bg-eden-light-navy text-white text-xs font-medium tracking-wide py-3.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-70 border-none cursor-pointer mt-2"
-      >
-        {isLoading ? (
-          <><Loader2 size={14} className="animate-spin" />{loadingLabel}</>
-        ) : (
-          <>{submitLabel}<ArrowRight size={14} /></>
-        )}
+      <button type="submit" disabled={isLoading} className="w-full bg-eden-navy hover:bg-eden-light-navy text-white text-xs font-medium py-3.5 rounded-xl transition-all flex items-center justify-center gap-2">
+        {isLoading ? <><Loader2 size={14} className="animate-spin" />{loadingLabel}</> : <>{submitLabel}<ArrowRight size={14} /></>}
       </button>
     </form>
   </div>

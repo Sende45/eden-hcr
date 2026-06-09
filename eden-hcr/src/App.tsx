@@ -20,19 +20,20 @@ function App() {
   const [contactForm, setContactForm]       = useState({ name: '', email: '', subject: '', message: '' });
   const [contactSubmitted, setContactSubmitted] = useState<boolean>(false);
 
+  // Fonction centrale pour orienter l'utilisateur selon son rôle
+  const determineDashboardView = (role: string): AppView => {
+    if (role === 'superadmin') return 'superadmin';
+    if (role === 'admin') return 'dashboard';
+    return 'dashboard-prestataire';
+  };
+
   // Synchronisation de session automatique au chargement/rechargement
   useEffect(() => {
     if (isAuthenticated()) {
       getMe()
         .then((profile) => {
           setUser(profile);
-          if (profile.role === 'superadmin') {
-            setCurrentView('superadmin');
-          } else if (profile.role === 'admin') {
-            setCurrentView('dashboard');
-          } else {
-            setCurrentView('dashboard-prestataire');
-          }
+          setCurrentView(determineDashboardView(profile.role));
         })
         .catch(() => {
           logout();
@@ -82,7 +83,7 @@ function App() {
   // ── ÉCRAN : Dashboard Prestataire ────────────────────────────────────────────
   if (currentView === 'dashboard-prestataire') {
     return (
-      <div className="relative">
+      <div className="relative min-h-screen bg-eden-bg">
         <div className="p-8 font-sans text-eden-navy">
           <h1 className="text-xl font-bold font-serif mb-2">Espace Extra / Prestataire</h1>
           <p className="text-xs text-eden-text-light font-light">Connexion effectuée avec succès via Atlas.</p>
@@ -104,17 +105,13 @@ function App() {
         <Login
           onPrestataireLoginSuccess={(userData) => {
             setUser(userData);
-            setCurrentView('dashboard-prestataire');
+            setCurrentView(determineDashboardView(userData.role));
           }}
           onAdminLoginSuccess={() => {
             getMe()
               .then((profile) => {
                 setUser(profile);
-                if (profile.role === 'superadmin') {
-                  setCurrentView('superadmin');
-                } else {
-                  setCurrentView('dashboard');
-                }
+                setCurrentView(determineDashboardView(profile.role));
               })
               .catch(() => {
                 setCurrentView('dashboard');
