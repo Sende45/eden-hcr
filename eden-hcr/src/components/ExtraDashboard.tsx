@@ -5,8 +5,18 @@ export const ExtraDashboard: React.FC<{ user: any }> = ({ user }) => {
   return (
     <div className="p-8 space-y-6 animate-[fadeInUp_0.3s_ease-out]">
       <div className="bg-white border border-eden-border p-6 rounded-2xl shadow-sm">
-        <h2 className="text-lg font-bold text-eden-navy font-serif">Bienvenue, {user?.email}</h2>
+        {/* Modifié : Affichage dynamique du Prénom et Nom avec repli sur l'email */}
+        <h2 className="text-lg font-bold text-eden-navy font-serif">
+          Bienvenue, {user?.prenom && user?.nom ? `${user.prenom} ${user.nom}` : user?.email}
+        </h2>
         <p className="text-xs text-eden-text-light">Voici vos informations et prochaines missions.</p>
+        
+        {/* Ajout subtil du rôle pour confirmer la session */}
+        <div className="mt-4">
+          <span className="inline-flex items-center rounded-md bg-eden-navy/5 text-eden-navy text-[10px] font-bold uppercase tracking-wider px-2 py-1">
+            {user?.role || 'Prestataire'}
+          </span>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
