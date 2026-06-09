@@ -1,41 +1,144 @@
-import React from 'react';
-import { Calendar, CheckCircle, Clock } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import {
+  Calendar,
+  CheckCircle,
+  FileText,
+  Euro,
+  Briefcase
+} from 'lucide-react';
 
-export const ExtraDashboard: React.FC<{ user: any }> = ({ user }) => {
+export const ExtraDashboard = ({ user }: any) => {
+
+  const [missions, setMissions] = useState([]);
+  const [contrats, setContrats] = useState([]);
+  const [paiements, setPaiements] = useState([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('eden_token');
+
+    const loadData = async () => {
+      try {
+
+        const missionsRes = await fetch(
+          'https://eden-hcr.onrender.com/api/mission',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+
+        const contratsRes = await fetch(
+          'https://eden-hcr.onrender.com/api/contrats',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+
+        const paiementsRes = await fetch(
+          'https://eden-hcr.onrender.com/api/paiements',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+
+        if (missionsRes.ok)
+          setMissions(await missionsRes.json());
+
+        if (contratsRes.ok)
+          setContrats(await contratsRes.json());
+
+        if (paiementsRes.ok)
+          setPaiements(await paiementsRes.json());
+
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    loadData();
+  }, []);
+
   return (
-    <div className="p-8 space-y-6 animate-[fadeInUp_0.3s_ease-out]">
-      <div className="bg-white border border-eden-border p-6 rounded-2xl shadow-sm">
-        {/* Modifié : Affichage dynamique du Prénom et Nom avec repli sur l'email */}
-        <h2 className="text-lg font-bold text-eden-navy font-serif">
-          Bienvenue, {user?.prenom && user?.nom ? `${user.prenom} ${user.nom}` : user?.email}
+    <div className="p-8 space-y-6">
+
+      <div className="bg-white rounded-2xl border p-6">
+        <h2 className="text-2xl font-bold">
+          Bonjour {user?.prenom}
         </h2>
-        <p className="text-xs text-eden-text-light">Voici vos informations et prochaines missions.</p>
-        
-        {/* Ajout subtil du rôle pour confirmer la session */}
-        <div className="mt-4">
-          <span className="inline-flex items-center rounded-md bg-eden-navy/5 text-eden-navy text-[10px] font-bold uppercase tracking-wider px-2 py-1">
-            {user?.role || 'Prestataire'}
-          </span>
-        </div>
+
+        <p className="text-gray-500 mt-1">
+          Bienvenue dans votre espace EDÈN.
+        </p>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-eden-navy text-white p-6 rounded-2xl">
-          <Calendar className="mb-2" />
-          <div className="text-2xl font-bold">0</div>
-          <div className="text-xs opacity-70">Missions à venir</div>
+
+      <div className="grid md:grid-cols-4 gap-4">
+
+        <div className="bg-white p-5 rounded-xl border">
+          <Briefcase />
+          <h3 className="text-2xl font-bold">
+            {missions.length}
+          </h3>
+          <p>Missions disponibles</p>
         </div>
-        <div className="bg-white border p-6 rounded-2xl">
-          <CheckCircle className="mb-2 text-eden-teal" />
-          <div className="text-2xl font-bold">12</div>
-          <div className="text-xs text-eden-text-light">Missions terminées</div>
+
+        <div className="bg-white p-5 rounded-xl border">
+          <Calendar />
+          <h3 className="text-2xl font-bold">
+            0
+          </h3>
+          <p>Planning</p>
         </div>
-        <div className="bg-white border p-6 rounded-2xl">
-          <Clock className="mb-2 text-eden-tan" />
-          <div className="text-2xl font-bold">4.8</div>
-          <div className="text-xs text-eden-text-light">Note moyenne</div>
+
+        <div className="bg-white p-5 rounded-xl border">
+          <FileText />
+          <h3 className="text-2xl font-bold">
+            {contrats.length}
+          </h3>
+          <p>Contrats</p>
         </div>
+
+        <div className="bg-white p-5 rounded-xl border">
+          <Euro />
+          <h3 className="text-2xl font-bold">
+            {paiements.length}
+          </h3>
+          <p>Fiches de paie</p>
+        </div>
+
       </div>
+
+      <div className="bg-white border rounded-2xl p-6">
+        <h3 className="font-bold mb-4">
+          Missions disponibles
+        </h3>
+
+        {missions.length === 0 ? (
+          <p>Aucune mission disponible.</p>
+        ) : (
+          missions.map((mission: any) => (
+            <div
+              key={mission._id}
+              className="border rounded-xl p-4 mb-3"
+            >
+              <h4 className="font-semibold">
+                {mission.posteRecherche}
+              </h4>
+
+              <p>{mission.briefing}</p>
+
+              <button className="mt-3 bg-eden-navy text-white px-4 py-2 rounded-lg">
+                Postuler
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
     </div>
   );
 };

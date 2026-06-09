@@ -49,6 +49,36 @@ const userSchema = new mongoose.Schema(
       ref: 'Etablissement'
     },
 
+    // ============================
+    // AJOUTS POUR LE DASHBOARD EXTRA
+    // ============================
+
+    telephone: {
+      type: String,
+      default: ''
+    },
+
+    photoProfil: {
+      type: String,
+      default: ''
+    },
+
+    statutCompte: {
+      type: String,
+      enum: ['actif', 'suspendu', 'en_attente'],
+      default: 'actif'
+    },
+
+    derniereConnexion: {
+      type: Date
+    },
+
+    disponibilites: [
+      {
+        type: Date
+      }
+    ],
+
     createdAt: {
       type: Date,
       default: Date.now
