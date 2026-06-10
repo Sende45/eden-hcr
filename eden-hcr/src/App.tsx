@@ -39,15 +39,25 @@ function App() {
 
   // Oriente l'utilisateur selon son rôle
   const determineDashboardView = (role: string): AppView => {
-  if (role === 'superadmin') {
+
+  const r = role?.toLowerCase();
+
+  if (r === 'superadmin') {
     return 'superadmin';
   }
 
-  if (role === 'admin' || role === 'etablissement') {
+  if (
+    r === 'admin' ||
+    r === 'etablissement'
+  ) {
     return 'dashboard';
   }
 
-  if (role === 'extra') {
+  if (
+    r === 'extra' ||
+    r === 'prestataire' ||
+    r === 'candidat'
+  ) {
     return 'dashboard-prestataire';
   }
 

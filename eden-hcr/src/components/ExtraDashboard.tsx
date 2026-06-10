@@ -86,49 +86,51 @@ export const ExtraDashboard = ({ user, onLogout }: { user: UserType; onLogout?: 
   const API = 'https://eden-hcr.onrender.com';
 
   // ─── Chargement données ──────────────────────────────────────────────────────
-  useEffect(() => {
-    const token = localStorage.getItem('eden_token');
-    if (!token) return;
+ // Remplace ton useEffect actuel dans ExtraDashboard par celui-ci :
+useEffect(() => {
+  const token = localStorage.getItem('eden_token');
+  if (!token) return;
 
-    const headers = { Authorization: `Bearer ${token}` };
+  const headers = { 
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json' 
+  };
 
-    const loadData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [missionsRes, contratsRes, paiementsRes, messagesRes] = await Promise.all([
-          fetch(`${API}/api/mission`, { headers }),
-          fetch(`${API}/api/contrats`, { headers }),
-          fetch(`${API}/api/paiements`, { headers }),
-          fetch(`${API}/api/messagerie`, { headers })
-        ]);
-
-        if (missionsRes.ok) {
-          const data = await missionsRes.json();
-          setMissions(Array.isArray(data) ? data : data.missions || []);
-        }
-        if (contratsRes.ok) {
-          const data = await contratsRes.json();
-          setContrats(Array.isArray(data) ? data : data.contrats || []);
-        }
-        if (paiementsRes.ok) {
-          const data = await paiementsRes.json();
-          setPaiements(Array.isArray(data) ? data : data.paiements || []);
-        }
-        if (messagesRes.ok) {
-          const data = await messagesRes.json();
-          setMessages(Array.isArray(data) ? data : data.messages || []);
-        }
-      } catch (err) {
-        console.error(err);
-        setError('Erreur de connexion au serveur EDÈN.');
-      } finally {
-        setLoading(false);
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // 1. Récupération du profil complet (pour avoir nom et prénom)
+      const meRes = await fetch(`${API}/api/auth/me`, { headers });
+      if (meRes.ok) {
+        const { user: userData } = await meRes.json();
+        // C'est ici que le nom et prénom deviennent disponibles pour tout le composant
+        // Tu peux créer un état local setUser si besoin, ou simplement utiliser userData
       }
-    };
 
-    loadData();
-  }, []);
+      // 2. Récupération des autres ressources
+      // Vérifie bien que tes routes backend correspondent exactement à ces URL
+      const [missionsRes, contratsRes, paiementsRes, messagesRes] = await Promise.all([
+        fetch(`${API}/api/mission`, { headers }),
+        fetch(`${API}/api/contrats`, { headers }),
+        fetch(`${API}/api/paiements`, { headers }),
+        fetch(`${API}/api/messagerie`, { headers })
+      ]);
+
+      if (missionsRes.ok) setMissions(await missionsRes.json());
+      if (contratsRes.ok) setContrats(await contratsRes.json());
+      if (paiementsRes.ok) setPaiements(await paiementsRes.json());
+      if (messagesRes.ok) setMessages(await messagesRes.json());
+
+    } catch (err) {
+      console.error("Erreur chargement:", err);
+      setError('Erreur de connexion au serveur EDÈN.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadData();
+}, []);
 
   // ─── Postuler à une mission ──────────────────────────────────────────────────
   const handlePostuler = async (missionId: string) => {
