@@ -108,6 +108,7 @@ function App() {
   }
 
   // ── Extra / Prestataire ──────────────────────────────────────────────────────
+  console.log('USER ENVOYÉ À EXTRA DASHBOARD', user);
   if (currentView === 'dashboard-prestataire') {
     return (
       <ExtraDashboard
