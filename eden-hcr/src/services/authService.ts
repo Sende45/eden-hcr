@@ -97,10 +97,20 @@ export const login = async (
     user: data.user,
   };
 
+  // Stockage token
   setToken(result.token);
+
+  // Stockage utilisateur
+  localStorage.setItem(
+    'eden_user',
+    JSON.stringify(result.user)
+  );
 
   console.log('TOKEN STOCKÉ DANS LOCALSTORAGE');
   console.log(localStorage.getItem(TOKEN_KEY));
+
+  console.log('USER STOCKÉ DANS LOCALSTORAGE');
+  console.log(localStorage.getItem('eden_user'));
 
   return result;
 };
@@ -178,6 +188,11 @@ export const register = async (payload: {
   };
 
   setToken(result.token);
+
+  localStorage.setItem(
+    'eden_user',
+    JSON.stringify(result.user)
+  );
 
   return result;
 };

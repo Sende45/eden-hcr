@@ -19,7 +19,13 @@ import { type DashboardView } from '../types/navigation';
 import { ShieldAlert, Loader2, AlertTriangle } from 'lucide-react';
 
 interface DashboardProps {
-  user: { id: string; email: string; role: string } | null;
+  user: {
+    id: string;
+    email: string;
+    role: string;
+    nom?: string;
+    prenom?: string;
+  } | null;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
