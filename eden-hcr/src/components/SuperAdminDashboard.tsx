@@ -114,7 +114,7 @@ export const SuperAdminDashboard: React.FC = () => {
           <h2 className="font-serif font-bold text-2xl lg:text-3xl text-eden-navy tracking-wide">Console SuperAdmin</h2>
         </div>
         <div className="bg-eden-navy text-white text-[11px] font-mono font-bold px-3 py-1.5 rounded-lg border border-eden-tan/20 shadow-sm">
-          AGENCE PARIS
+          AGENCE Puy-en-velay
         </div>
       </div>
 
@@ -139,7 +139,7 @@ export const SuperAdminDashboard: React.FC = () => {
           <div className="bg-eden-bg2 border border-eden-border rounded-2xl p-5 shadow-2xs flex items-center gap-4 bg-white">
             <div className="p-3 bg-eden-navy/5 text-eden-navy rounded-xl shrink-0"><Users size={20} /></div>
             <div>
-              <p className="text-[11px] text-eden-text-light font-medium uppercase tracking-wider select-none">Brigade Extras</p>
+              <p className="text-[11px] text-eden-text-light font-medium uppercase tracking-wider select-none">Prestataires</p>
               <p className="text-xl font-bold text-eden-navy mt-0.5">{stats.totalExtras} actifs</p>
             </div>
           </div>
