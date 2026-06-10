@@ -1,6 +1,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FileText, Search, Clock, CheckCircle, Download, Send, Loader2, AlertCircle } from 'lucide-react';
+import { FileText, Search, Clock, CheckCircle, Download, Send, Loader2, AlertCircle, Plus, X } from 'lucide-react';
 import { type HcrContract, type ContractStatus } from '../types/contract';
+
+// ─── Modal de Création ──────────────────────────────────────────────────────
+const CreateContractModal = ({ isOpen, onClose, onSave }: any) => {
+  const [data, setData] = useState({ candidateId: '', establishmentName: '', role: '', startDate: '', grossAmount: '' });
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-eden-navy/20 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="font-serif font-bold text-lg text-eden-navy">Générer un contrat</h3>
+          <button onClick={onClose} className="cursor-pointer"><X size={18} /></button>
+        </div>
+        <input type="text" placeholder="ID Candidat" className="w-full border border-eden-border rounded-xl p-3 text-xs" onChange={e => setData({...data, candidateId: e.target.value})} />
+        <input type="text" placeholder="Établissement" className="w-full border border-eden-border rounded-xl p-3 text-xs" onChange={e => setData({...data, establishmentName: e.target.value})} />
+        <input type="date" className="w-full border border-eden-border rounded-xl p-3 text-xs" onChange={e => setData({...data, startDate: e.target.value})} />
+        <input type="number" placeholder="Montant Brut (€)" className="w-full border border-eden-border rounded-xl p-3 text-xs" onChange={e => setData({...data, grossAmount: e.target.value})} />
+        <button onClick={() => onSave(data)} className="w-full bg-eden-navy text-white p-3 rounded-xl font-bold text-xs hover:bg-eden-light-navy cursor-pointer">Générer le contrat</button>
+      </div>
+    </div>
+  );
+};
 
 export const ContractManager: React.FC = () => {
   const [contracts, setContracts] = useState<HcrContract[]>([]);
@@ -9,8 +31,8 @@ export const ContractManager: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
   const [actionMessage, setActionMessage] = useState<string>('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // 1. RÉCUPÉRATION DES CONTRATS CTT DEPUIS ATLAS
   const fetchContracts = async () => {
     setIsLoading(true);
     setError('');
@@ -26,7 +48,6 @@ export const ContractManager: React.FC = () => {
       });
 
       const resData = await response.json();
-
       if (response.ok) {
         setContracts(resData.data || resData);
       } else {
@@ -44,7 +65,26 @@ export const ContractManager: React.FC = () => {
     fetchContracts();
   }, []);
 
-  // 2. ENVOI DE RELANCE DE SIGNATURE AU BACKEND MERN (SMS / EMAIL)
+  const handleCreateContract = async (data: any) => {
+    const token = localStorage.getItem('eden_token');
+    setActionMessage("Génération du contrat en cours...");
+    try {
+      const response = await fetch('https://eden-hcr.onrender.com/api/admin/contracts/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(data)
+      });
+      if (response.ok) {
+        setActionMessage("Contrat généré avec succès.");
+        setIsModalOpen(false);
+        fetchContracts();
+      } else {
+        setActionMessage("Erreur lors de la génération.");
+      }
+    } catch (err) { setActionMessage("Échec de connexion au serveur."); }
+    finally { setTimeout(() => setActionMessage(''), 3000); }
+  };
+
   const handleRemindCandidate = async (contractId: string, name: string) => {
     const token = localStorage.getItem('eden_token');
     setActionMessage(`Notification de relance pour ${name} en préparation...`);
@@ -73,7 +113,6 @@ export const ContractManager: React.FC = () => {
     }
   };
 
-  // Filtrage et recherche optimisés via useMemo
   const filteredContracts = useMemo(() => {
     return contracts.filter(contract => {
       const contractId = contract.id || (contract as any)._id || '';
@@ -97,27 +136,35 @@ export const ContractManager: React.FC = () => {
 
   return (
     <div className="p-[24px_30px] font-sans space-y-6">
+      <CreateContractModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleCreateContract} />
 
-      {/* PANNEAU RECHERCHE & HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-eden-bg2 border border-eden-border rounded-xl p-5 shadow-xs">
         <div className="space-y-1">
           <h2 className="font-serif font-semibold text-xl text-eden-navy tracking-wide flex items-center gap-2">
             <FileText size={20} className="text-eden-tan" /> Suivi des Contrats CTT
           </h2>
           <p className="text-xs text-eden-text-light font-light">
-            Générez, contrôlez la conformité légale et suivez le statut des signatures électroniques.
+            Gérez, contrôlez la conformité légale et suivez le statut des signatures.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-eden-bg border border-eden-border rounded-lg p-[8px_14px] text-eden-text-light w-full sm:w-[260px]">
-          <Search size={15} className="shrink-0" />
-          <input
-            type="text"
-            placeholder="Rechercher par ID, extra, hôtel..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="bg-transparent border-none text-xs outline-none w-full text-eden-text-dark placeholder:text-eden-text-light/70"
-          />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-eden-bg border border-eden-border rounded-lg p-[8px_14px] text-eden-text-light w-full sm:w-[260px]">
+            <Search size={15} className="shrink-0" />
+            <input
+              type="text"
+              placeholder="Rechercher..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="bg-transparent border-none text-xs outline-none w-full text-eden-text-dark"
+            />
+          </div>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-eden-navy text-white text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-2 hover:bg-eden-light-navy cursor-pointer transition-colors"
+          >
+            <Plus size={14} /> Nouveau
+          </button>
         </div>
       </div>
 
@@ -134,7 +181,6 @@ export const ContractManager: React.FC = () => {
         </div>
       )}
 
-      {/* FILTRES DE STATUTS */}
       <div className="flex items-center gap-2 select-none overflow-x-auto pb-1 scrollbar-none">
         {(['all', 'pending_signature', 'signed', 'archived'] as const).map(status => (
           <button
@@ -144,18 +190,17 @@ export const ContractManager: React.FC = () => {
             className={`p-[6px_14px] rounded-full border text-xs font-medium transition-all cursor-pointer whitespace-nowrap
               ${filterStatus === status
                 ? 'bg-eden-navy/10 border-eden-navy text-eden-navy font-semibold'
-                : 'bg-transparent text-eden-text-light border-eden-border hover:border-eden-tan hover:text-eden-text-dark'
+                : 'bg-transparent text-eden-text-light border-eden-border hover:border-eden-tan'
               }`}
           >
             {status === 'all' && 'Tous les contrats'}
-            {status === 'pending_signature' && 'En attente de signature'}
+            {status === 'pending_signature' && 'En attente'}
             {status === 'signed' && 'Signés'}
             {status === 'archived' && 'Archivés'}
           </button>
         ))}
       </div>
 
-      {/* TABLEAU DES CONTRATS ATLAS */}
       <div className="bg-eden-bg2 border border-eden-border rounded-xl shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
@@ -178,67 +223,29 @@ export const ContractManager: React.FC = () => {
                     <td className="p-4 font-mono font-medium text-eden-navy">{contractId}</td>
                     <td className="p-4 font-semibold">{contract.candidateName}</td>
                     <td className="p-4 text-eden-text-light">{contract.establishmentName}</td>
-                    <td className="p-4 space-y-0.5">
-                      <div>{contract.startDate}</div>
-                      <div className="text-[10px] text-eden-text-light font-light">
-                        {contract.totalHours}h de shift · {contract.role}
-                      </div>
-                    </td>
+                    <td className="p-4">{contract.startDate}</td>
                     <td className="p-4 font-medium text-eden-navy">{contract.grossAmount.toFixed(2)} €</td>
                     <td className="p-4">
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-semibold p-[2px_8px] rounded-full
-                        ${contract.status === 'signed'
-                          ? 'bg-eden-teal/10 text-eden-teal'
-                          : contract.status === 'archived'
-                          ? 'bg-eden-navy/10 text-eden-text-light'
-                          : 'bg-eden-orange/10 text-eden-orange'
-                        }`}
-                      >
-                        {contract.status === 'signed' && <><CheckCircle size={10} /> Signé</>}
-                        {contract.status === 'pending_signature' && <><Clock size={10} /> En attente</>}
-                        {contract.status === 'archived' && <><FileText size={10} /> Archivé</>}
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-semibold p-[2px_8px] rounded-full ${contract.status === 'signed' ? 'bg-eden-teal/10 text-eden-teal' : 'bg-eden-orange/10 text-eden-orange'}`}>
+                        {contract.status}
                       </span>
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {contract.status === 'pending_signature' ? (
-                          <button
-                            type="button"
-                            onClick={() => handleRemindCandidate(contractId, contract.candidateName)}
-                            title="Relancer l'extra"
-                            className="p-1.5 text-eden-tan hover:text-eden-navy rounded-lg hover:bg-eden-bg transition-colors border-none bg-transparent cursor-pointer"
-                          >
+                        {contract.status === 'pending_signature' && (
+                          <button onClick={() => handleRemindCandidate(contractId, contract.candidateName)} className="p-1.5 text-eden-tan hover:text-eden-navy cursor-pointer">
                             <Send size={14} />
                           </button>
-                        ) : (
-                          <a
-                            href={`https://eden-hcr.onrender.com/api/admin/contracts/${contractId}/pdf`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Télécharger le PDF CTT"
-                            className="p-1.5 text-eden-text-light hover:text-eden-navy rounded-lg hover:bg-eden-bg transition-colors flex items-center"
-                          >
-                            <Download size={14} />
-                          </a>
                         )}
                       </div>
                     </td>
                   </tr>
                 );
               })}
-
-              {filteredContracts.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="p-12 text-center text-eden-text-light font-light text-xs bg-eden-bg2/10">
-                    Aucun contrat CTT ne correspond à vos critères actuels.
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
       </div>
-
     </div>
   );
 };
