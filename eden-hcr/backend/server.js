@@ -45,36 +45,30 @@ app.use(
 // ── CORS ───────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
   'https://eden-hcr.vercel.app',
-  'https://eden-hcr.app', // Ajout au cas où ton domaine a changé
   'http://localhost:5173',
   'http://localhost:3000'
 ];
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Autoriser les requêtes sans origin (ex: Postman)
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
     console.warn(`[CORS] Origine bloquée : ${origin}`);
     callback(new Error("Bloqué par la politique CORS d'EDÈN Group"));
   },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  credentials: true,
-  optionsSuccessStatus: 200
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 };
 
-// ⚠️ Application du CORS
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Répondre à tous les preflight
 
 // ── Body parser ────────────────────────────────────────────────────────────────
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 // ── Routes ─────────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
@@ -95,9 +89,15 @@ const connectDB = async () => {
     }
 
     const conn = await mongoose.connect(process.env.MONGO_URI);
+
     console.log(`[MongoDB] Connecté : ${conn.connection.name}`);
+    console.log(`[MongoDB] Host : ${conn.connection.host}`);
+    console.log(`[MongoDB] ReadyState : ${mongoose.connection.readyState}`);
   } catch (error) {
-    console.error('[Erreur MongoDB]', error);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('[Erreur MongoDB]');
+    console.error(error);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     process.exit(1);
   }
 };
@@ -106,14 +106,37 @@ connectDB();
 
 // ── Health check ───────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'success', message: 'Backend opérationnel' });
+  res.status(200).json({
+    status: 'success',
+    message: 'Backend EDÈN HCR opérationnel',
+    database:
+      mongoose.connection.readyState === 1
+        ? 'Connected'
+        : 'Disconnected'
+  });
 });
 
-// ── Gestion des erreurs ────────────────────────────────────────────────────────
+// ── Route racine ───────────────────────────────────────────────────────────────
+app.all('/', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: "Bienvenue sur l'API EDÈN HCR"
+  });
+});
+
+// ── Gestion des routes inconnues ──────────────────────────────────────────────
 app.use((req, res) => {
-  res.status(404).json({ status: 'error', message: 'Route non définie' });
+  console.log(
+    `[404] Route introuvable : ${req.method} ${req.originalUrl}`
+  );
+
+  res.status(404).json({
+    status: 'error',
+    message: 'Route non définie'
+  });
 });
 
+// ── Middleware global d'erreur ────────────────────────────────────────────────
 app.use(errorHandler);
 
 // ── Démarrage serveur ──────────────────────────────────────────────────────────
