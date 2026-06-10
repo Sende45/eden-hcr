@@ -51,6 +51,7 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
+    // Autoriser les requêtes sans origin (ex: Render health checks, Postman)
     if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes(origin)) {
@@ -60,15 +61,23 @@ const corsOptions = {
     console.warn(`[CORS] Origine bloquée : ${origin}`);
     callback(new Error("Bloqué par la politique CORS d'EDÈN Group"));
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: true,
+  optionsSuccessStatus: 200 // Compatibilité IE11
 };
 
+// ⚠️ CORS doit être avant tout le reste
 app.use(cors(corsOptions));
+
+// ── Répondre aux preflight OPTIONS sur toutes les routes ──────────────────────
+// Obligatoire pour que les navigateurs acceptent les requêtes cross-origin
+// avec des headers personnalisés (Authorization, Content-Type)
+app.options('*', cors(corsOptions));
 
 // ── Body parser ────────────────────────────────────────────────────────────────
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // ── Routes ─────────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);

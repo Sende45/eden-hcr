@@ -83,7 +83,7 @@ export const ExtraDashboard = ({ user, onLogout }: { user: UserType; onLogout?: 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const API = 'https://eden-hcr.onrender.com';
+  const API = 'https://eden-hcr-backend.onrender.com';
 
   // ─── Chargement données ──────────────────────────────────────────────────────
   useEffect(() => {
