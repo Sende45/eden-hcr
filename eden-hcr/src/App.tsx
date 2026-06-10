@@ -39,9 +39,19 @@ function App() {
 
   // Oriente l'utilisateur selon son rôle
   const determineDashboardView = (role: string): AppView => {
-    if (role === 'superadmin') return 'superadmin';
-    if (role === 'admin')      return 'dashboard';
+  if (role === 'superadmin') {
+    return 'superadmin';
+  }
+
+  if (role === 'admin' || role === 'etablissement') {
+    return 'dashboard';
+  }
+
+  if (role === 'extra') {
     return 'dashboard-prestataire';
+  }
+
+  return 'landing';
   };
 
   // Synchronisation de session au chargement
