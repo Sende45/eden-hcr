@@ -1,15 +1,17 @@
 import React from 'react';
 import { ShieldCheck, Zap, Sparkles, ArrowUpRight, Award, Clock, ArrowRight, Building2, UserCheck, Star } from 'lucide-react';
 import { CandidateOnboarding } from '../components/CandidateOnboarding';
+import type { OnboardingResult } from '../components/CandidateOnboarding';
 
 // 1. DÉCLARATION STRICTE DES PROPS ATTENDUES
 export type HomeProps = {
   showOnboarding: boolean;
   setShowOnboarding: (show: boolean) => void;
+  onOnboardingComplete: (result: OnboardingResult) => void;
 };
 
 // 2. INJECTION DES PROPS DANS LE COMPOSANT
-export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding }) => {
+export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, onOnboardingComplete }) => {
 
   // RENDER DU TUNNEL D'INSCRIPTION CANDIDAT (ÉTAPE 1)
   if (showOnboarding) {
@@ -23,7 +25,7 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding })
             ← Retour à l'accueil vitrine
           </button>
         </div>
-        <CandidateOnboarding onComplete={() => setShowOnboarding(false)} />
+        <CandidateOnboarding onComplete={onOnboardingComplete} />
       </div>
     );
   }
@@ -63,7 +65,6 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding })
                 <Zap size={14} className="text-eden-orange fill-eden-orange group-hover:scale-125 transition-transform" />
               </button>
               
-              {/* Branché sur le setShowOnboarding local */}
               <button 
                 onClick={() => setShowOnboarding(true)}
                 className="group bg-transparent hover:bg-eden-navy/5 text-eden-navy border border-eden-border hover:border-eden-tan font-medium text-xs tracking-wider uppercase py-4 px-8 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
@@ -191,7 +192,7 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding })
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center text-xs font-semibold text-eden-text-light/60 select-none">
           <div className="bg-eden-bg2 border border-eden-border-light p-6 rounded-xl">Palaces & Hôtels 5★</div>
           <div className="bg-eden-bg2 border border-eden-border-light p-6 rounded-xl">Tables Étoilées</div>
-          <div className="bg-eden-bg2 border border-eden-border-light p-6 rounded-xl">Brasseries Premium</div>
+          <div className="bg-eden-bg2 border borderS-eden-border-light p-6 rounded-xl">Brasseries Premium</div>
           <div className="bg-eden-bg2 border border-eden-border-light p-6 rounded-xl">Traiteurs Événementiels</div>
         </div>
       </section>
