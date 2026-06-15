@@ -128,10 +128,10 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
         </div>
       </section>
 
-      {/* SECTION IMMERSION - RENDU PROFESSIONNEL SANS COUPURE */}
+      {/* SECTION IMMERSION - RENDU PROFESSIONNEL HARMONISÉ */}
       <section className="py-20 bg-eden-bg">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="bg-eden-bg2 p-4 rounded-3xl border border-eden-border shadow-xl">
+          <div className="bg-[#0c3948] p-4 rounded-3xl border border-eden-border shadow-xl">
             <Swiper
               modules={[Autoplay]}
               autoplay={{ delay: 5000, disableOnInteraction: true }}
