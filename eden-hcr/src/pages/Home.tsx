@@ -128,16 +128,15 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
         </div>
       </section>
 
-      {/* SECTION CARROUSEL D'IMMERSION - LOOK MODERNE & PRO */}
+      {/* SECTION IMMERSION - RENDU PROFESSIONNEL SANS COUPURE */}
       <section className="py-20 bg-eden-bg">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="relative group">
+          <div className="bg-eden-bg2 p-4 rounded-3xl border border-eden-border shadow-xl">
             <Swiper
               modules={[Autoplay]}
               autoplay={{ delay: 5000, disableOnInteraction: true }}
               loop={true}
-              speed={1000}
-              className="rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-eden-border"
+              className="w-full"
             >
               {[
                 "https://i.ibb.co/pvfr6V2W/HCR-HOME.jpg",
@@ -145,18 +144,16 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
                 "https://i.ibb.co/rR303TnD/I4.jpg"
               ].map((url, index) => (
                 <SwiperSlide key={index}>
-                  <div className="relative w-full aspect-[21/9] overflow-hidden">
+                  <div className="flex justify-center items-center">
                     <img 
                       src={url} 
                       alt={`Immersion EDÈN ${index + 1}`} 
-                      className="w-full h-full object-cover object-center transition-transform duration-[2000ms] ease-out group-hover:scale-105" 
+                      className="w-full h-auto max-h-[600px] object-contain rounded-2xl" 
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-eden-navy/40 via-transparent to-transparent" />
                   </div>
                 </SwiperSlide>
               ))}
             </Swiper>
-            <div className="absolute -bottom-4 -right-4 w-full h-full border border-eden-tan/20 rounded-[2rem] -z-10" />
           </div>
         </div>
       </section>
