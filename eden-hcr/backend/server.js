@@ -66,6 +66,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+// Gestion explicite des requêtes preflight
+app.options('*', cors(corsOptions));
 
 // ── Body parser ────────────────────────────────────────────────────────────────
 app.use(express.json());
