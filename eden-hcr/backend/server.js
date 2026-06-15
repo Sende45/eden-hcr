@@ -66,8 +66,14 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-// Gestion explicite des requêtes preflight
-app.options('*', cors(corsOptions));
+
+// Gestion globale des requêtes preflight (OPTIONS) sans erreur de routage
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    return cors(corsOptions)(req, res, next);
+  }
+  next();
+});
 
 // ── Body parser ────────────────────────────────────────────────────────────────
 app.use(express.json());
