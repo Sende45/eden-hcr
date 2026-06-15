@@ -1,13 +1,12 @@
 import React from 'react';
 import { ShieldCheck, Zap, Sparkles, ArrowUpRight, Award, Clock, ArrowRight, Building2, UserCheck, Star } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Autoplay, EffectFade } from 'swiper/modules';
+import { Autoplay } from 'swiper/modules';
 import { CandidateOnboarding } from '../components/CandidateOnboarding';
 import type { OnboardingResult } from '../components/CandidateOnboarding';
 
 // Import des styles Swiper
 import 'swiper/css';
-import 'swiper/css/effect-fade';
 
 // 1. DÉCLARATION STRICTE DES PROPS ATTENDUES
 export type HomeProps = {
@@ -46,7 +45,6 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
 
         <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10 py-12">
           
-          {/* ACCROCHE TEXTUELLE (7 COLONNES) */}
           <div className="lg:col-span-7 space-y-8 text-left">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-eden-navy/5 border border-eden-navy/10 text-eden-navy text-xs font-medium tracking-wider uppercase backdrop-blur-md">
               <Sparkles size={12} className="text-eden-tan animate-spin duration-3000" /> 
@@ -64,7 +62,6 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
               Pourvoyez vos brigades en quelques clics avec des professionals validés, bilingues et immédiatement opérationnels. Une flexibilité absolue, gérée de manière chirurgicale.
             </p>
 
-            {/* CTAS COORDONNÉS */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2">
               <button className="group bg-eden-navy hover:bg-eden-light-navy text-white font-medium text-xs tracking-wider uppercase py-4 px-8 rounded-xl shadow-lg hover:shadow-eden-navy/20 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer">
                 Trouver un extra
@@ -80,7 +77,6 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
               </button>
             </div>
 
-            {/* PRESTIGE PROOF */}
             <div className="pt-6 border-t border-eden-border/50 flex flex-wrap gap-x-8 gap-y-4 items-center">
               <div className="flex items-center gap-1 text-eden-tan">
                 {[...Array(5)].map((_, i) => <Star key={i} size={14} className="fill-eden-tan" />)}
@@ -92,7 +88,6 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
             </div>
           </div>
 
-          {/* VISUEL INTERACTIF SAAS LUXE (5 COLONNES) */}
           <div className="lg:col-span-5 relative hidden lg:block select-none">
             <div className="bg-eden-bg2 border border-eden-border rounded-2xl p-6 shadow-2xl space-y-4 relative z-10 backdrop-blur-md">
               <div className="flex items-center justify-between border-b border-eden-border/40 pb-3">
@@ -133,37 +128,40 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
         </div>
       </section>
 
-      {/* SECTION CARROUSEL D'IMMERSION */}
-      <section className="py-16 bg-eden-bg">
+      {/* SECTION CARROUSEL D'IMMERSION - LOOK MODERNE & PRO */}
+      <section className="py-20 bg-eden-bg">
         <div className="max-w-7xl mx-auto px-6">
-          <Swiper
-            modules={[Autoplay, EffectFade]}
-            effect="fade"
-            autoplay={{ delay: 4000, disableOnInteraction: false }}
-            loop={true}
-            className="rounded-3xl shadow-2xl border border-eden-border"
-          >
-            {[
-              "https://i.ibb.co/pvfr6V2W/HCR-HOME.jpg",
-              "https://i.ibb.co/kV37BdD0/I6.jpg",
-              "https://i.ibb.co/rR303TnD/I4.jpg"
-            ].map((url, index) => (
-              <SwiperSlide key={index}>
-                <div className="w-full h-[400px] md:h-[500px] relative">
-                  <img 
-                    src={url} 
-                    alt={`Immersion EDÈN ${index + 1}`} 
-                    className="w-full h-full object-cover" 
-                  />
-                  <div className="absolute inset-0 bg-eden-navy/10" />
-                </div>
-              </SwiperSlide>
-            ))}
-          </Swiper>
+          <div className="relative group">
+            <Swiper
+              modules={[Autoplay]}
+              autoplay={{ delay: 5000, disableOnInteraction: true }}
+              loop={true}
+              speed={1000}
+              className="rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-eden-border"
+            >
+              {[
+                "https://i.ibb.co/pvfr6V2W/HCR-HOME.jpg",
+                "https://i.ibb.co/kV37BdD0/I6.jpg",
+                "https://i.ibb.co/rR303TnD/I4.jpg"
+              ].map((url, index) => (
+                <SwiperSlide key={index}>
+                  <div className="relative w-full aspect-[21/9] overflow-hidden">
+                    <img 
+                      src={url} 
+                      alt={`Immersion EDÈN ${index + 1}`} 
+                      className="w-full h-full object-cover object-center transition-transform duration-[2000ms] ease-out group-hover:scale-105" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-eden-navy/40 via-transparent to-transparent" />
+                  </div>
+                </SwiperSlide>
+              ))}
+            </Swiper>
+            <div className="absolute -bottom-4 -right-4 w-full h-full border border-eden-tan/20 rounded-[2rem] -z-10" />
+          </div>
         </div>
       </section>
 
-      {/* VALUE PROPOSITION GRID - SOLUTIONS BRANCHÉES ICI */}
+      {/* VALUE PROPOSITION GRID */}
       <section id="solutions" className="max-w-7xl mx-auto px-6 py-24 relative z-10 scroll-mt-20">
         <div className="text-center max-w-xl mx-auto mb-16 space-y-3">
           <p className="text-[10px] text-eden-tan font-semibold uppercase tracking-[4px]">L'Exigence EDÈN</p>
