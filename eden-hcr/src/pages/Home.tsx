@@ -1,7 +1,13 @@
 import React from 'react';
 import { ShieldCheck, Zap, Sparkles, ArrowUpRight, Award, Clock, ArrowRight, Building2, UserCheck, Star } from 'lucide-react';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Autoplay, EffectFade } from 'swiper/modules';
 import { CandidateOnboarding } from '../components/CandidateOnboarding';
 import type { OnboardingResult } from '../components/CandidateOnboarding';
+
+// Import des styles Swiper
+import 'swiper/css';
+import 'swiper/css/effect-fade';
 
 // 1. DÉCLARATION STRICTE DES PROPS ATTENDUES
 export type HomeProps = {
@@ -124,7 +130,36 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
             </div>
             <div className="absolute inset-0 bg-eden-tan/10 rounded-2xl filter blur-xl transform scale-95 translate-y-4 z-0 pointer-events-none" />
           </div>
+        </div>
+      </section>
 
+      {/* SECTION CARROUSEL D'IMMERSION */}
+      <section className="py-16 bg-eden-bg">
+        <div className="max-w-7xl mx-auto px-6">
+          <Swiper
+            modules={[Autoplay, EffectFade]}
+            effect="fade"
+            autoplay={{ delay: 4000, disableOnInteraction: false }}
+            loop={true}
+            className="rounded-3xl shadow-2xl border border-eden-border"
+          >
+            {[
+              "https://i.ibb.co/pvfr6V2W/HCR-HOME.jpg",
+              "https://i.ibb.co/kV37BdD0/I6.jpg",
+              "https://i.ibb.co/rR303TnD/I4.jpg"
+            ].map((url, index) => (
+              <SwiperSlide key={index}>
+                <div className="w-full h-[400px] md:h-[500px] relative">
+                  <img 
+                    src={url} 
+                    alt={`Immersion EDÈN ${index + 1}`} 
+                    className="w-full h-full object-cover" 
+                  />
+                  <div className="absolute inset-0 bg-eden-navy/10" />
+                </div>
+              </SwiperSlide>
+            ))}
+          </Swiper>
         </div>
       </section>
 
@@ -180,7 +215,7 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
         </div>
       </section>
 
-      {/* SECTION ÉTABLISSEMENTS - BRANCHÉE ICI */}
+      {/* SECTION ÉTABLISSEMENTS */}
       <section id="etablissements" className="max-w-7xl mx-auto px-6 py-24 border-t border-eden-border/30 scroll-mt-20">
         <div className="text-center max-w-xl mx-auto mb-12 space-y-3">
           <p className="text-[10px] text-eden-tan font-semibold uppercase tracking-[4px]">Nos Partenaires</p>
@@ -192,7 +227,7 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center text-xs font-semibold text-eden-text-light/60 select-none">
           <div className="bg-eden-bg2 border border-eden-border-light p-6 rounded-xl">Palaces & Hôtels 5★</div>
           <div className="bg-eden-bg2 border border-eden-border-light p-6 rounded-xl">Tables Étoilées</div>
-          <div className="bg-eden-bg2 border borderS-eden-border-light p-6 rounded-xl">Brasseries Premium</div>
+          <div className="bg-eden-bg2 border border-eden-border-light p-6 rounded-xl">Brasseries Premium</div>
           <div className="bg-eden-bg2 border border-eden-border-light p-6 rounded-xl">Traiteurs Événementiels</div>
         </div>
       </section>
