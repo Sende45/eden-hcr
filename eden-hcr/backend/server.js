@@ -49,7 +49,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // ← répond immédiatement à tous les preflights
+app.options('{*path}', cors(corsOptions)); // ← répond immédiatement à tous les preflights
 
 // ── Rate limiting ─── APRÈS CORS ─────────────────────────────────────────────
 app.use(
