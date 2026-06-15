@@ -11,7 +11,7 @@ import {
   Check
 } from 'lucide-react';
 
-const API = 'https://eden-hcr-backend.onrender.com';
+const API = 'https://eden-hcr.onrender.com';
 
 type OnboardingStep = 1 | 2 | 3 | 4;
 
