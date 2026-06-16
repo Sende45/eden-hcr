@@ -172,7 +172,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, use
             ML
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-xs font-medium text-white/85 truncate">Marie Lefebvre</div>
+            <div className="text-xs font-medium text-white/85 truncate">Samuel Tam</div>
             <div className="text-[11px] text-white/35 font-light mt-[1px] truncate">Responsable agence</div>
           </div>
           <ChevronRight size={13} className="text-white/25 ml-auto group-hover:text-white/60 transition-colors" />
