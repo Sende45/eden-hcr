@@ -42,7 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <div className="h-[42px] w-[58px] flex items-center justify-center overflow-hidden rounded-xl bg-eden-navy/5 p-1 border border-eden-border/30 transition-all duration-300 group-hover:bg-eden-navy/10 group-hover:border-eden-tan/40 shadow-2xs">
             <img 
-              src="https://i.ibb.co/zTQJj8Tk/logo23-AJ.png" 
+              src="https://i.ibb.co/k63wFvcJ/Symbole3.png" 
               alt="EDÈN Logo Icon" 
               className="h-full w-full object-contain transition-transform duration-500 ease-out group-hover:scale-105"
             />
