@@ -35,7 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, use
           {/* SYMBOLE MIS À JOUR */}
           <div className="w-[38px] h-[38px] shrink-0">
             <img 
-              src="https://i.ibb.co/23qjv5HT/Symbole2.jpg" 
+              src="https://i.ibb.co/k63wFvcJ/Symbole3.png" 
               alt="EDÈN Logo" 
               className="w-full h-full object-contain"
             />
