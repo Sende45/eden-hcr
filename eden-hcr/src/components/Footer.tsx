@@ -43,8 +43,8 @@ export const Footer: React.FC = () => {
           <div>
             <h3 className="font-serif text-eden-tan font-medium tracking-wide text-sm mb-4">Support & Agence</h3>
             <ul className="space-y-2.5 text-xs text-white/60">
-              <li className="flex items-center gap-2 text-white/70"><Phone size={13} className="text-eden-tan"/> +33 (0)1 00 00 00 00</li>
-              <li className="flex items-center gap-2 text-white/70"><Mail size={13} className="text-eden-tan"/> contact@eden-group.fr</li>
+              <li className="flex items-center gap-2 text-white/70"><Phone size={13} className="text-eden-tan"/> +33 (0)7 80 80 16 42</li>
+              <li className="flex items-center gap-2 text-white/70"><Mail size={13} className="text-eden-tan"/> direction@eden-group.pro</li>
               <li className="flex items-center gap-2 text-white/50 pt-2"><Shield size={13} /> Régulation URSSAF & Inspection du travail France</li>
             </ul>
           </div>
