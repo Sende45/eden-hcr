@@ -34,3 +34,35 @@ export const getMissionsOuvertes = async (req, res) => {
     });
   }
 };
+
+// @desc    Rechercher des missions
+// @route   GET /api/mission/search?q=...
+// @access  Private
+export const searchMissions = async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q) {
+      return res.status(200).json([]);
+    }
+
+    const missions = await Mission.find({
+      $or: [
+        { titre: { $regex: q, $options: 'i' } },
+        { description: { $regex: q, $options: 'i' } },
+        { ville: { $regex: q, $options: 'i' } }
+      ]
+    })
+      .populate('etablissementId', 'raisonSociale')
+      .limit(20)
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(missions);
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Erreur lors de la recherche des missions',
+      error: error.message
+    });
+  }
+};
