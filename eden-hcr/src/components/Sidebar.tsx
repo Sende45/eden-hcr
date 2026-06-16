@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   LayoutDashboard, 
   Briefcase, 
@@ -13,8 +13,30 @@ import {
   ChevronRight,
   ShieldCheck 
 } from 'lucide-react';
+
 import { type DashboardView } from '../types/navigation';
 
+const [stats, setStats] = useState({
+  missions: 0,
+  contrats: 0,
+  messages: 0
+});
+
+useEffect(() => {
+  const token = localStorage.getItem('token');
+
+  fetch(
+    'https://eden-hcr.onrender.com/api/admin/dashboard-stats',
+    {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  )
+    .then(res => res.json())
+    .then(setStats)
+    .catch(console.error);
+}, []);
 export type SidebarProps = {
   currentView: DashboardView;
   onViewChange: (view: DashboardView) => void;
@@ -89,7 +111,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, use
               ${currentView === 'missions' ? 'bg-[#b2976a]/18 text-eden-tan font-medium' : 'text-white/55 hover:bg-white/7 hover:text-white/90'}`}
           >
             <Briefcase size={16} className="opacity-90" /> Missions 
-            <span className="ml-auto bg-eden-orange text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">12</span>
+            <span className="ml-auto bg-eden-orange text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+            {stats.missions}
+            </span>
           </button>
           
           <button 
@@ -127,7 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, use
               ${currentView === 'contracts' ? 'bg-[#b2976a]/18 text-eden-tan font-medium' : 'text-white/55 hover:bg-white/7 hover:text-white/90'}`}
           >
             <FileText size={16} className="opacity-90" /> Contrats
-            <span className="ml-auto bg-eden-teal text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">3</span>
+            <span className="ml-auto bg-eden-teal text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">{stats.contrats}</span>
           </button>
           
           <button 
