@@ -16,27 +16,6 @@ import {
 
 import { type DashboardView } from '../types/navigation';
 
-const [stats, setStats] = useState({
-  missions: 0,
-  contrats: 0,
-  messages: 0
-});
-
-useEffect(() => {
-  const token = localStorage.getItem('token');
-
-  fetch(
-    'https://eden-hcr.onrender.com/api/admin/dashboard-stats',
-    {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    }
-  )
-    .then(res => res.json())
-    .then(setStats)
-    .catch(console.error);
-}, []);
 export type SidebarProps = {
   currentView: DashboardView;
   onViewChange: (view: DashboardView) => void;
@@ -44,6 +23,36 @@ export type SidebarProps = {
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, userRole }) => {
+  // Les hooks sont maintenant déplacés à l'intérieur du composant Sidebar
+  const [stats, setStats] = useState({
+    missions: 0,
+    contrats: 0,
+    messages: 0
+  });
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+
+    fetch(
+      'https://eden-hcr.onrender.com/api/admin/dashboard-stats',
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    )
+      .then(res => res.json())
+      .then(data => {
+        // Mise à jour de l'état avec les données récupérées
+        setStats({
+            missions: data.missions || 0,
+            contrats: data.contrats || 0,
+            messages: data.messages || 0
+        });
+      })
+      .catch(console.error);
+  }, []);
+
   return (
     <aside className="bg-eden-navy w-60 flex flex-col relative overflow-hidden min-h-screen font-sans select-none shrink-0">
       
@@ -54,7 +63,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, use
       {/* ZONE LOGO */}
       <div className="p-[28px_24px_22px] border-b border-[#b2976a]/20 relative z-10">
         <div className="flex items-center gap-3">
-          {/* SYMBOLE MIS À JOUR */}
           <div className="w-[38px] h-[38px] shrink-0">
             <img 
               src="https://i.ibb.co/k63wFvcJ/Symbole3.png" 
