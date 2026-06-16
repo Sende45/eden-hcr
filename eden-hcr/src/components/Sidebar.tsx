@@ -169,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, use
       <div className="p-[16px_14px] border-t border-[#b2976a]/15 relative z-10">
         <div className="flex items-center gap-2.5 p-[10px_12px] rounded-xl hover:bg-white/6 cursor-pointer transition-colors group">
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-eden-teal to-eden-sage flex items-center justify-center text-xs font-semibold text-white border-2 border-[#b2976a]/30 shrink-0">
-            ML
+            ST
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-xs font-medium text-white/85 truncate">Samuel Tam</div>

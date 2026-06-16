@@ -15,7 +15,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onNewMissionClick }) => {
           Tableau de bord
         </h1>
         <p className="text-xs text-eden-text-light font-light tracking-wide mt-[2px]">
-          Vendredi 6 juin 2025 &nbsp;·&nbsp; Semaine 23
+          Mardi 16 juin 2025 &nbsp;·&nbsp; Semaine 23
         </p>
       </div>
 
