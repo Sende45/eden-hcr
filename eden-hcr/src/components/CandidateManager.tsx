@@ -90,10 +90,10 @@ export const CandidateManager: React.FC = () => {
     }
   };
 
-  // Filtrage combiné (Recherche textuelle réactive)
-  const filteredCandidates = candidates.filter(c => 
-    `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.role.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filtrage combiné (Recherche textuelle réactive) — sécurisé contre les champs undefined
+  const filteredCandidates = candidates.filter(c =>
+    `${c.firstName ?? ''} ${c.lastName ?? ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c.role ?? '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (isLoading) {
@@ -173,7 +173,8 @@ export const CandidateManager: React.FC = () => {
                     <td className="p-4 pl-6">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-eden-navy text-white font-bold flex items-center justify-center text-xs shadow-2xs uppercase">
-                          {candidate.firstName[0]}{candidate.lastName[0]}
+                          {/* FIX : optional chaining pour éviter le crash si firstName/lastName est vide ou undefined */}
+                          {candidate.firstName?.[0] ?? '?'}{candidate.lastName?.[0] ?? '?'}
                         </div>
                         <div>
                           <p className="font-semibold text-eden-text-dark text-sm">{candidate.firstName} {candidate.lastName}</p>
@@ -237,7 +238,8 @@ export const CandidateManager: React.FC = () => {
               <div className="flex items-start justify-between border-b border-eden-border/40 pb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-full bg-eden-tan/10 text-eden-tan font-bold flex items-center justify-center text-sm shadow-inner uppercase">
-                    {selectedCandidate.firstName[0]}{selectedCandidate.lastName[0]}
+                    {/* FIX : optional chaining pour éviter le crash si firstName/lastName est vide ou undefined */}
+                    {selectedCandidate.firstName?.[0] ?? '?'}{selectedCandidate.lastName?.[0] ?? '?'}
                   </div>
                   <div>
                     <h3 className="font-serif font-bold text-base text-eden-navy">{selectedCandidate.firstName} {selectedCandidate.lastName}</h3>
