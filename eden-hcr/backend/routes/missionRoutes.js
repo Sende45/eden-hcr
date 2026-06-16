@@ -1,11 +1,18 @@
 import express from 'express';
-import { createMission, getMissionsOuvertes } from '../controllers/missionController.js';
-import { protect } from '../middlewares/authMiddleware.js'; // Import du verrou
+import {
+  createMission,
+  getMissionsOuvertes,
+  searchMissions
+} from '../controllers/missionController.js';
+
+import { protect } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// Maintenant, il faut un Token JWT valide pour créer ou voir les missions
 router.post('/', protect, createMission);
+
 router.get('/ouvertes', protect, getMissionsOuvertes);
+
+router.get('/search', protect, searchMissions);
 
 export default router;

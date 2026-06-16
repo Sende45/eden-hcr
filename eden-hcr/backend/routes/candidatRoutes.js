@@ -1,15 +1,17 @@
 import express from 'express';
+
 import {
   registerCandidat,
-  updateCandidateStatus
+  updateCandidateStatus,
+  searchCandidats
 } from '../controllers/candidatController.js';
 
 const router = express.Router();
 
-// Route : /api/candidat
 router.post('/', registerCandidat);
 
-// Route : PATCH /api/candidat/:id/status
 router.patch('/:id/status', updateCandidateStatus);
+
+router.get('/search', searchCandidats);
 
 export default router;
