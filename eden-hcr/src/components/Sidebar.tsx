@@ -11,14 +11,14 @@ import {
   MessageSquare, 
   Settings, 
   ChevronRight,
-  ShieldCheck // Ajouté pour le bouton SuperAdmin
+  ShieldCheck 
 } from 'lucide-react';
 import { type DashboardView } from '../types/navigation';
 
 export type SidebarProps = {
   currentView: DashboardView;
   onViewChange: (view: DashboardView) => void;
-  userRole?: string; // Ajouté pour filtrer l'affichage
+  userRole?: string; 
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, userRole }) => {
@@ -32,13 +32,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, use
       {/* ZONE LOGO */}
       <div className="p-[28px_24px_22px] border-b border-[#b2976a]/20 relative z-10">
         <div className="flex items-center gap-3">
+          {/* IMAGE REMPLACÉE PAR VOTRE NOUVEAU SYMBOLE */}
           <div className="w-[38px] h-[38px] shrink-0">
-            <svg viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-              <path d="M19 6 C19 6, 14 10, 14 14 C14 17, 16.5 19, 19 19 C21.5 19, 24 17, 24 14 C24 10, 19 6, 19 6Z" stroke="#b2976a" strokeWidth="2" fill="none"/>
-              <path d="M19 32 C19 32, 14 28, 14 24 C14 21, 16.5 19, 19 19 C21.5 19, 24 21, 24 24 C24 28, 19 32, 19 32Z" stroke="#b2976a" strokeWidth="2" fill="none"/>
-              <path d="M6 19 C6 19, 10 14, 14 14 C17 14, 19 16.5, 19 19 C19 21.5, 17 24, 14 24 C10 24, 6 19, 6 19Z" stroke="#b2976a" strokeWidth="2" fill="none"/>
-              <path d="M32 19 C32 19, 28 14, 24 14 C21 14, 19 16.5, 19 19 C19 21.5, 21 24, 24 24 C28 24, 32 19, 32 19Z" stroke="#b2976a" strokeWidth="2" fill="none"/>
-            </svg>
+            <img 
+              src="https://i.ibb.co/5XF5Db6B/symbole1.png" 
+              alt="EDÈN Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
             <div className="font-serif font-semibold text-xl text-white tracking-wider leading-none">
@@ -57,7 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, use
       {/* NAVIGATION INTERACTIVE */}
       <nav className="p-[22px_14px] flex-1 space-y-6 overflow-y-auto scrollbar-none relative z-10">
         
-        {/* SECTION DIRECTION (SuperAdmin uniquement) */}
+        {/* SECTION DIRECTION */}
         {userRole === 'superadmin' && (
           <div className="space-y-0.5">
             <div className="text-[9px] text-[#b2976a]/55 tracking-[3px] font-semibold uppercase px-2.5 mb-1.5">Direction</div>
@@ -175,7 +175,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, use
             <div className="text-xs font-medium text-white/85 truncate">Samuel Tam</div>
             <div className="text-[11px] text-white/35 font-light mt-[1px] truncate">Responsable agence</div>
           </div>
-          <ChevronRight size={13} className="text-white/25 ml-auto group-hover:text-white/60 transition-colors" />
+          <ChevronRight size={13} className="text-white/25 ml-auto group-hover:text-white/6 transition-colors" />
         </div>
       </div>
 
