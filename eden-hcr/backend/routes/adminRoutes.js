@@ -33,4 +33,5 @@ router.get('/payments', protect, getPayments);
 router.get('/messages/channels', protect, getMessages);
 router.post('/messages/channels/:channelId', protect, sendMessage);
 router.patch('/candidates/:id/status', updateCandidateStatus);
+router.put('/candidates/:id/status', updateCandidateStatus);
 export default router;

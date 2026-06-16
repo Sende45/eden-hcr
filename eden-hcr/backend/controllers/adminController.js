@@ -112,6 +112,8 @@ export const sendMessage = async (req, res, next) => {
 
 // @desc    Activer/Désactiver un candidat
 // @route   PATCH /api/admin/candidates/:id/status
+// @desc    Activer/Désactiver un candidat
+// @route   PATCH /api/admin/candidates/:id/status
 export const updateCandidateStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -126,7 +128,23 @@ export const updateCandidateStatus = async (req, res, next) => {
       });
     }
 
-    candidat.status = status;
+    // Conversion des statuts frontend vers MongoDB
+    if (status === 'validated') {
+      candidat.status = 'active';
+      candidat.statutValidation = 'approuve';
+      candidat.actif = true;
+    } else if (status === 'pending') {
+      candidat.status = 'inactive';
+      candidat.statutValidation = 'en_attente';
+      candidat.actif = false;
+    } else if (status === 'premium') {
+      candidat.status = 'active';
+      candidat.statutValidation = 'approuve';
+      candidat.actif = true;
+    } else {
+      candidat.status = status;
+    }
+
     await candidat.save();
 
     res.status(200).json({
