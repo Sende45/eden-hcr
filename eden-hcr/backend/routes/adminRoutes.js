@@ -8,9 +8,11 @@ import {
   getReports,
   getPayments,
   getMessages,
-  sendMessage
+  sendMessage,
+  updateCandidateStatus
 } from '../controllers/adminController.js';
 import { protect } from '../middlewares/authMiddleware.js';
+
 
 const router = express.Router();
 
@@ -30,5 +32,5 @@ router.get('/reports', protect, getReports);
 router.get('/payments', protect, getPayments);
 router.get('/messages/channels', protect, getMessages);
 router.post('/messages/channels/:channelId', protect, sendMessage);
-
+router.patch('/candidates/:id/status', updateCandidateStatus);
 export default router;

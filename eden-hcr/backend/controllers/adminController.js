@@ -109,3 +109,32 @@ export const sendMessage = async (req, res, next) => {
     res.status(201).json({ status: 'success', data: newMessage });
   } catch (error) { next(error); }
 };
+
+// @desc    Activer/Désactiver un candidat
+// @route   PATCH /api/admin/candidates/:id/status
+export const updateCandidateStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const candidat = await Candidat.findById(id);
+
+    if (!candidat) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Candidat introuvable'
+      });
+    }
+
+    candidat.status = status;
+    await candidat.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Statut mis à jour',
+      data: candidat
+    });
+  } catch (error) {
+    next(error);
+  }
+};
