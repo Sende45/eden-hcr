@@ -66,3 +66,34 @@ export const updateCandidateStatus = async (req, res) => {
     });
   }
 };
+
+// @desc    Rechercher des candidats
+// @route   GET /api/candidat/search?q=...
+// @access  Admin
+export const searchCandidats = async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q) {
+      return res.status(200).json([]);
+    }
+
+    const candidats = await Candidat.find({
+      $or: [
+        { nom: { $regex: q, $options: 'i' } },
+        { prenom: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } }
+      ]
+    })
+      .limit(20)
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(candidats);
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Erreur lors de la recherche des candidats',
+      error: error.message
+    });
+  }
+};
