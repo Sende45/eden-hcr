@@ -40,7 +40,8 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={() => { window.location.href = '/'; }}
           className="flex items-center select-none group cursor-pointer transition-all duration-300 border-none bg-transparent text-left p-0 font-sans outline-none"
         >
-          <div className="h-[42px] w-[58px] flex items-center justify-center overflow-hidden rounded-xl bg-eden-navy/5 p-1 border border-eden-border/30 transition-all duration-300 group-hover:bg-eden-navy/10 group-hover:border-eden-tan/40 shadow-2xs">
+          {/* Symbole avec fond couleur #0c3948 */}
+          <div className="h-[42px] w-[58px] flex items-center justify-center overflow-hidden rounded-xl bg-[#0c3948] p-1 border border-eden-border/30 transition-all duration-300 group-hover:opacity-90 shadow-2xs">
             <img 
               src="https://i.ibb.co/k63wFvcJ/Symbole3.png" 
               alt="EDÈN Logo Icon" 
@@ -95,11 +96,19 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {isAuthenticated ? (
-            <button type="button" onClick={handleLogout} className="bg-eden-orange hover:bg-eden-orange/90 text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide flex items-center gap-2 transition-all duration-200 shadow-md active:scale-98 border-none cursor-pointer">
+            <button 
+              type="button"
+              onClick={handleLogout}
+              className="bg-eden-orange hover:bg-eden-orange/90 text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide flex items-center gap-2 transition-all duration-200 shadow-md active:scale-98 border-none cursor-pointer"
+            >
               <LogOut size={14} /> Déconnexion
             </button>
           ) : (
-            <button type="button" onClick={onNavigateToClientAuth} className="bg-eden-navy hover:bg-eden-light-navy text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide flex items-center gap-2 transition-all duration-200 shadow-md hover:shadow-eden-navy/10 active:scale-98 border-none cursor-pointer">
+            <button 
+              type="button"
+              onClick={onNavigateToClientAuth}
+              className="bg-eden-navy hover:bg-eden-light-navy text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide flex items-center gap-2 transition-all duration-200 shadow-md hover:shadow-eden-navy/10 active:scale-98 border-none cursor-pointer"
+            >
               <User size={14} /> Espace Client
             </button>
           )}
