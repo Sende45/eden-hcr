@@ -7,15 +7,13 @@ export const createMessage = async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
 
-    // Validation rapide
     if (!name || !email || !subject || !message) {
-      return res.status(400).json({ 
-        status: 'error', 
-        message: 'Veuillez remplir tous les champs obligatoires.' 
+      return res.status(400).json({
+        status: 'error',
+        message: 'Veuillez remplir tous les champs obligatoires.'
       });
     }
 
-    // Création dans Atlas
     const nouveauMessage = await Messagerie.create({
       name,
       email,
@@ -32,6 +30,28 @@ export const createMessage = async (req, res) => {
     res.status(500).json({
       status: 'error',
       message: "Une erreur est survenue lors de l'envoi du message.",
+      error: error.message
+    });
+  }
+};
+
+// @desc    Récupérer les notifications
+// @route   GET /api/messagerie/notifications
+// @access  Private/Admin
+export const getNotifications = async (req, res) => {
+  try {
+    const messages = await Messagerie.find()
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    res.status(200).json({
+      count: messages.length,
+      notifications: messages
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Erreur lors de la récupération des notifications.',
       error: error.message
     });
   }
