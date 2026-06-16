@@ -32,7 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, use
       {/* ZONE LOGO */}
       <div className="p-[28px_24px_22px] border-b border-[#b2976a]/20 relative z-10">
         <div className="flex items-center gap-3">
-          {/* IMAGE REMPLACÉE PAR VOTRE NOUVEAU SYMBOLE */}
+          {/* SYMBOLE MIS À JOUR */}
           <div className="w-[38px] h-[38px] shrink-0">
             <img 
               src="https://i.ibb.co/5XF5Db6B/symbole1.png" 
