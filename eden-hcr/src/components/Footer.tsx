@@ -33,7 +33,7 @@ export const Footer: React.FC = () => {
             <h3 className="font-serif text-eden-tan font-medium tracking-wide text-sm mb-4">Écosystème</h3>
             <ul className="space-y-2.5 text-xs text-white/60">
               <li><a href="https://eden-group.fr" className="hover:text-white transition-colors flex items-center gap-1.5"><Globe size={12}/> Site Principal</a></li>
-              <li><span className="hover:text-white transition-colors cursor-pointer">Volet Propreté & Nettoyage</span></li>
+              <li><span className="hover:text-white transition-colors cursor-pointer">Hotellerie, cafés et restaurants</span></li>
               <li><span className="hover:text-white transition-colors cursor-pointer">Mentions légales & Conformité</span></li>
               <li><span className="hover:text-white transition-colors cursor-pointer">CGU & RGPD</span></li>
             </ul>
