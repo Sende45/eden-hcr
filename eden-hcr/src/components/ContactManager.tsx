@@ -97,8 +97,8 @@ export const ContactManager: React.FC<{ userRole?: string }> = ({ userRole }) =>
       <div className="lg:col-span-5 bg-eden-navy text-white p-8 rounded-2xl space-y-6">
         <h2 className="font-serif text-2xl">Maison EDÈN</h2>
         <div className="space-y-4 text-xs font-light">
-          <div className="flex items-center gap-3"><Mail size={16} /> contact@eden-group.fr</div>
-          <div className="flex items-center gap-3"><Phone size={16} /> +33 (0)1 00 00 00 00</div>
+          <div className="flex items-center gap-3"><Mail size={16} /> direction@eden-group.pro</div>
+          <div className="flex items-center gap-3"><Phone size={16} /> +33 (0)7 80 80 16 42</div>
           <div className="flex items-center gap-3"><MapPin size={16} /> Paris, France</div>
         </div>
       </div>
