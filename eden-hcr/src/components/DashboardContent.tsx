@@ -61,7 +61,7 @@ interface Stats {
 const API = 'https://eden-hcr.onrender.com/api';
 
 function getToken(): string | null {
-  return localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('eden_token');
+  return localStorage.getItem('eden_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
 }
 
 function authHeaders() {
@@ -450,15 +450,15 @@ export const DashboardContent: React.FC = () => {
       // Essaie d'abord les missions urgentes, fallback sur toutes les missions
       let data: Mission[] = [];
       try {
-        const res = await apiFetch<Mission[] | { missions?: Mission[]; data?: Mission[] }>(
-          '/admin/missions'
-        );
-        data = Array.isArray(res) ? res : (res.missions || res.data || []);
-      } catch {
-        const res = await apiFetch<Mission[] | { missions?: Mission[]; data?: Mission[] }>(
+        const res = await apiFetch<{ status?: string; data?: Mission[]; results?: number }>(
           '/mission/ouvertes'
         );
-        data = Array.isArray(res) ? res : (res.missions || res.data || []);
+        data = res.data || [];
+      } catch {
+        const res = await apiFetch<{ status?: string; data?: Mission[] }>(
+          '/admin/missions'
+        );
+        data = res.data || [];
       }
       setMissions(data);
     } catch (e: unknown) {
@@ -477,15 +477,13 @@ export const DashboardContent: React.FC = () => {
       // Essaie plusieurs variantes selon la structure de ton backend
       let data: Candidat[] = [];
       try {
-        const res = await apiFetch<Candidat[] | { candidats?: Candidat[]; extras?: Candidat[]; data?: Candidat[] }>(
+        const res = await apiFetch<{ status?: string; data?: Candidat[] }>(
           '/admin/candidates'
         );
-        data = Array.isArray(res) ? res : (res.candidats || res.extras || res.data || []);
+        data = res.data || [];
       } catch {
-        const res = await apiFetch<Candidat[] | { candidats?: Candidat[]; extras?: Candidat[]; data?: Candidat[] }>(
-          '/admin/candidates'
-        );
-        data = Array.isArray(res) ? res : (res.candidats || res.extras || res.data || []);
+        // pas de second fallback, même endpoint
+        data = [];
       }
       setCandidats(data);
     } catch (e: unknown) {
@@ -505,8 +503,8 @@ export const DashboardContent: React.FC = () => {
 
       // Contrats récents
       try {
-        const res = await apiFetch<{ contrats?: unknown[]; data?: unknown[] } | unknown[]>('/admin/contracts');
-        const contrats: unknown[] = Array.isArray(res) ? res : ((res as { contrats?: unknown[]; data?: unknown[] }).contrats || (res as { data?: unknown[] }).data || []);
+        const res = await apiFetch<{ status?: string; data?: unknown[] }>('/admin/contracts');
+        const contrats: unknown[] = res.data || [];
         for (const c of contrats.slice(0, 3)) {
           const ct = c as Record<string, unknown>;
           const candidatObj = ct.candidat as Record<string, string> | undefined;
@@ -534,8 +532,8 @@ export const DashboardContent: React.FC = () => {
 
       // Missions récentes déposées
       try {
-        const res = await apiFetch<{ missions?: unknown[]; data?: unknown[] } | unknown[]>('/mission/ouvertes');
-        const missions: unknown[] = Array.isArray(res) ? res : ((res as { missions?: unknown[] }).missions || (res as { data?: unknown[] }).data || []);
+        const res = await apiFetch<{ status?: string; data?: unknown[]; results?: number }>('/mission/ouvertes');
+        const missions: unknown[] = res.data || [];
         for (const m of missions.slice(0, 2)) {
           const mi = m as Record<string, unknown>;
           const etabObj = mi.etablissement as Record<string, string> | undefined;
@@ -574,55 +572,36 @@ export const DashboardContent: React.FC = () => {
     try {
       // Essaie /api/admin/stats ou /api/admin/dashboard
       let raw: Record<string, unknown> = {};
-      try {
-        raw = await apiFetch<Record<string, unknown>>('/admin/metrics');
-      } catch {
-        try {
-          raw = await apiFetch<Record<string, unknown>>('/admin/dashboard/stats');
-        } catch {
-          // Calcule depuis les missions si les stats n'ont pas d'endpoint dédié
-          const res = await apiFetch<{ missions?: unknown[]; data?: unknown[] } | unknown[]>('/mission/ouvertes');
-          const allMissions: unknown[] = Array.isArray(res) ? res : ((res as { missions?: unknown[] }).missions || (res as { data?: unknown[] }).data || []);
-          const pourvus = allMissions.filter((m) => {
-            const mi = m as Record<string, unknown>;
-            return mi.statut === 'pourvue' || mi.statut === 'validée' || mi.statut === 'terminée';
-          }).length;
-          raw = {
-            tauxRemplissage: allMissions.length ? Math.round((pourvus / allMissions.length) * 100) : 0,
-            missionsPourvues: pourvus,
-            missionsTotal: allMissions.length,
-            satisfactionMoyenne: null,
-            nombreAvis: 0,
+      // Structure réelle: { status, data: { stats: { totalExtras, totalMissions, tauxRemplissage, ... } } }
+      const metricsRes = await apiFetch<{
+        status: string;
+        data: {
+          stats: {
+            totalExtras?: number;
+            totalEntreprises?: number;
+            totalMissions?: number;
+            tauxRemplissage?: number;
+            chiffreAffaires?: number;
+            nouveauxExtrasCeMois?: number;
+            noteMoyenne?: number;
+            nombreAvis?: number;
           };
-        }
-      }
+        };
+      }>('/admin/metrics');
 
-      // Normalise les noms de champs (le backend peut varier)
-      const taux =
-        (raw.tauxRemplissage as number) ??
-        (raw.fillRate as number) ??
-        (raw.taux as number) ??
-        0;
-      const pourvus =
-        (raw.missionsPourvues as number) ??
-        (raw.shiftsPourvus as number) ??
-        0;
-      const total =
-        (raw.missionsTotal as number) ??
-        (raw.shiftsTotal as number) ??
-        0;
-      const satisfaction =
-        (raw.satisfactionMoyenne as number) ??
-        (raw.noteMoyenne as number) ??
-        (raw.satisfaction as number) ??
-        0;
-      const nbAvis =
-        (raw.nombreAvis as number) ??
-        (raw.nbAvis as number) ??
-        (raw.totalAvis as number) ??
-        0;
+      const s = metricsRes.data?.stats ?? {};
+      const totalMissions = s.totalMissions ?? 0;
+      const totalExtras = s.totalExtras ?? 0;
+      const taux = s.tauxRemplissage ?? 0;
+      const satisfaction = s.noteMoyenne ?? 0;
+      const nbAvis = s.nombreAvis ?? 0;
 
-      setStats({ tauxRemplissage: taux, postes: { pourvus, total }, satisfaction, nbAvis });
+      setStats({
+        tauxRemplissage: taux,
+        postes: { pourvus: Math.round((taux / 100) * totalMissions), total: totalMissions || totalExtras },
+        satisfaction,
+        nbAvis,
+      });
     } catch (e: unknown) {
       setErrorStats('Stats indisponibles');
       console.error('[DashboardContent] fetchStats:', e);
