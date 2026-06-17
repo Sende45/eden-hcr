@@ -451,12 +451,12 @@ export const DashboardContent: React.FC = () => {
       let data: Mission[] = [];
       try {
         const res = await apiFetch<Mission[] | { missions?: Mission[]; data?: Mission[] }>(
-          '/mission?urgence=true&statut=ouverte&limit=5'
+          '/admin/missions'
         );
         data = Array.isArray(res) ? res : (res.missions || res.data || []);
       } catch {
         const res = await apiFetch<Mission[] | { missions?: Mission[]; data?: Mission[] }>(
-          '/mission?limit=5'
+          '/mission/ouvertes'
         );
         data = Array.isArray(res) ? res : (res.missions || res.data || []);
       }
@@ -478,12 +478,12 @@ export const DashboardContent: React.FC = () => {
       let data: Candidat[] = [];
       try {
         const res = await apiFetch<Candidat[] | { candidats?: Candidat[]; extras?: Candidat[]; data?: Candidat[] }>(
-          '/candidat?disponibilite=disponible&limit=6'
+          '/admin/candidates'
         );
         data = Array.isArray(res) ? res : (res.candidats || res.extras || res.data || []);
       } catch {
         const res = await apiFetch<Candidat[] | { candidats?: Candidat[]; extras?: Candidat[]; data?: Candidat[] }>(
-          '/candidat?limit=6'
+          '/admin/candidates'
         );
         data = Array.isArray(res) ? res : (res.candidats || res.extras || res.data || []);
       }
@@ -505,7 +505,7 @@ export const DashboardContent: React.FC = () => {
 
       // Contrats récents
       try {
-        const res = await apiFetch<{ contrats?: unknown[]; data?: unknown[] } | unknown[]>('/contrats?limit=3&sort=-createdAt');
+        const res = await apiFetch<{ contrats?: unknown[]; data?: unknown[] } | unknown[]>('/admin/contracts');
         const contrats: unknown[] = Array.isArray(res) ? res : ((res as { contrats?: unknown[]; data?: unknown[] }).contrats || (res as { data?: unknown[] }).data || []);
         for (const c of contrats.slice(0, 3)) {
           const ct = c as Record<string, unknown>;
@@ -534,7 +534,7 @@ export const DashboardContent: React.FC = () => {
 
       // Missions récentes déposées
       try {
-        const res = await apiFetch<{ missions?: unknown[]; data?: unknown[] } | unknown[]>('/mission?limit=3&sort=-createdAt');
+        const res = await apiFetch<{ missions?: unknown[]; data?: unknown[] } | unknown[]>('/mission/ouvertes');
         const missions: unknown[] = Array.isArray(res) ? res : ((res as { missions?: unknown[] }).missions || (res as { data?: unknown[] }).data || []);
         for (const m of missions.slice(0, 2)) {
           const mi = m as Record<string, unknown>;
@@ -575,13 +575,13 @@ export const DashboardContent: React.FC = () => {
       // Essaie /api/admin/stats ou /api/admin/dashboard
       let raw: Record<string, unknown> = {};
       try {
-        raw = await apiFetch<Record<string, unknown>>('/admin/stats');
+        raw = await apiFetch<Record<string, unknown>>('/admin/metrics');
       } catch {
         try {
-          raw = await apiFetch<Record<string, unknown>>('/admin/dashboard');
+          raw = await apiFetch<Record<string, unknown>>('/admin/dashboard/stats');
         } catch {
           // Calcule depuis les missions si les stats n'ont pas d'endpoint dédié
-          const res = await apiFetch<{ missions?: unknown[]; data?: unknown[] } | unknown[]>('/mission');
+          const res = await apiFetch<{ missions?: unknown[]; data?: unknown[] } | unknown[]>('/mission/ouvertes');
           const allMissions: unknown[] = Array.isArray(res) ? res : ((res as { missions?: unknown[] }).missions || (res as { data?: unknown[] }).data || []);
           const pourvus = allMissions.filter((m) => {
             const mi = m as Record<string, unknown>;
