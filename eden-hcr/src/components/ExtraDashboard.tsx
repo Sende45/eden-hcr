@@ -4,7 +4,6 @@ import {
   FileText,
   Euro,
   Briefcase,
-  User,
   Clock,
   LogOut,
   Bell,
@@ -19,11 +18,12 @@ import {
   BarChart2,
   Download,
   AlertCircle,
-  ExternalLink
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
 interface UserType {
+  id?: string;
   _id?: string;
   prenom?: string;
   nom?: string;
@@ -36,12 +36,19 @@ interface UserType {
 interface Mission {
   _id: string;
   posteRecherche?: string;
+  titre?: string;
+  poste?: string;
   briefing?: string;
+  description?: string;
   lieu?: string;
+  ville?: string;
   dateDebut?: string;
   dateFin?: string;
+  dateDebutMission?: string;
+  dateFinMission?: string;
   statut?: string;
   taux?: number;
+  tauxHoraire?: number;
 }
 
 interface Contrat {
@@ -51,7 +58,8 @@ interface Contrat {
   dateFin?: string;
   statut?: string;
   poste?: string;
-  etablissement?: string;
+  etablissement?: string | { nom?: string; nomEtablissement?: string };
+  mission?: { posteRecherche?: string } | string;
 }
 
 interface Paiement {
@@ -71,150 +79,244 @@ interface Message {
   lu?: boolean;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const API = 'https://eden-hcr.onrender.com';
+
+function getToken() {
+  return localStorage.getItem('eden_token') || localStorage.getItem('token') || '';
+}
+
+function getLocalUser(): UserType {
+  try {
+    return JSON.parse(localStorage.getItem('eden_user') || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function authHeaders() {
+  return {
+    Authorization: `Bearer ${getToken()}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+function getUserId(user: UserType): string {
+  return user.id || user._id || user.candidatRef || '';
+}
+
+function titreContrat(c: Contrat): string {
+  if (c.titre) return c.titre;
+  if (c.poste) return c.poste;
+  if (typeof c.mission === 'object' && c.mission?.posteRecherche) return c.mission.posteRecherche;
+  return 'Contrat';
+}
+
+function nomEtabContrat(c: Contrat): string {
+  if (!c.etablissement) return '';
+  if (typeof c.etablissement === 'string') return c.etablissement;
+  return c.etablissement.nom || c.etablissement.nomEtablissement || '';
+}
+
+function titreMission(m: Mission): string {
+  return m.posteRecherche || m.titre || m.poste || 'Mission';
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
-export const ExtraDashboard = ({ user, onLogout }: { user: UserType; onLogout?: () => void }) => {
-  const [missions, setMissions] = useState<Mission[]>([]);
-  const [contrats, setContrats] = useState<Contrat[]>([]);
-  const [paiements, setPaiements] = useState<Paiement[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
+
+export const ExtraDashboard = ({
+  user: userProp,
+  onLogout,
+}: {
+  user?: UserType;
+  onLogout?: () => void;
+}) => {
+  // Fusionne le prop user avec localStorage (localStorage est plus à jour après login)
+  const [user, setUser] = useState<UserType>(() => ({
+    ...getLocalUser(),
+    ...(userProp || {}),
+  }));
+
+  const [missions, setMissions]     = useState<Mission[]>([]);
+  const [contrats, setContrats]     = useState<Contrat[]>([]);
+  const [paiements, setPaiements]   = useState<Paiement[]>([]);
+  const [messages, setMessages]     = useState<Message[]>([]);
+
   const [activeSection, setActiveSection] = useState('dashboard');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [applySuccess, setApplySuccess] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery]     = useState('');
+  const [applySuccess, setApplySuccess]   = useState<string | null>(null);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState<string | null>(null);
 
-  const API = 'https://eden-hcr.onrender.com';
-
-  // ─── Chargement données ──────────────────────────────────────────────────────
- // Remplace ton useEffect actuel dans ExtraDashboard par celui-ci :
-useEffect(() => {
-  const token = localStorage.getItem('eden_token');
-  if (!token) return;
-
-  const headers = { 
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json' 
-  };
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      // 1. Récupération du profil complet (pour avoir nom et prénom)
-      const meRes = await fetch(`${API}/api/auth/me`, { headers });
-      if (meRes.ok) {
-        const { user: userData } = await meRes.json();
-        // C'est ici que le nom et prénom deviennent disponibles pour tout le composant
-        // Tu peux créer un état local setUser si besoin, ou simplement utiliser userData
-      }
-
-      // 2. Récupération des autres ressources
-      // Vérifie bien que tes routes backend correspondent exactement à ces URL
-      const [missionsRes, contratsRes, paiementsRes, messagesRes] = await Promise.all([
-        fetch(`${API}/api/mission`, { headers }),
-        fetch(`${API}/api/contrats`, { headers }),
-        fetch(`${API}/api/paiements`, { headers }),
-        fetch(`${API}/api/messagerie`, { headers })
-      ]);
-
-      if (missionsRes.ok) setMissions(await missionsRes.json());
-      if (contratsRes.ok) setContrats(await contratsRes.json());
-      if (paiementsRes.ok) setPaiements(await paiementsRes.json());
-      if (messagesRes.ok) setMessages(await messagesRes.json());
-
-    } catch (err) {
-      console.error("Erreur chargement:", err);
-      setError('Erreur de connexion au serveur EDÈN.');
-    } finally {
+  // ─── Chargement données ────────────────────────────────────────────────────
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      setError('Session expirée. Veuillez vous reconnecter.');
       setLoading(false);
+      return;
     }
-  };
 
-  loadData();
-}, []);
+    const h = authHeaders();
 
-  // ─── Postuler à une mission ──────────────────────────────────────────────────
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        // 1. Profil frais depuis /api/auth/me
+        const meRes = await fetch(`${API}/api/auth/me`, { headers: h });
+        if (meRes.ok) {
+          const { user: freshUser } = await meRes.json();
+          // freshUser = { id, email, role, nom, prenom }
+          setUser(prev => ({ ...prev, ...freshUser }));
+        }
+
+        // 2. Missions ouvertes (liste publique/filtrée pour les extras)
+        //    Route réelle : GET /api/mission/ouvertes
+        const missionsRes = await fetch(`${API}/api/mission/ouvertes`, { headers: h });
+        if (missionsRes.ok) {
+          const json = await missionsRes.json();
+          // Structure : { status, results, data: [...] }
+          setMissions(Array.isArray(json) ? json : (json.data || []));
+        }
+
+        // 3. Contrats du candidat
+        //    Route réelle : GET /api/contrats/candidat/:candidatId
+        const userId = getUserId({ ...getLocalUser(), ...(userProp || {}) });
+        if (userId) {
+          const contratsRes = await fetch(`${API}/api/contrats/candidat/${userId}`, { headers: h });
+          if (contratsRes.ok) {
+            const json = await contratsRes.json();
+            setContrats(Array.isArray(json) ? json : (json.data || json.contrats || []));
+          }
+          // Pas d'erreur si 404 — l'extra peut n'avoir aucun contrat encore
+        }
+
+        // 4. Paiements — route non encore disponible, on gère silencieusement
+        //    Quand la route sera dispo : GET /api/paiements/candidat/:id
+        //    Pour l'instant on laisse le tableau vide sans afficher d'erreur
+        try {
+          const userId2 = getUserId({ ...getLocalUser(), ...(userProp || {}) });
+          const paiementsRes = await fetch(`${API}/api/paiements/candidat/${userId2}`, { headers: h });
+          if (paiementsRes.ok) {
+            const json = await paiementsRes.json();
+            setPaiements(Array.isArray(json) ? json : (json.data || json.paiements || []));
+          }
+        } catch { /* route pas encore dispo */ }
+
+        // 5. Messagerie — route non encore disponible, gérée silencieusement
+        //    Quand la route sera dispo : GET /api/messagerie/candidat/:id ou /api/messagerie/channels
+        try {
+          const messagerieRes = await fetch(`${API}/api/messagerie/channels`, { headers: h });
+          if (messagerieRes.ok) {
+            const json = await messagerieRes.json();
+            setMessages(Array.isArray(json) ? json : (json.data || json.messages || json.channels || []));
+          }
+        } catch { /* route pas encore dispo */ }
+
+      } catch (err) {
+        console.error('[ExtraDashboard] loadData:', err);
+        setError('Erreur de connexion au serveur EDÈN.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ─── Postuler à une mission ────────────────────────────────────────────────
   const handlePostuler = async (missionId: string) => {
-    const token = localStorage.getItem('eden_token');
     try {
       const res = await fetch(`${API}/api/mission/${missionId}/postuler`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: authHeaders(),
       });
       if (res.ok) {
         setApplySuccess(missionId);
         setTimeout(() => setApplySuccess(null), 4000);
+      } else {
+        console.warn('[ExtraDashboard] postuler:', res.status, await res.text());
       }
     } catch (err) {
-      console.error(err);
+      console.error('[ExtraDashboard] postuler:', err);
     }
   };
 
-  // ─── Helpers ─────────────────────────────────────────────────────────────────
+  // ─── Helpers UI ───────────────────────────────────────────────────────────
   const today = new Date().toLocaleDateString('fr-FR', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
 
   const semaine = (() => {
-    const now = new Date();
+    const now   = new Date();
     const start = new Date(now.getFullYear(), 0, 1);
     return Math.ceil(((now.getTime() - start.getTime()) / 86400000 + start.getDay() + 1) / 7);
   })();
 
-  const filteredMissions = missions.filter(m =>
-    !searchQuery ||
-    m.posteRecherche?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.briefing?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredMissions = missions.filter(
+    m =>
+      !searchQuery ||
+      titreMission(m).toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.briefing?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.description?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const messagesNonLus = messages.filter(m => !m.lu).length;
 
   const formatDate = (d?: string) =>
-    d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+    d
+      ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+      : '—';
 
   const formatMontant = (n?: number) =>
     n != null ? `${n.toLocaleString('fr-FR')} €` : '—';
 
-  // ─── Nav config ──────────────────────────────────────────────────────────────
+  const totalPaye = paiements.reduce((s, p) => s + (p.montant || 0), 0);
+
+  // ─── Nav ──────────────────────────────────────────────────────────────────
   const navSections = [
     {
       label: 'PRINCIPAL',
       items: [
         { id: 'dashboard', label: 'Tableau de bord', icon: <BarChart2 size={16} /> },
-        { id: 'missions', label: 'Missions', icon: <Star size={16} />, badge: missions.length }
-      ]
+        { id: 'missions',  label: 'Missions',        icon: <Star size={16} />, badge: missions.length },
+      ],
     },
     {
       label: 'GESTION',
       items: [
-        { id: 'planning', label: 'Planning', icon: <Calendar size={16} /> },
-        { id: 'contrats', label: 'Contrats', icon: <FileText size={16} />, badge: contrats.length },
-        { id: 'rapports', label: 'Rapports', icon: <BarChart2 size={16} /> },
-        { id: 'paiements', label: 'Paiements', icon: <Euro size={16} /> }
-      ]
+        { id: 'planning',  label: 'Planning',        icon: <Calendar size={16} /> },
+        { id: 'contrats',  label: 'Contrats',        icon: <FileText size={16} />, badge: contrats.length },
+        { id: 'rapports',  label: 'Rapports',        icon: <BarChart2 size={16} /> },
+        { id: 'paiements', label: 'Paiements',       icon: <Euro size={16} /> },
+      ],
     },
     {
       label: 'OUTILS',
       items: [
-        { id: 'messagerie', label: 'Messagerie', icon: <MessageSquare size={16} />, badge: messagesNonLus },
-        { id: 'parametres', label: 'Paramètres', icon: <Settings size={16} /> }
-      ]
-    }
+        { id: 'messagerie', label: 'Messagerie', icon: <MessageSquare size={16} />, badge: messagesNonLus || undefined },
+        { id: 'parametres', label: 'Paramètres', icon: <Settings size={16} /> },
+      ],
+    },
   ];
 
-  // ─── Section title helper ────────────────────────────────────────────────────
   const getSectionTitle = () => {
     const all = navSections.flatMap(s => s.items);
     return all.find(i => i.id === activeSection)?.label || 'Tableau de bord';
   };
 
-  // ─────────────────────────────────────────────────────────────────────────────
+  const displayName = `${user?.prenom || ''} ${user?.nom || ''}`.trim() || 'Extra';
+  const initiale    = user?.prenom?.[0]?.toUpperCase() || user?.nom?.[0]?.toUpperCase() || 'E';
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex bg-[#F4F1EA]">
 
-      {/* ── SIDEBAR ─────────────────────────────────────────────────────────── */}
+      {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
       <aside className="w-[260px] bg-[#073B4C] text-white flex flex-col fixed h-full z-20">
 
         {/* Logo */}
@@ -233,7 +335,7 @@ useEffect(() => {
 
         <div className="mx-4 h-px bg-white/10 mb-2" />
 
-        {/* Navigation */}
+        {/* Nav */}
         <nav className="flex-1 px-3 overflow-y-auto py-2">
           {navSections.map(section => (
             <div key={section.label} className="mb-5">
@@ -272,10 +374,10 @@ useEffect(() => {
         <div className="p-4 pt-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-[#C5A46D] flex items-center justify-center font-bold text-[#073B4C] text-sm flex-shrink-0">
-              {user?.prenom?.[0]?.toUpperCase() || 'E'}
+              {initiale}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate">{user?.prenom} {user?.nom}</p>
+              <p className="text-sm font-semibold truncate">{displayName}</p>
               <p className="text-[11px] text-white/50">Extra EDÈN</p>
             </div>
             <button onClick={onLogout} className="text-white/40 hover:text-white transition-colors" title="Déconnexion">
@@ -285,7 +387,7 @@ useEffect(() => {
         </div>
       </aside>
 
-      {/* ── MAIN ────────────────────────────────────────────────────────────── */}
+      {/* ── MAIN ────────────────────────────────────────────────────────── */}
       <div className="ml-[260px] flex-1 flex flex-col min-h-screen">
 
         {/* Header */}
@@ -351,38 +453,64 @@ useEffect(() => {
                   {/* KPIs */}
                   <div className="grid grid-cols-4 gap-5">
                     {[
-                      { icon: <Star size={20} />, value: missions.length, label: 'Missions', sub: 'disponibles', action: () => setActiveSection('missions') },
-                      { icon: <Calendar size={20} />, value: 0, label: 'Planning', sub: 'shifts' },
-                      { icon: <FileText size={20} />, value: contrats.length, label: 'Contrats', sub: 'signés', action: () => setActiveSection('contrats') },
-                      { icon: <Euro size={20} />, value: paiements.length, label: 'Fiches de paie', sub: 'disponibles', action: () => setActiveSection('paiements') }
+                      {
+                        icon: <Star size={20} />,
+                        value: missions.length,
+                        label: 'Missions',
+                        sub: 'disponibles',
+                        action: () => setActiveSection('missions'),
+                      },
+                      {
+                        icon: <Calendar size={20} />,
+                        value: 0,
+                        label: 'Planning',
+                        sub: 'shifts',
+                      },
+                      {
+                        icon: <FileText size={20} />,
+                        value: contrats.length,
+                        label: 'Contrats',
+                        sub: 'signés',
+                        action: () => setActiveSection('contrats'),
+                      },
+                      {
+                        icon: <Euro size={20} />,
+                        value: paiements.length || '—',
+                        label: 'Fiches de paie',
+                        sub: paiements.length ? 'disponibles' : 'à venir',
+                        action: () => setActiveSection('paiements'),
+                      },
                     ].map((kpi, i) => (
                       <div
                         key={i}
                         onClick={kpi.action}
-                        className={`bg-white rounded-2xl border border-[#E6DDD1] p-5 ${kpi.action ? 'cursor-pointer hover:border-[#073B4C]/30 hover:shadow-sm transition-all' : ''}`}
+                        className={`bg-white rounded-2xl border border-[#E6DDD1] p-5 ${
+                          kpi.action ? 'cursor-pointer hover:border-[#073B4C]/30 hover:shadow-sm transition-all' : ''
+                        }`}
                       >
                         <div className="w-10 h-10 rounded-xl bg-[#F4EFE8] flex items-center justify-center text-[#073B4C] mb-4">
                           {kpi.icon}
                         </div>
                         <p className="text-3xl font-bold text-[#073B4C]">
-                          {kpi.value} <span className="text-base font-normal text-gray-400">{kpi.sub}</span>
+                          {kpi.value}{' '}
+                          <span className="text-base font-normal text-gray-400">{kpi.sub}</span>
                         </p>
                         <p className="text-sm text-gray-500 mt-1">{kpi.label}</p>
                       </div>
                     ))}
                   </div>
 
-                  {/* Bienvenue + Missions récentes côte à côte */}
+                  {/* Profil + Missions récentes */}
                   <div className="grid grid-cols-3 gap-5">
 
                     {/* Card profil */}
                     <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6 flex flex-col gap-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-[#C5A46D] flex items-center justify-center font-bold text-[#073B4C] text-lg">
-                          {user?.prenom?.[0]?.toUpperCase() || 'E'}
+                          {initiale}
                         </div>
                         <div>
-                          <p className="font-bold text-[#073B4C]">{user?.prenom} {user?.nom}</p>
+                          <p className="font-bold text-[#073B4C]">{displayName}</p>
                           <p className="text-xs text-gray-400">{user?.email}</p>
                         </div>
                       </div>
@@ -392,13 +520,19 @@ useEffect(() => {
                           <span className="font-medium text-[#073B4C] capitalize">{user?.role || 'Extra'}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-400">Missions actives</span>
+                          <span className="text-gray-400">Missions dispo.</span>
                           <span className="font-medium text-[#073B4C]">{missions.length}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400">Contrats</span>
                           <span className="font-medium text-[#073B4C]">{contrats.length}</span>
                         </div>
+                        {totalPaye > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Total perçu</span>
+                            <span className="font-medium text-[#073B4C]">{formatMontant(totalPaye)}</span>
+                          </div>
+                        )}
                       </div>
                       <button
                         onClick={() => setActiveSection('parametres')}
@@ -415,7 +549,10 @@ useEffect(() => {
                           <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Opportunités</p>
                           <h2 className="font-bold text-[#073B4C]">Missions disponibles</h2>
                         </div>
-                        <button onClick={() => setActiveSection('missions')} className="text-xs text-[#073B4C]/60 hover:text-[#073B4C] flex items-center gap-1">
+                        <button
+                          onClick={() => setActiveSection('missions')}
+                          className="text-xs text-[#073B4C]/60 hover:text-[#073B4C] flex items-center gap-1"
+                        >
                           Voir tout <ChevronRight size={12} />
                         </button>
                       </div>
@@ -424,14 +561,21 @@ useEffect(() => {
                         <div className="rounded-xl border border-dashed border-[#E6DDD1] p-8 text-center">
                           <Briefcase className="mx-auto text-[#E6DDD1] mb-2" size={28} />
                           <p className="text-gray-400 text-sm">Aucune mission disponible.</p>
+                          <p className="text-gray-300 text-xs mt-1">Revenez prochainement.</p>
                         </div>
                       ) : (
                         <div className="space-y-3">
                           {missions.slice(0, 3).map(m => (
-                            <div key={m._id} className="flex items-center justify-between rounded-xl border border-[#E6DDD1] px-4 py-3 hover:border-[#073B4C]/20 transition-all">
+                            <div
+                              key={m._id}
+                              className="flex items-center justify-between rounded-xl border border-[#E6DDD1] px-4 py-3 hover:border-[#073B4C]/20 transition-all"
+                            >
                               <div>
-                                <p className="font-semibold text-sm text-[#073B4C]">{m.posteRecherche || 'Mission'}</p>
-                                <p className="text-xs text-gray-400 mt-0.5">{m.lieu || ''} {m.dateDebut ? `· ${formatDate(m.dateDebut)}` : ''}</p>
+                                <p className="font-semibold text-sm text-[#073B4C]">{titreMission(m)}</p>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  {m.lieu || m.ville || ''}
+                                  {(m.dateDebut || m.dateDebutMission) ? ` · ${formatDate(m.dateDebut || m.dateDebutMission)}` : ''}
+                                </p>
                               </div>
                               {applySuccess === m._id ? (
                                 <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
@@ -451,7 +595,6 @@ useEffect(() => {
                       )}
                     </div>
                   </div>
-
                 </div>
               )}
 
@@ -464,7 +607,9 @@ useEffect(() => {
                       <h2 className="text-xl font-bold text-[#073B4C]">Missions disponibles</h2>
                     </div>
                     {filteredMissions.length > 0 && (
-                      <span className="text-sm text-gray-400">{filteredMissions.length} mission{filteredMissions.length > 1 ? 's' : ''}</span>
+                      <span className="text-sm text-gray-400">
+                        {filteredMissions.length} mission{filteredMissions.length > 1 ? 's' : ''}
+                      </span>
                     )}
                   </div>
 
@@ -477,20 +622,41 @@ useEffect(() => {
                   ) : (
                     <div className="space-y-3">
                       {filteredMissions.map(m => (
-                        <div key={m._id} className="rounded-xl border border-[#E6DDD1] p-5 hover:border-[#073B4C]/20 hover:shadow-sm transition-all">
+                        <div
+                          key={m._id}
+                          className="rounded-xl border border-[#E6DDD1] p-5 hover:border-[#073B4C]/20 hover:shadow-sm transition-all"
+                        >
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-[#073B4C]">{m.posteRecherche || 'Mission'}</h3>
+                                <h3 className="font-semibold text-[#073B4C]">{titreMission(m)}</h3>
                                 <span className="text-[10px] bg-[#F4EFE8] text-[#C5A46D] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide">
                                   {m.statut || 'Disponible'}
                                 </span>
                               </div>
-                              <p className="text-sm text-gray-500 leading-relaxed">{m.briefing}</p>
+                              <p className="text-sm text-gray-500 leading-relaxed">
+                                {m.briefing || m.description || ''}
+                              </p>
                               <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
-                                {m.lieu && <span className="flex items-center gap-1"><MapPin size={11} /> {m.lieu}</span>}
-                                {m.dateDebut && <span className="flex items-center gap-1"><Clock size={11} /> {formatDate(m.dateDebut)}{m.dateFin ? ` → ${formatDate(m.dateFin)}` : ''}</span>}
-                                {m.taux && <span className="flex items-center gap-1"><Euro size={11} /> {m.taux} €/h</span>}
+                                {(m.lieu || m.ville) && (
+                                  <span className="flex items-center gap-1">
+                                    <MapPin size={11} /> {m.lieu || m.ville}
+                                  </span>
+                                )}
+                                {(m.dateDebut || m.dateDebutMission) && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock size={11} />
+                                    {formatDate(m.dateDebut || m.dateDebutMission)}
+                                    {(m.dateFin || m.dateFinMission)
+                                      ? ` → ${formatDate(m.dateFin || m.dateFinMission)}`
+                                      : ''}
+                                  </span>
+                                )}
+                                {(m.taux || m.tauxHoraire) && (
+                                  <span className="flex items-center gap-1">
+                                    <Euro size={11} /> {m.taux || m.tauxHoraire} €/h
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <div className="flex-shrink-0">
@@ -538,36 +704,52 @@ useEffect(() => {
                       <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Documents</p>
                       <h2 className="text-xl font-bold text-[#073B4C]">Mes contrats</h2>
                     </div>
-                    {contrats.length > 0 && <span className="text-sm text-gray-400">{contrats.length} contrat{contrats.length > 1 ? 's' : ''}</span>}
+                    {contrats.length > 0 && (
+                      <span className="text-sm text-gray-400">
+                        {contrats.length} contrat{contrats.length > 1 ? 's' : ''}
+                      </span>
+                    )}
                   </div>
 
                   {contrats.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
                       <FileText className="mx-auto text-[#E6DDD1] mb-3" size={32} />
                       <p className="text-gray-400 text-sm">Aucun contrat disponible.</p>
+                      <p className="text-gray-300 text-xs mt-1">Vos contrats signés apparaîtront ici.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {contrats.map(c => (
-                        <div key={c._id} className="rounded-xl border border-[#E6DDD1] p-5 flex items-center justify-between hover:border-[#073B4C]/20 transition-all">
+                        <div
+                          key={c._id}
+                          className="rounded-xl border border-[#E6DDD1] p-5 flex items-center justify-between hover:border-[#073B4C]/20 transition-all"
+                        >
                           <div>
-                            <p className="font-semibold text-[#073B4C]">{c.titre || c.poste || 'Contrat'}</p>
+                            <p className="font-semibold text-[#073B4C]">{titreContrat(c)}</p>
                             <p className="text-xs text-gray-400 mt-1">
-                              {c.etablissement ? `${c.etablissement} · ` : ''}
-                              {formatDate(c.dateDebut)}{c.dateFin ? ` → ${formatDate(c.dateFin)}` : ''}
+                              {nomEtabContrat(c) ? `${nomEtabContrat(c)} · ` : ''}
+                              {formatDate(c.dateDebut)}
+                              {c.dateFin ? ` → ${formatDate(c.dateFin)}` : ''}
                             </p>
                           </div>
                           <div className="flex items-center gap-3">
                             {c.statut && (
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide ${
-                                c.statut === 'signé' ? 'bg-green-50 text-green-600' :
-                                c.statut === 'en attente' ? 'bg-yellow-50 text-yellow-600' :
-                                'bg-[#F4EFE8] text-[#C5A46D]'
-                              }`}>
+                              <span
+                                className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide ${
+                                  c.statut === 'signé'
+                                    ? 'bg-green-50 text-green-600'
+                                    : c.statut === 'en attente'
+                                    ? 'bg-yellow-50 text-yellow-600'
+                                    : 'bg-[#F4EFE8] text-[#C5A46D]'
+                                }`}
+                              >
                                 {c.statut}
                               </span>
                             )}
-                            <button className="text-gray-400 hover:text-[#073B4C] transition-colors" title="Télécharger">
+                            <button
+                              className="text-gray-400 hover:text-[#073B4C] transition-colors"
+                              title="Télécharger"
+                            >
                               <Download size={15} />
                             </button>
                           </div>
@@ -587,9 +769,9 @@ useEffect(() => {
                   </div>
                   <div className="grid grid-cols-3 gap-4 mb-6">
                     {[
-                      { label: 'Missions effectuées', value: missions.length },
-                      { label: 'Heures travaillées', value: '—' },
-                      { label: 'Montant total perçu', value: paiements.reduce((s, p) => s + (p.montant || 0), 0) ? formatMontant(paiements.reduce((s, p) => s + (p.montant || 0), 0)) : '—' }
+                      { label: 'Missions disponibles', value: missions.length },
+                      { label: 'Contrats signés',       value: contrats.length },
+                      { label: 'Total perçu',            value: totalPaye ? formatMontant(totalPaye) : '—' },
                     ].map((stat, i) => (
                       <div key={i} className="bg-[#F4F1EA] rounded-xl p-5">
                         <p className="text-2xl font-bold text-[#073B4C]">{stat.value}</p>
@@ -612,32 +794,51 @@ useEffect(() => {
                       <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Rémunération</p>
                       <h2 className="text-xl font-bold text-[#073B4C]">Mes fiches de paie</h2>
                     </div>
-                    {paiements.length > 0 && <span className="text-sm text-gray-400">{paiements.length} fiche{paiements.length > 1 ? 's' : ''}</span>}
+                    {paiements.length > 0 && (
+                      <span className="text-sm text-gray-400">
+                        {paiements.length} fiche{paiements.length > 1 ? 's' : ''}
+                      </span>
+                    )}
                   </div>
 
                   {paiements.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
                       <Euro className="mx-auto text-[#E6DDD1] mb-3" size={32} />
                       <p className="text-gray-400 text-sm">Aucune fiche de paie disponible.</p>
+                      <p className="text-gray-300 text-xs mt-1">
+                        Cette section sera disponible une fois les routes de paiement activées.
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {paiements.map(p => (
-                        <div key={p._id} className="rounded-xl border border-[#E6DDD1] p-5 flex items-center justify-between hover:border-[#073B4C]/20 transition-all">
+                        <div
+                          key={p._id}
+                          className="rounded-xl border border-[#E6DDD1] p-5 flex items-center justify-between hover:border-[#073B4C]/20 transition-all"
+                        >
                           <div>
-                            <p className="font-semibold text-[#073B4C]">{p.mois || formatDate(p.dateEmission)}</p>
+                            <p className="font-semibold text-[#073B4C]">
+                              {p.mois || formatDate(p.dateEmission)}
+                            </p>
                             <p className="text-xs text-gray-400 mt-1">{formatDate(p.dateEmission)}</p>
                           </div>
                           <div className="flex items-center gap-4">
                             <p className="font-bold text-[#073B4C]">{formatMontant(p.montant)}</p>
                             {p.statut && (
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide ${
-                                p.statut === 'payé' ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600'
-                              }`}>
+                              <span
+                                className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide ${
+                                  p.statut === 'payé'
+                                    ? 'bg-green-50 text-green-600'
+                                    : 'bg-yellow-50 text-yellow-600'
+                                }`}
+                              >
                                 {p.statut}
                               </span>
                             )}
-                            <button className="text-gray-400 hover:text-[#073B4C] transition-colors" title="Télécharger">
+                            <button
+                              className="text-gray-400 hover:text-[#073B4C] transition-colors"
+                              title="Télécharger"
+                            >
                               <Download size={15} />
                             </button>
                           </div>
@@ -667,14 +868,28 @@ useEffect(() => {
                     <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
                       <MessageSquare className="mx-auto text-[#E6DDD1] mb-3" size={32} />
                       <p className="text-gray-400 text-sm">Aucun message pour le moment.</p>
+                      <p className="text-gray-300 text-xs mt-1">
+                        La messagerie sera disponible une fois les routes activées.
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-2">
                       {messages.map(m => (
-                        <div key={m._id} className={`rounded-xl border px-4 py-3 flex items-start gap-3 hover:border-[#073B4C]/20 transition-all ${!m.lu ? 'border-[#073B4C]/20 bg-[#F4F1EA]' : 'border-[#E6DDD1]'}`}>
-                          <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${!m.lu ? 'bg-orange-400' : 'bg-transparent'}`} />
+                        <div
+                          key={m._id}
+                          className={`rounded-xl border px-4 py-3 flex items-start gap-3 hover:border-[#073B4C]/20 transition-all ${
+                            !m.lu ? 'border-[#073B4C]/20 bg-[#F4F1EA]' : 'border-[#E6DDD1]'
+                          }`}
+                        >
+                          <div
+                            className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                              !m.lu ? 'bg-orange-400' : 'bg-transparent'
+                            }`}
+                          />
                           <div className="flex-1">
-                            <p className={`text-sm ${!m.lu ? 'font-semibold text-[#073B4C]' : 'text-gray-600'}`}>{m.sujet || 'Message'}</p>
+                            <p className={`text-sm ${!m.lu ? 'font-semibold text-[#073B4C]' : 'text-gray-600'}`}>
+                              {m.sujet || 'Message'}
+                            </p>
                             <p className="text-xs text-gray-400 mt-0.5 truncate">{m.contenu}</p>
                           </div>
                           <p className="text-xs text-gray-400 flex-shrink-0">{formatDate(m.createdAt)}</p>
@@ -695,11 +910,14 @@ useEffect(() => {
                   <div className="space-y-4 max-w-lg">
                     {[
                       { label: 'Prénom', value: user?.prenom },
-                      { label: 'Nom', value: user?.nom },
-                      { label: 'Email', value: user?.email },
-                      { label: 'Rôle', value: user?.role }
+                      { label: 'Nom',    value: user?.nom },
+                      { label: 'Email',  value: user?.email },
+                      { label: 'Rôle',   value: user?.role },
                     ].map((field, i) => (
-                      <div key={i} className="flex items-center justify-between py-3 border-b border-[#E6DDD1]">
+                      <div
+                        key={i}
+                        className="flex items-center justify-between py-3 border-b border-[#E6DDD1]"
+                      >
                         <span className="text-sm text-gray-500">{field.label}</span>
                         <span className="text-sm font-medium text-[#073B4C]">{field.value || '—'}</span>
                       </div>
