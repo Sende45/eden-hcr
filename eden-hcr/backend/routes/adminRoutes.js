@@ -1,7 +1,7 @@
 import express from 'express';
-import { 
-  getSuperAdminMetrics, 
-  getCandidates, 
+import {
+  getSuperAdminMetrics,
+  getCandidates,
   getEstablishments,
   getPlanningData,
   getContrats,
@@ -9,29 +9,78 @@ import {
   getPayments,
   getMessages,
   sendMessage,
-  updateCandidateStatus
+  updateCandidateStatus,
+  getMissions
 } from '../controllers/adminController.js';
-import { protect } from '../middlewares/authMiddleware.js';
 
+import { protect } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// ── Métriques consolidées ────────────────────────────────────────────────────
-router.get('/metrics', protect, getSuperAdminMetrics);
-router.get('/dashboard/stats', protect, getSuperAdminMetrics);
-router.get('/missions', protect, getSuperAdminMetrics);
+// ─────────────────────────────────────────────────────────────
+// MÉTRIQUES SUPER ADMIN
+// ─────────────────────────────────────────────────────────────
 
-// ── Gestion des ressources (Candidats et Établissements) ──────────────────────
+// Route principale
+router.get('/metrics', protect, getSuperAdminMetrics);
+
+// Compatibilité avec différents dashboards
+router.get('/dashboard/stats', protect, getSuperAdminMetrics);
+router.get('/dashboard-stats', protect, getSuperAdminMetrics);
+router.get('/stats', protect, getSuperAdminMetrics);
+
+// Conservation de la route actuelle
+router.get('/missions', protect, getMissions);
+
+// ─────────────────────────────────────────────────────────────
+// CANDIDATS
+// ─────────────────────────────────────────────────────────────
+
 router.get('/candidates', protect, getCandidates);
+
+router.patch('/candidates/:id/status', protect, updateCandidateStatus);
+router.put('/candidates/:id/status', protect, updateCandidateStatus);
+
+// ─────────────────────────────────────────────────────────────
+// ÉTABLISSEMENTS
+// ─────────────────────────────────────────────────────────────
+
 router.get('/establishments', protect, getEstablishments);
 
-// ── NOUVELLES ROUTES (Planning, Contrats, Rapports, Paiements, Messagerie) ──
+// ─────────────────────────────────────────────────────────────
+// PLANNING
+// ─────────────────────────────────────────────────────────────
+
 router.get('/planning', protect, getPlanningData);
+
+// ─────────────────────────────────────────────────────────────
+// CONTRATS
+// ─────────────────────────────────────────────────────────────
+
 router.get('/contracts', protect, getContrats);
+
+// ─────────────────────────────────────────────────────────────
+// RAPPORTS
+// ─────────────────────────────────────────────────────────────
+
 router.get('/reports', protect, getReports);
+
+// ─────────────────────────────────────────────────────────────
+// PAIEMENTS
+// ─────────────────────────────────────────────────────────────
+
 router.get('/payments', protect, getPayments);
+
+// ─────────────────────────────────────────────────────────────
+// MESSAGERIE
+// ─────────────────────────────────────────────────────────────
+
 router.get('/messages/channels', protect, getMessages);
-router.post('/messages/channels/:channelId', protect, sendMessage);
-router.patch('/candidates/:id/status', updateCandidateStatus);
-router.put('/candidates/:id/status', updateCandidateStatus);
+
+router.post(
+  '/messages/channels/:channelId',
+  protect,
+  sendMessage
+);
+
 export default router;

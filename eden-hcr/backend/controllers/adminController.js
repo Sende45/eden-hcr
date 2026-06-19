@@ -7,6 +7,7 @@ import Contrat from '../models/Contrat.js';
 import Rapport from '../models/Rapport.js';
 import Messagerie from '../models/Messagerie.js';
 
+
 // @desc    Obtenir les métriques globales du SuperAdmin
 // @route   GET /api/admin/metrics
 export const getSuperAdminMetrics = async (req, res, next) => {
@@ -45,7 +46,21 @@ export const getSuperAdminMetrics = async (req, res, next) => {
     });
   } catch (error) { next(error); }
 };
+// @desc    Gestion des Missions
+// @route   GET /api/admin/missions
+export const getMissions = async (req, res, next) => {
+  try {
+    const missions = await Mission.find({})
+      .sort({ createdAt: -1 });
 
+    res.status(200).json({
+      status: 'success',
+      data: missions
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 // @desc    Gestion Candidats
 export const getCandidates = async (req, res, next) => {
   try {
