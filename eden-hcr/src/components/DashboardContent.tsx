@@ -73,8 +73,22 @@ function authHeaders() {
 }
 
 async function apiFetch<T>(path: string): Promise<T> {
+  const token = getToken();
+  // ── DEBUG temporaire : loggue chaque appel ──────────────────────────────────
+  console.log(`[apiFetch] ${API}${path}`, {
+    token: token ? `${token.substring(0, 30)}…` : 'NULL ❌',
+    header: token ? `Bearer ${token.substring(0, 20)}…` : 'absent',
+  });
+  // ───────────────────────────────────────────────────────────────────────────
   const res = await fetch(`${API}${path}`, { headers: authHeaders() });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    // ── DEBUG : loggue la réponse d'erreur complète ──────────────────────────
+    let body = '';
+    try { body = await res.text(); } catch { /* ignore */ }
+    console.error(`[apiFetch] ❌ ${res.status} ${res.statusText} — ${API}${path}`, body);
+    // ────────────────────────────────────────────────────────────────────────
+    throw new Error(`${res.status} ${res.statusText}`);
+  }
   return res.json();
 }
 
@@ -447,7 +461,6 @@ export const DashboardContent: React.FC = () => {
     setLoadingMissions(true);
     setErrorMissions(null);
     try {
-      // Essaie d'abord les missions urgentes, fallback sur toutes les missions
       let data: Mission[] = [];
       try {
         const res = await apiFetch<{ status?: string; data?: Mission[]; results?: number }>(
@@ -474,7 +487,6 @@ export const DashboardContent: React.FC = () => {
     setLoadingCandidats(true);
     setErrorCandidats(null);
     try {
-      // Essaie plusieurs variantes selon la structure de ton backend
       let data: Candidat[] = [];
       try {
         const res = await apiFetch<{ status?: string; data?: Candidat[] }>(
@@ -482,7 +494,6 @@ export const DashboardContent: React.FC = () => {
         );
         data = res.data || [];
       } catch {
-        // pas de second fallback, même endpoint
         data = [];
       }
       setCandidats(data);
@@ -501,7 +512,6 @@ export const DashboardContent: React.FC = () => {
     try {
       const items: FluxItem[] = [];
 
-      // Contrats récents
       try {
         const res = await apiFetch<{ status?: string; data?: unknown[] }>('/admin/contracts');
         const contrats: unknown[] = res.data || [];
@@ -530,11 +540,10 @@ export const DashboardContent: React.FC = () => {
         }
       } catch { /* silencieux */ }
 
-      // Missions récentes déposées
       try {
         const res = await apiFetch<{ status?: string; data?: unknown[]; results?: number }>('/mission/ouvertes');
-        const missions: unknown[] = res.data || [];
-        for (const m of missions.slice(0, 2)) {
+        const missionsList: unknown[] = res.data || [];
+        for (const m of missionsList.slice(0, 2)) {
           const mi = m as Record<string, unknown>;
           const etabObj = mi.etablissement as Record<string, string> | undefined;
           const etab = etabObj
@@ -555,7 +564,6 @@ export const DashboardContent: React.FC = () => {
         }
       } catch { /* silencieux */ }
 
-      // Trie par "fraîcheur" simulée (déjà dans l'ordre d'insertion)
       setFlux(items.slice(0, 5));
     } catch (e: unknown) {
       setErrorFlux("Impossible de charger l'activité");
@@ -566,48 +574,91 @@ export const DashboardContent: React.FC = () => {
   }, []);
 
   // ── Fetch statistiques admin ─────────────────────────────────────────────────
+  // Essaie plusieurs routes dans l'ordre jusqu'à ce qu'une réponde correctement.
+  // Les logs DEBUG ci-dessous peuvent être retirés une fois le bon endpoint identifié.
   const fetchStats = useCallback(async () => {
     setLoadingStats(true);
     setErrorStats(null);
-    try {
-      // Essaie /api/admin/stats ou /api/admin/dashboard
-      let raw: Record<string, unknown> = {};
-      // Structure réelle: { status, data: { stats: { totalExtras, totalMissions, tauxRemplissage, ... } } }
-      const metricsRes = await apiFetch<{
-        status: string;
-        data: {
-          stats: {
-            totalExtras?: number;
-            totalEntreprises?: number;
-            totalMissions?: number;
-            tauxRemplissage?: number;
-            chiffreAffaires?: number;
-            nouveauxExtrasCeMois?: number;
-            noteMoyenne?: number;
-            nombreAvis?: number;
-          };
+
+    // ── DEBUG : vérifie le token avant tout appel ────────────────────────────
+    const token = getToken();
+    console.log('[fetchStats] token présent :', token ? '✅' : 'NULL ❌');
+    // ────────────────────────────────────────────────────────────────────────
+
+    // Liste ordonnée des routes à essayer
+    const STATS_ROUTES = [
+      '/admin/metrics',
+      '/admin/dashboard-stats',
+      '/admin/dashboard',
+      '/admin/stats',
+    ];
+
+    type RawStats = {
+      status?: string;
+      data?: {
+        stats?: {
+          totalExtras?: number;
+          totalEntreprises?: number;
+          totalMissions?: number;
+          tauxRemplissage?: number;
+          chiffreAffaires?: number;
+          nouveauxExtrasCeMois?: number;
+          noteMoyenne?: number;
+          nombreAvis?: number;
         };
-      }>('/admin/metrics');
+        // Certains backends renvoient les champs à plat dans data
+        totalExtras?: number;
+        totalMissions?: number;
+        tauxRemplissage?: number;
+        noteMoyenne?: number;
+        nombreAvis?: number;
+      };
+      // Ou directement à la racine
+      totalExtras?: number;
+      totalMissions?: number;
+      tauxRemplissage?: number;
+      noteMoyenne?: number;
+      nombreAvis?: number;
+    };
 
-      const s = metricsRes.data?.stats ?? {};
-      const totalMissions = s.totalMissions ?? 0;
-      const totalExtras = s.totalExtras ?? 0;
-      const taux = s.tauxRemplissage ?? 0;
-      const satisfaction = s.noteMoyenne ?? 0;
-      const nbAvis = s.nombreAvis ?? 0;
+    let raw: RawStats | null = null;
+    let successRoute = '';
 
-      setStats({
-        tauxRemplissage: taux,
-        postes: { pourvus: Math.round((taux / 100) * totalMissions), total: totalMissions || totalExtras },
-        satisfaction,
-        nbAvis,
-      });
-    } catch (e: unknown) {
-      setErrorStats('Stats indisponibles');
-      console.error('[DashboardContent] fetchStats:', e);
-    } finally {
-      setLoadingStats(false);
+    for (const route of STATS_ROUTES) {
+      try {
+        raw = await apiFetch<RawStats>(route);
+        successRoute = route;
+        console.log(`[fetchStats] ✅ route qui fonctionne : ${route}`, raw);
+        break;
+      } catch (e) {
+        console.warn(`[fetchStats] ❌ route ${route} échouée :`, e);
+      }
     }
+
+    if (!raw) {
+      setErrorStats('Stats indisponibles');
+      setLoadingStats(false);
+      return;
+    }
+
+    // Normalise la réponse quelle que soit la structure retournée
+    const s = raw.data?.stats ?? raw.data ?? raw;
+    const totalMissions = (s as RawStats).totalMissions ?? 0;
+    const totalExtras   = (s as RawStats).totalExtras ?? 0;
+    const taux          = (s as RawStats).tauxRemplissage ?? 0;
+    const satisfaction  = (s as RawStats).noteMoyenne ?? 0;
+    const nbAvis        = (s as RawStats).nombreAvis ?? 0;
+
+    console.log(`[fetchStats] données normalisées depuis ${successRoute} :`, { totalMissions, totalExtras, taux, satisfaction, nbAvis });
+
+    setStats({
+      tauxRemplissage: taux,
+      postes: { pourvus: Math.round((taux / 100) * totalMissions), total: totalMissions || totalExtras },
+      satisfaction,
+      nbAvis,
+    });
+
+    setLoadingStats(false);
   }, []);
 
   // ── Chargement initial + auto-refresh toutes les 2 minutes ──────────────────
@@ -625,7 +676,7 @@ export const DashboardContent: React.FC = () => {
       fetchFlux();
       fetchStats();
       setLastRefresh(new Date());
-    }, 2 * 60 * 1000); // 2 minutes
+    }, 2 * 60 * 1000);
     return () => clearInterval(id);
   }, [fetchMissions, fetchCandidats, fetchFlux, fetchStats]);
 
