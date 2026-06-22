@@ -1,34 +1,27 @@
 import mongoose from 'mongoose';
 
-const channelSchema = new mongoose.Schema(
+const messageSchema = new mongoose.Schema(
   {
-    name: {
+    expediteurId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    contenu: {
       type: String,
       required: true,
       trim: true
     },
+    lu: {
+      type: Boolean,
+      default: false
+    }
+  },
+  { timestamps: true }
+);
 
-    role: {
-      type: String,
-      required: true,
-      enum: [
-        'admin',
-        'superadmin',
-        'extra',
-        'etablissement'
-      ]
-    },
-
-    avatar: {
-      type: String,
-      default: ''
-    },
-
-    adminId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-
+const channelSchema = new mongoose.Schema(
+  {
     participants: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -53,19 +46,20 @@ const channelSchema = new mongoose.Schema(
 
     typeChannel: {
       type: String,
-      enum: [
-        'general',
-        'mission',
-        'contrat',
-        'support',
-        'administratif'
-      ],
+      enum: ['general', 'mission', 'contrat', 'support', 'administratif'],
       default: 'general'
     },
+
+    messages: [messageSchema],
 
     lastMessage: {
       type: String,
       default: ''
+    },
+
+    lastMessageAt: {
+      type: Date,
+      default: Date.now
     },
 
     unread: {
@@ -76,11 +70,6 @@ const channelSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true
-    },
-
-    createdAt: {
-      type: Date,
-      default: Date.now
     }
   },
   {
@@ -90,5 +79,4 @@ const channelSchema = new mongoose.Schema(
 );
 
 const Channel = mongoose.model('Channel', channelSchema);
-
 export default Channel;

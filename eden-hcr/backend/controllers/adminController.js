@@ -6,6 +6,7 @@ import Planning from '../models/Planning.js';
 import Contrat from '../models/Contrat.js';
 import Rapport from '../models/Rapport.js';
 import Messagerie from '../models/Messagerie.js';
+import Channel from '../models/Channel.js';
 
 // @desc    Obtenir les métriques globales du SuperAdmin
 // @route   GET /api/admin/metrics
@@ -36,12 +37,19 @@ export const getSuperAdminMetrics = async (req, res, next) => {
     ]);
 
     const chiffreAffaires = revenuAggrege.length > 0 ? revenuAggrege[0].total : 0;
-    const tauxRemplissage = totalMissions > 0 ? parseFloat(((missionsPourvues / totalMissions) * 100).toFixed(1)) : 0;
-    const etablissementsAValider = await Etablissement.find({ statutCompte: 'en_attente_validation' }).sort({ createdAt: -1 }).limit(5);
+    const tauxRemplissage = totalMissions > 0
+      ? parseFloat(((missionsPourvues / totalMissions) * 100).toFixed(1))
+      : 0;
+    const etablissementsAValider = await Etablissement.find({
+      statutCompte: 'en_attente_validation'
+    }).sort({ createdAt: -1 }).limit(5);
 
     res.status(200).json({
       status: 'success',
-      data: { stats: { totalExtras, totalEntreprises, chiffreAffaires, totalMissions, tauxRemplissage, nouveauxExtrasCeMois }, actionsRequises: { etablissementsAValider } }
+      data: {
+        stats: { totalExtras, totalEntreprises, chiffreAffaires, totalMissions, tauxRemplissage, nouveauxExtrasCeMois },
+        actionsRequises: { etablissementsAValider }
+      }
     });
   } catch (error) { next(error); }
 };
@@ -104,7 +112,7 @@ export const getPayments = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-// @desc    Gestion Messagerie
+// @desc    Gestion Messagerie (formulaire de contact)
 export const getMessages = async (req, res, next) => {
   try {
     const messages = await Messagerie.find({}).sort({ createdAt: -1 });
@@ -112,19 +120,87 @@ export const getMessages = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-// @desc    Récupérer tous les canaux de messagerie
+// @desc    Récupérer tous les channels de l'admin connecté
+// @route   GET /api/admin/messages/channels
 export const getChannels = async (req, res, next) => {
   try {
-    // Logique pour extraire les canaux uniques depuis la collection Messagerie
-    const channels = await Messagerie.distinct('channelId'); 
-    res.status(200).json({ status: 'success', data: channels });
+    // Si aucun channel n'existe encore pour cet admin,
+    // on génère la liste depuis les candidats
+    const existing = await Channel.find({
+      participants: req.user._id,
+      isActive: true
+    }).populate('participants', 'nom prenom email role');
+
+    res.status(200).json({ status: 'success', data: existing });
   } catch (error) { next(error); }
 };
 
+// @desc    Récupérer ou créer un channel avec un extra
+// @route   GET /api/admin/messages/channels/:channelId
+export const getChannelMessages = async (req, res, next) => {
+  try {
+    const { channelId } = req.params;
+
+    // On cherche d'abord par ID MongoDB (channel existant)
+    let channel = await Channel.findById(channelId)
+      .populate('participants', 'nom prenom email role');
+
+    // Si pas trouvé par _id → c'est un userId candidat → on crée/récupère le channel
+    if (!channel) {
+      channel = await Channel.findOne({
+        participants: { $all: [req.user._id, channelId] }
+      }).populate('participants', 'nom prenom email role');
+
+      if (!channel) {
+        channel = await Channel.create({
+          participants: [req.user._id, channelId],
+          messages: [],
+          lastMessage: '',
+          lastMessageAt: new Date()
+        });
+        channel = await channel.populate('participants', 'nom prenom email role');
+      }
+    }
+
+    res.status(200).json({ status: 'success', data: channel });
+  } catch (error) { next(error); }
+};
+
+// @desc    Envoyer un message dans un channel
+// @route   POST /api/admin/messages/channels/:channelId
 export const sendMessage = async (req, res, next) => {
   try {
-    const newMessage = await Messagerie.create(req.body);
-    res.status(201).json({ status: 'success', data: newMessage });
+    const { channelId } = req.params;
+    const { text } = req.body;
+
+    if (!text?.trim()) {
+      return res.status(400).json({ status: 'error', message: 'Message vide.' });
+    }
+
+    const channel = await Channel.findById(channelId);
+
+    if (!channel) {
+      return res.status(404).json({ status: 'error', message: 'Channel introuvable.' });
+    }
+
+    const participantIds = channel.participants.map(p => p.toString());
+    if (!participantIds.includes(req.user._id.toString())) {
+      return res.status(403).json({ status: 'error', message: 'Accès refusé.' });
+    }
+
+    channel.messages.push({
+      expediteurId: req.user._id,
+      contenu: text.trim()
+    });
+    channel.lastMessage = text.trim();
+    channel.lastMessageAt = new Date();
+
+    await channel.save();
+
+    const updated = await Channel.findById(channelId)
+      .populate('participants', 'nom prenom email role');
+
+    res.status(200).json({ status: 'success', data: updated });
   } catch (error) { next(error); }
 };
 
@@ -166,26 +242,5 @@ export const updateCandidateStatus = async (req, res, next) => {
       message: 'Statut mis à jour',
       data: candidat
     });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Récupérer les messages d'un canal
-// @route   GET /api/admin/messages/channels/:channelId
-export const getChannelMessages = async (req, res, next) => {
-  try {
-    const { channelId } = req.params;
-
-    const messages = await Messagerie.find({
-      channelId
-    }).sort({ createdAt: 1 });
-
-    res.status(200).json({
-      status: 'success',
-      data: messages
-    });
-  } catch (error) {
-    next(error);
-  }
+  } catch (error) { next(error); }
 };
