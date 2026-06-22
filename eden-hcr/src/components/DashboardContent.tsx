@@ -72,24 +72,25 @@ function authHeaders() {
   };
 }
 
-async function apiFetch<T>(path: string): Promise<T> {
-  const token = getToken();
-  // ── DEBUG temporaire : loggue chaque appel ──────────────────────────────────
-  console.log(`[apiFetch] ${API}${path}`, {
-    token: token ? `${token.substring(0, 30)}…` : 'NULL ❌',
-    header: token ? `Bearer ${token.substring(0, 20)}…` : 'absent',
-  });
-  // ───────────────────────────────────────────────────────────────────────────
-  const res = await fetch(`${API}${path}`, { headers: authHeaders() });
-  if (!res.ok) {
-    // ── DEBUG : loggue la réponse d'erreur complète ──────────────────────────
-    let body = '';
-    try { body = await res.text(); } catch { /* ignore */ }
-    console.error(`[apiFetch] ❌ ${res.status} ${res.statusText} — ${API}${path}`, body);
-    // ────────────────────────────────────────────────────────────────────────
-    throw new Error(`${res.status} ${res.statusText}`);
+// Retry automatique pour absorber les cold starts Render (401/réseau)
+async function apiFetch<T>(path: string, retries = 3, delayMs = 1200): Promise<T> {
+  let lastError: Error = new Error('Erreur inconnue');
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(`${API}${path}`, { headers: authHeaders() });
+      if (res.status === 401 && attempt < retries) {
+        // Cold start Render : attend et réessaie
+        await new Promise(r => setTimeout(r, delayMs * attempt));
+        continue;
+      }
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.json();
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      if (attempt < retries) await new Promise(r => setTimeout(r, delayMs * attempt));
+    }
   }
-  return res.json();
+  throw lastError;
 }
 
 function initiales(candidat: Candidat): string {
@@ -580,11 +581,6 @@ export const DashboardContent: React.FC = () => {
     setLoadingStats(true);
     setErrorStats(null);
 
-    // ── DEBUG : vérifie le token avant tout appel ────────────────────────────
-    const token = getToken();
-    console.log('[fetchStats] token présent :', token ? '✅' : 'NULL ❌');
-    // ────────────────────────────────────────────────────────────────────────
-
     // Liste ordonnée des routes à essayer
     const STATS_ROUTES = [
       '/admin/metrics',
@@ -628,10 +624,9 @@ export const DashboardContent: React.FC = () => {
       try {
         raw = await apiFetch<RawStats>(route);
         successRoute = route;
-        console.log(`[fetchStats] ✅ route qui fonctionne : ${route}`, raw);
         break;
       } catch (e) {
-        console.warn(`[fetchStats] ❌ route ${route} échouée :`, e);
+        // route indisponible, on essaie la suivante
       }
     }
 
@@ -648,8 +643,6 @@ export const DashboardContent: React.FC = () => {
     const taux          = (s as RawStats).tauxRemplissage ?? 0;
     const satisfaction  = (s as RawStats).noteMoyenne ?? 0;
     const nbAvis        = (s as RawStats).nombreAvis ?? 0;
-
-    console.log(`[fetchStats] données normalisées depuis ${successRoute} :`, { totalMissions, totalExtras, taux, satisfaction, nbAvis });
 
     setStats({
       tauxRemplissage: taux,
