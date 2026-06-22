@@ -6,20 +6,7 @@ import Planning from '../models/Planning.js';
 import Contrat from '../models/Contrat.js';
 import Rapport from '../models/Rapport.js';
 import Messagerie from '../models/Messagerie.js';
-import {
-  getSuperAdminMetrics,
-  getCandidates,
-  getEstablishments,
-  getPlanningData,
-  getContrats,
-  getReports,
-  getPayments,
-  getMessages,
-  getChannelMessages, // <-- AJOUT
-  sendMessage,
-  updateCandidateStatus,
-  getMissions
-} from '../controllers/adminController.js';
+
 
 
 // @desc    Obtenir les métriques globales du SuperAdmin
