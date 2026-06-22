@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { MessageSquare, Send, Search, Megaphone, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface Channel {
@@ -11,6 +11,7 @@ interface Channel {
   unread: number;
   avatar: string;
   isUrgent?: boolean;
+  realChannelId?: string; // _id MongoDB du channel une fois résolu
 }
 
 interface Message {
@@ -21,7 +22,6 @@ interface Message {
   time: string;
 }
 
-// Interface pour les candidats (double format backend)
 interface Candidate {
   _id: string;
   firstName?: string;
@@ -38,7 +38,8 @@ interface Candidate {
   createdAt?: string;
 }
 
-// ── Helpers normalisation candidat → channel ──────────────────────────────────
+const API = 'https://eden-hcr.onrender.com';
+
 const candidateToChannel = (c: Candidate): Channel => {
   const firstName = c.firstName || c.prenom || '';
   const lastName  = c.lastName  || c.nom    || '';
@@ -58,70 +59,95 @@ const candidateToChannel = (c: Candidate): Channel => {
 };
 
 export const MessageManager: React.FC = () => {
-  const [channels, setChannels]               = useState<Channel[]>([]);
+  const [channels, setChannels]             = useState<Channel[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string>('');
-  const [messages, setMessages]               = useState<Record<string, Message[]>>({});
-  const [newMessageText, setNewMessageText]   = useState('');
-  const [searchTerm, setSearchTerm]           = useState('');
-
-  const [isLoading, setIsLoading]     = useState<boolean>(true);
-  const [error, setError]             = useState<string>('');
-  const [actionMessage, setActionMessage] = useState<string>('');
-
+  const [messages, setMessages]             = useState<Record<string, Message[]>>({});
+  const [newMessageText, setNewMessageText] = useState('');
+  const [searchTerm, setSearchTerm]         = useState('');
+  const [isLoading, setIsLoading]           = useState<boolean>(true);
+  const [error, setError]                   = useState<string>('');
+  const [actionMessage, setActionMessage]   = useState<string>('');
   const [broadcastMode, setBroadcastMode]   = useState(false);
   const [broadcastText, setBroadcastText]   = useState('');
   const [broadcastTarget, setBroadcastTarget] = useState('serveur');
   const [isBroadcasting, setIsBroadcasting] = useState(false);
 
-  // ── 1. CHARGEMENT : channels existants OU génération depuis candidats ────────
+  // userId de l'admin connecté (pour distinguer ses messages)
+  const adminUserIdRef = useRef<string>('');
+
+  useEffect(() => {
+    const stored = localStorage.getItem('eden_user');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        adminUserIdRef.current = parsed.id || parsed._id || '';
+      } catch {}
+    }
+  }, []);
+
+  // ── Chargement des conversations ────────────────────────────────────────────
   const fetchConversations = async (silent = false) => {
     if (!silent) setIsLoading(true);
     setError('');
     const token = localStorage.getItem('eden_token');
 
     try {
-      // Tentative 1 : route messagerie dédiée
-      const res = await fetch('https://eden-hcr.onrender.com/api/admin/messages/channels', {
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+      const res = await fetch(`${API}/api/admin/messages/channels`, {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
       });
 
       const resData = await res.json();
-
       let loadedChannels: Channel[] = [];
-      let loadedMessages: Record<string, Message[]> = {};
 
       if (res.ok) {
-        loadedChannels = Array.isArray(resData.data?.channels) ? resData.data.channels
-          : Array.isArray(resData.channels) ? resData.channels
-          : Array.isArray(resData.data)     ? resData.data
-          : [];
-        loadedMessages = resData.data?.messages || resData.messages || {};
+        const raw: any[] = Array.isArray(resData.data) ? resData.data : [];
+
+        // Channels MongoDB → format UI
+        loadedChannels = raw.map((ch: any) => {
+          const other = ch.participants?.find(
+            (p: any) => String(p._id) !== adminUserIdRef.current
+          );
+          const firstName = other?.prenom || other?.nom?.split(' ')?.[0] || '';
+          const lastName  = other?.nom    || '';
+          const fullName  = other
+            ? `${other.prenom || ''} ${other.nom || ''}`.trim() || other.email || 'Extra'
+            : 'Extra';
+          const initials  = `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase() || 'EX';
+
+          return {
+            _id:           ch._id,
+            realChannelId: ch._id,
+            name:          fullName,
+            role:          other?.role || 'Extra HCR',
+            lastMessage:   ch.lastMessage || 'Aucun message pour le moment',
+            time:          ch.lastMessageAt
+              ? new Date(ch.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : '',
+            unread:  ch.unread || 0,
+            avatar:  initials,
+          };
+        });
       }
 
-      // Tentative 2 : si aucun channel → on charge les candidats et on génère les channels
+      // Fallback : liste des candidats si aucun channel existant
       if (loadedChannels.length === 0) {
-        const resCandidates = await fetch('https://eden-hcr.onrender.com/api/admin/candidates', {
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+        const resCandidates = await fetch(`${API}/api/admin/candidates`, {
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
         });
 
         if (resCandidates.ok) {
           const candidateData = await resCandidates.json();
           const rawList: Candidate[] = Array.isArray(candidateData.data)
             ? candidateData.data
-            : Array.isArray(candidateData)
-            ? candidateData
-            : [];
-
-          // On garde tous les candidats (qu'ils soient validés ou non)
+            : Array.isArray(candidateData) ? candidateData : [];
           loadedChannels = rawList.map(candidateToChannel);
         }
       }
 
       setChannels(loadedChannels);
-      setMessages(loadedMessages);
 
       if (loadedChannels.length > 0 && !activeChannelId) {
-        setActiveChannelId(loadedChannels[0]._id || '');
+        setActiveChannelId(loadedChannels[0]._id);
       }
 
     } catch (err) {
@@ -132,97 +158,71 @@ export const MessageManager: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchConversations();
-  }, []);
-
+  useEffect(() => { fetchConversations(); }, []);
 
   const activeChannel = useMemo(() => {
     if (!Array.isArray(channels)) return undefined;
-    return channels.find(c => (c._id === activeChannelId || c.id === activeChannelId));
+    return channels.find(c => c._id === activeChannelId || c.id === activeChannelId);
   }, [channels, activeChannelId]);
 
-  const openConversation = async (candidateId: string) => {
-  const token = localStorage.getItem('eden_token');
+  // ── Ouverture d'une conversation ────────────────────────────────────────────
+  const openConversation = async (candidateOrChannelId: string) => {
+    const token = localStorage.getItem('eden_token');
 
-  try {
-    const response = await fetch(
-      `https://eden-hcr.onrender.com/api/admin/messages/channels/${candidateId}`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        }
-      }
-    );
+    try {
+      const response = await fetch(
+        `${API}/api/admin/messages/channels/${candidateOrChannelId}`,
+        { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }
+      );
 
-    const data = await response.json();
+      const data = await response.json();
+      if (!response.ok) { console.error(data); return; }
 
-    if (!response.ok) {
-      console.error(data);
-      return;
-    }
+      const ch = data.data;
+      const realId = ch._id;
 
-    const channel = data.data;
+      // Convertit les messages backend → format UI
+      const convertedMessages: Message[] = (ch.messages || []).map((m: any) => ({
+        _id:    m._id,
+        sender: String(m.expediteurId) === adminUserIdRef.current ? 'admin' : 'extra',
+        text:   m.contenu,
+        time:   new Date(m.createdAt || Date.now()).toLocaleTimeString([], {
+          hour: '2-digit', minute: '2-digit'
+        })
+      }));
 
-    // Remplace le candidat par le vrai channel
-    setChannels(prev =>
-      prev.map(c =>
-        c._id === candidateId
+      // Met à jour la liste : remplace l'entrée candidat par le vrai channel
+      setChannels(prev => prev.map(c =>
+        c._id === candidateOrChannelId
           ? {
               ...c,
-              _id: channel._id,
-              lastMessage: channel.lastMessage || c.lastMessage,
-              time: channel.lastMessageAt
-                ? new Date(channel.lastMessageAt).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })
+              _id:           realId,
+              realChannelId: realId,
+              lastMessage:   ch.lastMessage || c.lastMessage,
+              time:          ch.lastMessageAt
+                ? new Date(ch.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 : c.time
             }
           : c
-      )
-    );
+      ));
 
-    setMessages(prev => ({
-      ...prev,
-      [channel._id]: (channel.messages || []).map((m: any) => ({
-        _id: m._id,
-        sender:
-          String(m.expediteurId) === String(channel.participants[0]?._id)
-            ? 'admin'
-            : 'extra',
-        text: m.contenu,
-        time: new Date(m.createdAt).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      }))
-    }));
+      setMessages(prev => ({ ...prev, [realId]: convertedMessages }));
+      setActiveChannelId(realId);
 
-    setActiveChannelId(channel._id);
+    } catch (err) {
+      console.error('Erreur ouverture conversation :', err);
+    }
+  };
 
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-  // ── 2. ENVOI D'UN MESSAGE INDIVIDUEL ────────────────────────────────────────
+  // ── Envoi d'un message ──────────────────────────────────────────────────────
   const handleSendMessage = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
+    if (!newMessageText.trim() || !activeChannelId) return;
 
-  if (!newMessageText.trim() || !activeChannelId) return;
+    const token = localStorage.getItem('eden_token');
+    const textToSend = newMessageText;
+    setNewMessageText('');
 
-  const token = localStorage.getItem('eden_token');
-
-  const selected = channels.find(c => c._id === activeChannelId);
-
-  if (!selected) return;
-
-  const textToSend = newMessageText;
-  setNewMessageText('');
-
-    // Ajout optimiste immédiat
     const optimisticMsg: Message = {
       _id:    `local_${Date.now()}`,
       sender: 'admin',
@@ -236,22 +236,21 @@ export const MessageManager: React.FC = () => {
     }));
 
     setChannels(prev => prev.map(c =>
-      (c._id === activeChannelId || c.id === activeChannelId)
+      c._id === activeChannelId
         ? { ...c, lastMessage: textToSend, time: optimisticMsg.time, unread: 0 }
         : c
     ));
 
     try {
-      const response = await fetch(`https://eden-hcr.onrender.com/api/admin/messages/channels/${activeChannelId}`, {
+      const response = await fetch(`${API}/api/admin/messages/channels/${activeChannelId}`, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body:    JSON.stringify({ text: textToSend })
       });
 
       if (!response.ok) {
         const resData = await response.json();
         setActionMessage(`Erreur d'envoi : ${resData.message}`);
-        // Retrait du message optimiste en cas d'échec
         setMessages(prev => ({
           ...prev,
           [activeChannelId]: (prev[activeChannelId] || []).filter(m => m._id !== optimisticMsg._id)
@@ -260,14 +259,13 @@ export const MessageManager: React.FC = () => {
       }
     } catch (err) {
       console.error('Erreur envoi message :', err);
-      // On garde le message optimiste même en cas d'erreur réseau pour l'UX
       setActionMessage('Connexion instable — message enregistré localement.');
     } finally {
       setTimeout(() => setActionMessage(''), 3000);
     }
   };
 
-  // ── 3. BROADCAST "COUP DE FEU" ───────────────────────────────────────────────
+  // ── Broadcast ───────────────────────────────────────────────────────────────
   const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!broadcastText.trim()) return;
@@ -277,7 +275,7 @@ export const MessageManager: React.FC = () => {
     const token = localStorage.getItem('eden_token');
 
     const missionPayload = {
-      posteRecherche: broadcastTarget === 'serveur' ? 'Chef de Rang' : broadcastTarget === 'barman' ? 'Mixologue' : 'Chef de Partie',
+      posteRecherche:  broadcastTarget === 'serveur' ? 'Chef de Rang' : broadcastTarget === 'barman' ? 'Mixologue' : 'Chef de Partie',
       dateDebut:       new Date(),
       dateFin:         new Date(Date.now() + 8 * 60 * 60 * 1000),
       nombreExtras:    1,
@@ -287,23 +285,22 @@ export const MessageManager: React.FC = () => {
     };
 
     try {
-      const response = await fetch('https://eden-hcr.onrender.com/api/admin/missions/broadcast', {
+      const response = await fetch(`${API}/api/admin/missions/broadcast`, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body:    JSON.stringify(missionPayload)
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setActionMessage('Alerte d\'urgence diffusée et enregistrée sur Atlas !');
+        setActionMessage("Alerte d'urgence diffusée et enregistrée sur Atlas !");
         setBroadcastText('');
         setBroadcastMode(false);
       } else {
         setActionMessage(`Erreur : ${data.message}`);
       }
-    } catch (error) {
-      console.error('Erreur réseau broadcast :', error);
+    } catch {
       setActionMessage('Échec de la diffusion générale.');
     } finally {
       setIsBroadcasting(false);
@@ -319,7 +316,6 @@ export const MessageManager: React.FC = () => {
     );
   }, [channels, searchTerm]);
 
-  // ── LOADING ──────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center p-12 min-h-[450px] space-y-3 font-sans">
@@ -329,12 +325,11 @@ export const MessageManager: React.FC = () => {
     );
   }
 
-  // ── RENDER ───────────────────────────────────────────────────────────────────
   return (
     <div className="p-6 lg:p-8 font-sans max-w-[1600px] mx-auto h-[calc(100vh-80px)] flex flex-col gap-6 animate-[fadeInUp_0.4s_ease-out]">
       <div className="flex-1 bg-eden-bg2 border border-eden-border rounded-2xl overflow-hidden shadow-xl flex h-full min-h-0">
 
-        {/* ── COLONNE GAUCHE : Liste des conversations ── */}
+        {/* ── COLONNE GAUCHE ── */}
         <div className="w-full sm:w-[350px] md:w-[400px] border-r border-eden-border/60 flex flex-col shrink-0 bg-eden-bg2/50">
           <div className="p-4 border-b border-eden-border/60 space-y-3">
             <div className="flex items-center justify-between">
@@ -391,7 +386,7 @@ export const MessageManager: React.FC = () => {
                 return (
                   <div
                     key={channelId}
-                    onClick={() => {setBroadcastMode(false); openConversation(channelId); }}
+                    onClick={() => { setBroadcastMode(false); openConversation(channelId); }}
                     className={`p-4 flex items-start gap-3 cursor-pointer transition-all hover:bg-eden-navy/[0.01] select-none ${isActive ? 'bg-eden-navy/[0.03] border-l-[3px] border-eden-tan' : ''}`}
                   >
                     <div className="w-9 h-9 rounded-full bg-eden-navy text-white font-bold flex items-center justify-center text-xs uppercase shrink-0 shadow-2xs">
@@ -415,7 +410,7 @@ export const MessageManager: React.FC = () => {
           </div>
         </div>
 
-        {/* ── COLONNE DROITE : Zone de chat ── */}
+        {/* ── COLONNE DROITE ── */}
         <div className="flex-1 flex flex-col min-w-0 bg-eden-bg/10 relative">
           {actionMessage && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 p-2.5 px-4 text-xs text-white bg-eden-navy/90 border border-eden-tan rounded-xl shadow-md font-medium">
@@ -423,7 +418,6 @@ export const MessageManager: React.FC = () => {
             </div>
           )}
 
-          {/* MODE BROADCAST */}
           {broadcastMode ? (
             <div className="flex-1 flex flex-col p-8 justify-center max-w-xl mx-auto space-y-6">
               <div className="text-center space-y-2">
@@ -438,7 +432,7 @@ export const MessageManager: React.FC = () => {
                   <label className="text-xs font-semibold text-eden-text-dark">Corps de métier ciblé</label>
                   <select
                     value={broadcastTarget}
-                    onChange={(e) => setBroadcastTarget(e.target.value)}
+                    onChange={e => setBroadcastTarget(e.target.value)}
                     className="w-full bg-eden-bg border border-eden-border rounded-lg p-2.5 text-xs text-eden-text-dark outline-none focus:border-eden-tan"
                   >
                     <option value="serveur">Serveurs / Chefs de rang</option>
@@ -453,7 +447,7 @@ export const MessageManager: React.FC = () => {
                     rows={4}
                     placeholder="Ex : Besoin urgent d'un chef de rang ce soir 19h-23h, Hôtel Mercure Lyon..."
                     value={broadcastText}
-                    onChange={(e) => setBroadcastText(e.target.value)}
+                    onChange={e => setBroadcastText(e.target.value)}
                     className="w-full bg-eden-bg border border-eden-border rounded-lg p-3 text-xs text-eden-text-dark outline-none focus:border-eden-tan resize-none"
                   />
                 </div>
@@ -467,10 +461,8 @@ export const MessageManager: React.FC = () => {
               </form>
             </div>
 
-          /* MODE CONVERSATION ACTIVE */
           ) : activeChannel ? (
             <>
-              {/* Header conversation */}
               <div className="p-4 bg-white border-b border-eden-border/60 px-6 flex items-center justify-between shadow-2xs">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-eden-tan/10 text-eden-tan font-bold flex items-center justify-center text-xs uppercase">
@@ -483,7 +475,6 @@ export const MessageManager: React.FC = () => {
                 </div>
               </div>
 
-              {/* Zone messages */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-white/40">
                 {(messages[activeChannelId] || []).length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full space-y-2 text-center">
@@ -492,7 +483,7 @@ export const MessageManager: React.FC = () => {
                     <p className="text-[11px] text-eden-text-light/60">Envoyez le premier message ci-dessous.</p>
                   </div>
                 ) : (
-                  (messages[activeChannelId] || []).map((msg) => (
+                  (messages[activeChannelId] || []).map(msg => (
                     <div
                       key={msg._id}
                       className={`flex flex-col ${msg.sender === 'admin' ? 'ml-auto items-end' : 'mr-auto items-start'}`}
@@ -507,7 +498,6 @@ export const MessageManager: React.FC = () => {
                 )}
               </div>
 
-              {/* Zone de saisie */}
               <form
                 onSubmit={handleSendMessage}
                 className="p-4 bg-white border-t border-eden-border/60 px-6 flex items-center gap-3"
@@ -516,7 +506,7 @@ export const MessageManager: React.FC = () => {
                   type="text"
                   required
                   value={newMessageText}
-                  onChange={(e) => setNewMessageText(e.target.value)}
+                  onChange={e => setNewMessageText(e.target.value)}
                   placeholder={`Message à ${activeChannel.name}...`}
                   className="flex-1 bg-eden-bg border border-eden-border rounded-xl px-4 py-3 text-xs text-eden-text-dark outline-none focus:border-eden-tan transition-all"
                 />
@@ -530,7 +520,6 @@ export const MessageManager: React.FC = () => {
               </form>
             </>
 
-          /* ÉTAT VIDE — aucune conversation sélectionnée */
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center space-y-3 text-center p-8">
               <MessageSquare size={32} className="text-eden-text-light/30" />
