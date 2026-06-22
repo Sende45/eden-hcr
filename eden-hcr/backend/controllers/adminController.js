@@ -7,6 +7,7 @@ import Contrat from '../models/Contrat.js';
 import Rapport from '../models/Rapport.js';
 import Messagerie from '../models/Messagerie.js';
 import Channel from '../models/Channel.js';
+import User from '../models/User.js';
 import mongoose from 'mongoose';
 
 // @desc    Obtenir les métriques globales du SuperAdmin
@@ -136,43 +137,63 @@ export const getChannels = async (req, res, next) => {
 
 // @desc    Récupérer ou créer un channel avec un extra
 // @route   GET /api/admin/messages/channels/:channelId
+// channelId peut être : _id d'un Channel existant, _id d'un User, ou _id d'un Candidat
 export const getChannelMessages = async (req, res, next) => {
   try {
     const { channelId } = req.params;
 
-    // Vérifie si c'est un ObjectId valide
-    const isValidObjectId = mongoose.Types.ObjectId.isValid(channelId);
+    if (!mongoose.Types.ObjectId.isValid(channelId)) {
+      return res.status(400).json({ status: 'error', message: 'ID invalide.' });
+    }
 
-    let channel = null;
+    // ── Étape 1 : cherche un channel existant dont cet ID est participant ──
+    let channel = await Channel.findOne({
+      participants: { $all: [req.user._id, channelId] }
+    }).populate('participants', 'nom prenom email role');
 
-    if (isValidObjectId) {
-      // Cherche d'abord un channel existant par son propre _id
-      channel = await Channel.findOne({
-        _id: channelId,
-        participants: req.user._id
-      }).populate('participants', 'nom prenom email role');
+    if (channel) {
+      return res.status(200).json({ status: 'success', data: channel });
+    }
 
-      // Sinon cherche un channel entre l'admin et cet userId
-      if (!channel) {
-        channel = await Channel.findOne({
-          participants: { $all: [req.user._id, channelId] }
+    // ── Étape 2 : cherche un channel par son propre _id ──
+    channel = await Channel.findOne({
+      _id: channelId,
+      participants: req.user._id
+    }).populate('participants', 'nom prenom email role');
+
+    if (channel) {
+      return res.status(200).json({ status: 'success', data: channel });
+    }
+
+    // ── Étape 3 : l'ID est peut-être un _id Candidat → trouve le User lié ──
+    let targetUserId = new mongoose.Types.ObjectId(channelId);
+
+    const candidat = await Candidat.findById(channelId).select('email nom prenom');
+    if (candidat?.email) {
+      const linkedUser = await User.findOne({ email: candidat.email }).select('_id');
+      if (linkedUser) {
+        // Re-vérifie si un channel existe déjà avec ce vrai userId
+        const existingWithUser = await Channel.findOne({
+          participants: { $all: [req.user._id, linkedUser._id] }
         }).populate('participants', 'nom prenom email role');
+
+        if (existingWithUser) {
+          return res.status(200).json({ status: 'success', data: existingWithUser });
+        }
+
+        targetUserId = linkedUser._id;
       }
     }
 
-    // Toujours pas trouvé → on crée le channel
-    if (!channel) {
-      if (!isValidObjectId) {
-        return res.status(400).json({ status: 'error', message: 'ID invalide.' });
-      }
-      channel = await Channel.create({
-        participants: [req.user._id, channelId],
-        messages: [],
-        lastMessage: '',
-        lastMessageAt: new Date()
-      });
-      channel = await channel.populate('participants', 'nom prenom email role');
-    }
+    // ── Étape 4 : crée le channel ──
+    channel = await Channel.create({
+      participants: [req.user._id, targetUserId],
+      candidatId: candidat ? channelId : undefined,
+      messages: [],
+      lastMessage: '',
+      lastMessageAt: new Date()
+    });
+    channel = await channel.populate('participants', 'nom prenom email role');
 
     res.status(200).json({ status: 'success', data: channel });
   } catch (error) { next(error); }
@@ -189,12 +210,17 @@ export const sendMessage = async (req, res, next) => {
       return res.status(400).json({ status: 'error', message: 'Message vide.' });
     }
 
-    // Cherche le channel soit par son _id soit par les participants
+    if (!mongoose.Types.ObjectId.isValid(channelId)) {
+      return res.status(400).json({ status: 'error', message: 'ID invalide.' });
+    }
+
+    // Cherche par _id du channel d'abord
     let channel = await Channel.findOne({
-      _id: mongoose.Types.ObjectId.isValid(channelId) ? channelId : null,
+      _id: channelId,
       participants: req.user._id
     });
 
+    // Sinon cherche par participants (channelId = userId de l'autre participant)
     if (!channel) {
       channel = await Channel.findOne({
         participants: { $all: [req.user._id, channelId] }
