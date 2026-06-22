@@ -148,7 +148,8 @@ export const ExtraDashboard = ({
   const [applySuccess, setApplySuccess]   = useState<string | null>(null);
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState<string | null>(null);
-
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  
   // ─── Chargement données ────────────────────────────────────────────────────
   useEffect(() => {
     const token = getToken();
@@ -771,7 +772,7 @@ export const ExtraDashboard = ({
                     {[
                       { label: 'Missions disponibles', value: missions.length },
                       { label: 'Contrats signés',       value: contrats.length },
-                      { label: 'Total perçu',            value: totalPaye ? formatMontant(totalPaye) : '—' },
+                      { label: 'Total perçu',           value: totalPaye ? formatMontant(totalPaye) : '—' },
                     ].map((stat, i) => (
                       <div key={i} className="bg-[#F4F1EA] rounded-xl p-5">
                         <p className="text-2xl font-bold text-[#073B4C]">{stat.value}</p>
@@ -877,8 +878,9 @@ export const ExtraDashboard = ({
                       {messages.map(m => (
                         <div
                           key={m._id}
-                          className={`rounded-xl border px-4 py-3 flex items-start gap-3 hover:border-[#073B4C]/20 transition-all ${
-                            !m.lu ? 'border-[#073B4C]/20 bg-[#F4F1EA]' : 'border-[#E6DDD1]'
+                          onClick={() => setSelectedMessage(m)}
+                          className={`cursor-pointer rounded-xl border px-4 py-3 flex items-start gap-3 hover:border-[#073B4C]/20 transition-all ${
+                            selectedMessage?._id === m._id ? 'border-[#073B4C]/50 bg-[#F4F1EA]' : !m.lu ? 'border-[#073B4C]/20 bg-[#F4F1EA]' : 'border-[#E6DDD1]'
                           }`}
                         >
                           <div
@@ -895,6 +897,20 @@ export const ExtraDashboard = ({
                           <p className="text-xs text-gray-400 flex-shrink-0">{formatDate(m.createdAt)}</p>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {selectedMessage && (
+                    <div className="mt-6 border rounded-xl p-5 bg-white shadow-sm border-[#E6DDD1]">
+                      <h3 className="font-bold text-lg text-[#073B4C]">
+                        {selectedMessage.sujet}
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formatDate(selectedMessage.createdAt)}
+                      </p>
+                      <div className="mt-4 whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
+                        {selectedMessage.contenu}
+                      </div>
                     </div>
                   )}
                 </div>
