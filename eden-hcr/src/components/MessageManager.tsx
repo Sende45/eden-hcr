@@ -136,19 +136,91 @@ export const MessageManager: React.FC = () => {
     fetchConversations();
   }, []);
 
+
   const activeChannel = useMemo(() => {
     if (!Array.isArray(channels)) return undefined;
     return channels.find(c => (c._id === activeChannelId || c.id === activeChannelId));
   }, [channels, activeChannelId]);
 
+  const openConversation = async (candidateId: string) => {
+  const token = localStorage.getItem('eden_token');
+
+  try {
+    const response = await fetch(
+      `https://eden-hcr.onrender.com/api/admin/messages/channels/${candidateId}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error(data);
+      return;
+    }
+
+    const channel = data.data;
+
+    // Remplace le candidat par le vrai channel
+    setChannels(prev =>
+      prev.map(c =>
+        c._id === candidateId
+          ? {
+              ...c,
+              _id: channel._id,
+              lastMessage: channel.lastMessage || c.lastMessage,
+              time: channel.lastMessageAt
+                ? new Date(channel.lastMessageAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })
+                : c.time
+            }
+          : c
+      )
+    );
+
+    setMessages(prev => ({
+      ...prev,
+      [channel._id]: (channel.messages || []).map((m: any) => ({
+        _id: m._id,
+        sender:
+          String(m.expediteurId) === String(channel.participants[0]?._id)
+            ? 'admin'
+            : 'extra',
+        text: m.contenu,
+        time: new Date(m.createdAt).toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      }))
+    }));
+
+    setActiveChannelId(channel._id);
+
+  } catch (err) {
+    console.error(err);
+  }
+};
+
   // ── 2. ENVOI D'UN MESSAGE INDIVIDUEL ────────────────────────────────────────
   const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessageText.trim() || !activeChannelId) return;
+  e.preventDefault();
 
-    const token = localStorage.getItem('eden_token');
-    const textToSend = newMessageText;
-    setNewMessageText('');
+  if (!newMessageText.trim() || !activeChannelId) return;
+
+  const token = localStorage.getItem('eden_token');
+
+  const selected = channels.find(c => c._id === activeChannelId);
+
+  if (!selected) return;
+
+  const textToSend = newMessageText;
+  setNewMessageText('');
 
     // Ajout optimiste immédiat
     const optimisticMsg: Message = {
@@ -319,7 +391,7 @@ export const MessageManager: React.FC = () => {
                 return (
                   <div
                     key={channelId}
-                    onClick={() => { setActiveChannelId(channelId); setBroadcastMode(false); }}
+                    onClick={() => {setBroadcastMode(false); openConversation(channelId); }}
                     className={`p-4 flex items-start gap-3 cursor-pointer transition-all hover:bg-eden-navy/[0.01] select-none ${isActive ? 'bg-eden-navy/[0.03] border-l-[3px] border-eden-tan' : ''}`}
                   >
                     <div className="w-9 h-9 rounded-full bg-eden-navy text-white font-bold flex items-center justify-center text-xs uppercase shrink-0 shadow-2xs">
