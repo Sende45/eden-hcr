@@ -7,8 +7,6 @@ import Contrat from '../models/Contrat.js';
 import Rapport from '../models/Rapport.js';
 import Messagerie from '../models/Messagerie.js';
 
-
-
 // @desc    Obtenir les métriques globales du SuperAdmin
 // @route   GET /api/admin/metrics
 export const getSuperAdminMetrics = async (req, res, next) => {
@@ -47,21 +45,16 @@ export const getSuperAdminMetrics = async (req, res, next) => {
     });
   } catch (error) { next(error); }
 };
+
 // @desc    Gestion des Missions
 // @route   GET /api/admin/missions
 export const getMissions = async (req, res, next) => {
   try {
-    const missions = await Mission.find({})
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      status: 'success',
-      data: missions
-    });
-  } catch (error) {
-    next(error);
-  }
+    const missions = await Mission.find({}).sort({ createdAt: -1 });
+    res.status(200).json({ status: 'success', data: missions });
+  } catch (error) { next(error); }
 };
+
 // @desc    Gestion Candidats
 export const getCandidates = async (req, res, next) => {
   try {
@@ -119,6 +112,15 @@ export const getMessages = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// @desc    Récupérer tous les canaux de messagerie
+export const getChannels = async (req, res, next) => {
+  try {
+    // Logique pour extraire les canaux uniques depuis la collection Messagerie
+    const channels = await Messagerie.distinct('channelId'); 
+    res.status(200).json({ status: 'success', data: channels });
+  } catch (error) { next(error); }
+};
+
 export const sendMessage = async (req, res, next) => {
   try {
     const newMessage = await Messagerie.create(req.body);
@@ -127,9 +129,6 @@ export const sendMessage = async (req, res, next) => {
 };
 
 // @desc    Activer/Désactiver un candidat
-// @route   PATCH /api/admin/candidates/:id/status
-// @desc    Activer/Désactiver un candidat
-// @route   PATCH /api/admin/candidates/:id/status
 export const updateCandidateStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -144,12 +143,11 @@ export const updateCandidateStatus = async (req, res, next) => {
       });
     }
 
-    // Conversion des statuts frontend vers MongoDB
     if (status === 'validated') {
-  candidat.status = 'validated';
-  candidat.statutValidation = 'approuve';
-  candidat.actif = true;
-  } else if (status === 'pending') {
+      candidat.status = 'validated';
+      candidat.statutValidation = 'approuve';
+      candidat.actif = true;
+    } else if (status === 'pending') {
       candidat.status = 'inactive';
       candidat.statutValidation = 'en_attente';
       candidat.actif = false;
@@ -187,7 +185,6 @@ export const getChannelMessages = async (req, res, next) => {
       status: 'success',
       data: messages
     });
-
   } catch (error) {
     next(error);
   }

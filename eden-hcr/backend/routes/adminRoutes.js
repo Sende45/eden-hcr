@@ -8,7 +8,8 @@ import {
   getReports,
   getPayments,
   getMessages,
-  getChannelMessages, // <-- AJOUT
+  getChannels,        // <-- AJOUTÉ
+  getChannelMessages,
   sendMessage,
   updateCandidateStatus,
   getMissions
@@ -76,6 +77,10 @@ router.get('/payments', protect, getPayments);
 // MESSAGERIE
 // ─────────────────────────────────────────────────────────────
 
+// Route pour récupérer la liste des channels
+router.get('/messages/channels', protect, getChannels);
+
+// Routes pour une conversation spécifique
 router.get(
   '/messages/channels/:channelId',
   protect,
