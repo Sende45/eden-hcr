@@ -7,6 +7,7 @@ import Contrat from '../models/Contrat.js';
 import Rapport from '../models/Rapport.js';
 import Messagerie from '../models/Messagerie.js';
 import Channel from '../models/Channel.js';
+import mongoose from 'mongoose';
 
 // @desc    Obtenir les métriques globales du SuperAdmin
 // @route   GET /api/admin/metrics
@@ -124,8 +125,6 @@ export const getMessages = async (req, res, next) => {
 // @route   GET /api/admin/messages/channels
 export const getChannels = async (req, res, next) => {
   try {
-    // Si aucun channel n'existe encore pour cet admin,
-    // on génère la liste depuis les candidats
     const existing = await Channel.find({
       participants: req.user._id,
       isActive: true
@@ -141,25 +140,38 @@ export const getChannelMessages = async (req, res, next) => {
   try {
     const { channelId } = req.params;
 
-    // On cherche d'abord par ID MongoDB (channel existant)
-    let channel = await Channel.findById(channelId)
-      .populate('participants', 'nom prenom email role');
+    // Vérifie si c'est un ObjectId valide
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(channelId);
 
-    // Si pas trouvé par _id → c'est un userId candidat → on crée/récupère le channel
-    if (!channel) {
+    let channel = null;
+
+    if (isValidObjectId) {
+      // Cherche d'abord un channel existant par son propre _id
       channel = await Channel.findOne({
-        participants: { $all: [req.user._id, channelId] }
+        _id: channelId,
+        participants: req.user._id
       }).populate('participants', 'nom prenom email role');
 
+      // Sinon cherche un channel entre l'admin et cet userId
       if (!channel) {
-        channel = await Channel.create({
-          participants: [req.user._id, channelId],
-          messages: [],
-          lastMessage: '',
-          lastMessageAt: new Date()
-        });
-        channel = await channel.populate('participants', 'nom prenom email role');
+        channel = await Channel.findOne({
+          participants: { $all: [req.user._id, channelId] }
+        }).populate('participants', 'nom prenom email role');
       }
+    }
+
+    // Toujours pas trouvé → on crée le channel
+    if (!channel) {
+      if (!isValidObjectId) {
+        return res.status(400).json({ status: 'error', message: 'ID invalide.' });
+      }
+      channel = await Channel.create({
+        participants: [req.user._id, channelId],
+        messages: [],
+        lastMessage: '',
+        lastMessageAt: new Date()
+      });
+      channel = await channel.populate('participants', 'nom prenom email role');
     }
 
     res.status(200).json({ status: 'success', data: channel });
@@ -177,15 +189,20 @@ export const sendMessage = async (req, res, next) => {
       return res.status(400).json({ status: 'error', message: 'Message vide.' });
     }
 
-    const channel = await Channel.findById(channelId);
+    // Cherche le channel soit par son _id soit par les participants
+    let channel = await Channel.findOne({
+      _id: mongoose.Types.ObjectId.isValid(channelId) ? channelId : null,
+      participants: req.user._id
+    });
+
+    if (!channel) {
+      channel = await Channel.findOne({
+        participants: { $all: [req.user._id, channelId] }
+      });
+    }
 
     if (!channel) {
       return res.status(404).json({ status: 'error', message: 'Channel introuvable.' });
-    }
-
-    const participantIds = channel.participants.map(p => p.toString());
-    if (!participantIds.includes(req.user._id.toString())) {
-      return res.status(403).json({ status: 'error', message: 'Accès refusé.' });
     }
 
     channel.messages.push({
@@ -197,7 +214,7 @@ export const sendMessage = async (req, res, next) => {
 
     await channel.save();
 
-    const updated = await Channel.findById(channelId)
+    const updated = await Channel.findById(channel._id)
       .populate('participants', 'nom prenom email role');
 
     res.status(200).json({ status: 'success', data: updated });
