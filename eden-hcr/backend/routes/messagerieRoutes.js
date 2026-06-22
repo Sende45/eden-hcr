@@ -6,7 +6,7 @@ import {
   getOrCreateChannel,
   sendChannelMessage
 } from '../controllers/messagerieController.js';
-import { protect } from '../middleware/auth.js';
+import { protect } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
