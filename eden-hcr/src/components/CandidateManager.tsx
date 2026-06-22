@@ -10,7 +10,8 @@ interface Candidate {
   specialty?: string;
   experience?: string;
   city?: string;
-  status?: 'pending' | 'validated' | 'premium';
+  status?: 'pending' | 'validated' | 'premium' | 'active' | 'inactive' | 'rejected';
+  statutValidation?: 'en_attente' | 'approuve' | 'rejete';
   email?: string;
   phone?: string;
   createdAt?: string;
@@ -33,10 +34,35 @@ const getPhone     = (c: Candidate) => c.phone     || c.telephone || '';
 
 // ── getStatus lit status EN PRIORITÉ (champ mis à jour localement) ────────────
 const getStatus = (c: Candidate): 'pending' | 'validated' | 'premium' => {
-  // Si on a un status direct (mis à jour localement ou reçu du backend), on l'utilise
-  if (c.status === 'validated' || c.status === 'premium' || c.status === 'pending') return c.status;
-  // Fallback sur statutCompte
-  if (c.statutCompte === 'actif') return 'validated';
+
+  // Compatibilité avec les anciennes valeurs du frontend
+  if (c.status === 'validated')
+    return 'validated';
+
+  if (c.status === 'premium')
+    return 'premium';
+
+  if (c.status === 'pending')
+    return 'pending';
+
+  // Valeurs enregistrées en base MongoDB
+  if (c.status === 'active')
+    return 'validated';
+
+  if (c.status === 'inactive')
+    return 'pending';
+
+  // Fallback sur le statut de validation
+  if (c.statutValidation === 'approuve')
+    return 'validated';
+
+  if (c.statutValidation === 'en_attente')
+    return 'pending';
+
+  // Ancien système
+  if (c.statutCompte === 'actif')
+    return 'validated';
+
   return 'pending';
 };
 

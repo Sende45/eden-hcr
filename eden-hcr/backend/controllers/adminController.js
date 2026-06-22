@@ -145,10 +145,10 @@ export const updateCandidateStatus = async (req, res, next) => {
 
     // Conversion des statuts frontend vers MongoDB
     if (status === 'validated') {
-      candidat.status = 'active';
-      candidat.statutValidation = 'approuve';
-      candidat.actif = true;
-    } else if (status === 'pending') {
+  candidat.status = 'validated';
+  candidat.statutValidation = 'approuve';
+  candidat.actif = true;
+  } else if (status === 'pending') {
       candidat.status = 'inactive';
       candidat.statutValidation = 'en_attente';
       candidat.actif = false;

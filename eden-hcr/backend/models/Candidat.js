@@ -98,10 +98,10 @@ const candidatSchema = new mongoose.Schema(
 
     // NOUVEAU CHAMP
     status: {
-      type: String,
-      enum: ['pending', 'active', 'inactive', 'rejected'],
-      default: 'pending'
-    },
+  type: String,
+  enum: ['pending', 'validated', 'premium', 'inactive', 'rejected'],
+  default: 'pending'
+},
 
     actif: {
       type: Boolean,
