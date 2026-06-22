@@ -6,6 +6,20 @@ import Planning from '../models/Planning.js';
 import Contrat from '../models/Contrat.js';
 import Rapport from '../models/Rapport.js';
 import Messagerie from '../models/Messagerie.js';
+import {
+  getSuperAdminMetrics,
+  getCandidates,
+  getEstablishments,
+  getPlanningData,
+  getContrats,
+  getReports,
+  getPayments,
+  getMessages,
+  getChannelMessages, // <-- AJOUT
+  sendMessage,
+  updateCandidateStatus,
+  getMissions
+} from '../controllers/adminController.js';
 
 
 // @desc    Obtenir les métriques globales du SuperAdmin
@@ -167,6 +181,26 @@ export const updateCandidateStatus = async (req, res, next) => {
       message: 'Statut mis à jour',
       data: candidat
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Récupérer les messages d'un canal
+// @route   GET /api/admin/messages/channels/:channelId
+export const getChannelMessages = async (req, res, next) => {
+  try {
+    const { channelId } = req.params;
+
+    const messages = await Messagerie.find({
+      channelId
+    }).sort({ createdAt: 1 });
+
+    res.status(200).json({
+      status: 'success',
+      data: messages
+    });
+
   } catch (error) {
     next(error);
   }

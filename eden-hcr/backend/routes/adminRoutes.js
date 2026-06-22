@@ -8,6 +8,7 @@ import {
   getReports,
   getPayments,
   getMessages,
+  getChannelMessages, // <-- AJOUT
   sendMessage,
   updateCandidateStatus,
   getMissions
@@ -75,7 +76,11 @@ router.get('/payments', protect, getPayments);
 // MESSAGERIE
 // ─────────────────────────────────────────────────────────────
 
-router.get('/messages/channels', protect, getMessages);
+router.get(
+  '/messages/channels/:channelId',
+  protect,
+  getChannelMessages
+);
 
 router.post(
   '/messages/channels/:channelId',
