@@ -137,7 +137,7 @@ export const getChannels = async (req, res, next) => {
 
 // @desc    Récupérer ou créer un channel avec un extra
 // @route   GET /api/admin/messages/channels/:channelId
-// channelId peut être : _id d'un Channel existant, _id d'un User, ou _id d'un Candidat
+// channelId peut être : _id Channel, _id User, ou _id Candidat
 export const getChannelMessages = async (req, res, next) => {
   try {
     const { channelId } = req.params;
@@ -146,49 +146,70 @@ export const getChannelMessages = async (req, res, next) => {
       return res.status(400).json({ status: 'error', message: 'ID invalide.' });
     }
 
-    // ── Étape 1 : cherche un channel existant dont cet ID est participant ──
+    // ── Étape 1 : channel existant entre l'admin et cet ID (peu importe le type) ──
     let channel = await Channel.findOne({
       participants: { $all: [req.user._id, channelId] }
     }).populate('participants', 'nom prenom email role');
 
-    if (channel) {
-      return res.status(200).json({ status: 'success', data: channel });
-    }
+    if (channel) return res.status(200).json({ status: 'success', data: channel });
 
-    // ── Étape 2 : cherche un channel par son propre _id ──
+    // ── Étape 2 : channel par son propre _id ──
     channel = await Channel.findOne({
       _id: channelId,
       participants: req.user._id
     }).populate('participants', 'nom prenom email role');
 
-    if (channel) {
-      return res.status(200).json({ status: 'success', data: channel });
+    if (channel) return res.status(200).json({ status: 'success', data: channel });
+
+    // ── Étape 3 : résolution Candidat → User via candidatRef ──
+    let targetUserId = new mongoose.Types.ObjectId(channelId);
+    let candidatObjectId = new mongoose.Types.ObjectId(channelId);
+    let candidatFound = false;
+
+    // Priorité 1 : User.candidatRef (lien direct prévu dans le schéma)
+    const linkedUserByCandidatRef = await User.findOne({
+      candidatRef: channelId
+    }).select('_id');
+
+    if (linkedUserByCandidatRef) {
+      candidatFound = true;
+      // Re-vérifie si un channel existe déjà avec ce vrai userId
+      channel = await Channel.findOne({
+        participants: { $all: [req.user._id, linkedUserByCandidatRef._id] }
+      }).populate('participants', 'nom prenom email role');
+
+      if (channel) return res.status(200).json({ status: 'success', data: channel });
+
+      targetUserId = linkedUserByCandidatRef._id;
     }
 
-    // ── Étape 3 : l'ID est peut-être un _id Candidat → trouve le User lié ──
-    let targetUserId = new mongoose.Types.ObjectId(channelId);
+    // Priorité 2 : fallback via email si candidatRef pas trouvé
+    if (!candidatFound) {
+      const candidat = await Candidat.findById(channelId).select('email nom prenom');
+      if (candidat) {
+        candidatFound = true;
+        if (candidat.email) {
+          const linkedUserByEmail = await User.findOne({
+            email: candidat.email
+          }).select('_id');
 
-    const candidat = await Candidat.findById(channelId).select('email nom prenom');
-    if (candidat?.email) {
-      const linkedUser = await User.findOne({ email: candidat.email }).select('_id');
-      if (linkedUser) {
-        // Re-vérifie si un channel existe déjà avec ce vrai userId
-        const existingWithUser = await Channel.findOne({
-          participants: { $all: [req.user._id, linkedUser._id] }
-        }).populate('participants', 'nom prenom email role');
+          if (linkedUserByEmail) {
+            channel = await Channel.findOne({
+              participants: { $all: [req.user._id, linkedUserByEmail._id] }
+            }).populate('participants', 'nom prenom email role');
 
-        if (existingWithUser) {
-          return res.status(200).json({ status: 'success', data: existingWithUser });
+            if (channel) return res.status(200).json({ status: 'success', data: channel });
+
+            targetUserId = linkedUserByEmail._id;
+          }
         }
-
-        targetUserId = linkedUser._id;
       }
     }
 
-    // ── Étape 4 : crée le channel ──
+    // ── Étape 4 : crée le channel (avec ou sans User lié) ──
     channel = await Channel.create({
       participants: [req.user._id, targetUserId],
-      candidatId: candidat ? channelId : undefined,
+      candidatId: candidatFound ? candidatObjectId : undefined,
       messages: [],
       lastMessage: '',
       lastMessageAt: new Date()
@@ -220,7 +241,7 @@ export const sendMessage = async (req, res, next) => {
       participants: req.user._id
     });
 
-    // Sinon cherche par participants (channelId = userId de l'autre participant)
+    // Sinon cherche par participants
     if (!channel) {
       channel = await Channel.findOne({
         participants: { $all: [req.user._id, channelId] }
