@@ -311,7 +311,7 @@ export const ExtraDashboard = ({
         {
           method: 'POST',
           headers: authHeaders(),
-          body: JSON.stringify({ contenu: newMessage.trim() }),
+          body: JSON.stringify({ text: newMessage.trim() }),
         }
       );
 
