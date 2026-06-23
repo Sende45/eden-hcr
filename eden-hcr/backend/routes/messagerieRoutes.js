@@ -7,6 +7,7 @@ import {
   sendChannelMessage
 } from '../controllers/messagerieController.js';
 import { protect } from '../middlewares/authMiddleware.js';
+import { getMyChannels } from '../controllers/messagerieController.js'; 
 
 const router = express.Router();
 
@@ -17,5 +18,6 @@ router.get('/notifications', protect, getNotifications);
 router.get('/channels',              protect, getAdminChannels);
 router.get('/channels/:userId',      protect, getOrCreateChannel);
 router.post('/channels/:channelId',  protect, sendChannelMessage);
+router.get('/channels', protect, getMyChannels);
 
 export default router;

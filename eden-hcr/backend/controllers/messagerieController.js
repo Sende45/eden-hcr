@@ -98,6 +98,24 @@ export const getOrCreateChannel = async (req, res) => {
   }
 };
 
+// @desc    Récupérer les channels de l'extra connecté
+// @route   GET /api/messagerie/channels
+// @access  Private
+export const getMyChannels = async (req, res) => {
+  try {
+    const channels = await Channel.find({
+      participants: req.user._id,
+      isActive: true
+    })
+      .populate('participants', 'nom prenom email role')
+      .sort({ lastMessageAt: -1 });
+
+    res.status(200).json({ status: 'success', data: channels });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
 // @desc    Envoyer un message dans un channel existant
 // @route   POST /api/admin/messages/channels/:channelId
 // @access  Private

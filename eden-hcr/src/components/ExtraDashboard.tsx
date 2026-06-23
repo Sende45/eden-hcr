@@ -77,6 +77,7 @@ interface Message {
   expediteur?: string;
   createdAt?: string;
   lu?: boolean;
+  channelId?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -149,7 +150,7 @@ export const ExtraDashboard = ({
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState<string | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  
+
   // ─── Chargement données ────────────────────────────────────────────────────
   useEffect(() => {
     const token = getToken();
@@ -195,25 +196,51 @@ export const ExtraDashboard = ({
           // Pas d'erreur si 404 — l'extra peut n'avoir aucun contrat encore
         }
 
-        // 4. Paiements — route non encore disponible, on gère silencieusement
-        //    Quand la route sera dispo : GET /api/paiements/candidat/:id
-        //    Pour l'instant on laisse le tableau vide sans afficher d'erreur
+        // 4. Paiements du candidat
+        //    Route : GET /api/paiements/candidat/:id
         try {
           const userId2 = getUserId({ ...getLocalUser(), ...(userProp || {}) });
-          const paiementsRes = await fetch(`${API}/api/paiements/candidat/${userId2}`, { headers: h });
-          if (paiementsRes.ok) {
-            const json = await paiementsRes.json();
-            setPaiements(Array.isArray(json) ? json : (json.data || json.paiements || []));
+          if (userId2) {
+            const paiementsRes = await fetch(`${API}/api/paiements/candidat/${userId2}`, { headers: h });
+            if (paiementsRes.ok) {
+              const json = await paiementsRes.json();
+              setPaiements(Array.isArray(json) ? json : (json.data || json.paiements || []));
+            }
           }
         } catch { /* route pas encore dispo */ }
 
-        // 5. Messagerie — route non encore disponible, gérée silencieusement
-        //    Quand la route sera dispo : GET /api/messagerie/candidat/:id ou /api/messagerie/channels
+        // 5. Messagerie — channels de l'extra connecté
+        //    Route : GET /api/messagerie/channels
+        //    Retourne des Channel[] avec messages[] imbriqués (champ `contenu`)
         try {
           const messagerieRes = await fetch(`${API}/api/messagerie/channels`, { headers: h });
           if (messagerieRes.ok) {
             const json = await messagerieRes.json();
-            setMessages(Array.isArray(json) ? json : (json.data || json.messages || json.channels || []));
+            const channels: any[] = Array.isArray(json) ? json : (json.data || json.channels || []);
+
+            // Aplatir tous les messages de tous les channels
+            // Chaque message Channel a : { _id, expediteurId, contenu, lu, createdAt }
+            const allMessages: Message[] = channels.flatMap((ch: any) =>
+              (ch.messages || []).map((msg: any) => ({
+                _id: msg._id,
+                // Sujet = lastMessage tronqué ou fallback générique
+                sujet: ch.lastMessage
+                  ? ch.lastMessage.substring(0, 60)
+                  : 'Message EDÈN',
+                contenu: msg.contenu || '',
+                expediteur: msg.expediteurId,
+                createdAt: msg.createdAt,
+                lu: msg.lu ?? false,
+                channelId: ch._id,
+              }))
+            );
+
+            // Trier par date décroissante (plus récent en haut)
+            allMessages.sort(
+              (a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
+            );
+
+            setMessages(allMessages);
           }
         } catch { /* route pas encore dispo */ }
 
@@ -880,7 +907,11 @@ export const ExtraDashboard = ({
                           key={m._id}
                           onClick={() => setSelectedMessage(m)}
                           className={`cursor-pointer rounded-xl border px-4 py-3 flex items-start gap-3 hover:border-[#073B4C]/20 transition-all ${
-                            selectedMessage?._id === m._id ? 'border-[#073B4C]/50 bg-[#F4F1EA]' : !m.lu ? 'border-[#073B4C]/20 bg-[#F4F1EA]' : 'border-[#E6DDD1]'
+                            selectedMessage?._id === m._id
+                              ? 'border-[#073B4C]/50 bg-[#F4F1EA]'
+                              : !m.lu
+                              ? 'border-[#073B4C]/20 bg-[#F4F1EA]'
+                              : 'border-[#E6DDD1]'
                           }`}
                         >
                           <div
@@ -890,7 +921,7 @@ export const ExtraDashboard = ({
                           />
                           <div className="flex-1">
                             <p className={`text-sm ${!m.lu ? 'font-semibold text-[#073B4C]' : 'text-gray-600'}`}>
-                              {m.sujet || 'Message'}
+                              {m.sujet || 'Message EDÈN'}
                             </p>
                             <p className="text-xs text-gray-400 mt-0.5 truncate">{m.contenu}</p>
                           </div>
@@ -903,7 +934,7 @@ export const ExtraDashboard = ({
                   {selectedMessage && (
                     <div className="mt-6 border rounded-xl p-5 bg-white shadow-sm border-[#E6DDD1]">
                       <h3 className="font-bold text-lg text-[#073B4C]">
-                        {selectedMessage.sujet}
+                        {selectedMessage.sujet || 'Message EDÈN'}
                       </h3>
                       <p className="text-xs text-gray-500 mt-1">
                         {formatDate(selectedMessage.createdAt)}
