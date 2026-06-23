@@ -17,7 +17,7 @@ router.get('/notifications', protect, getNotifications);
 // Channels
 router.get('/channels',              protect, getAdminChannels);
 router.get('/channels/:userId',      protect, getOrCreateChannel);
-router.post('/channels/:channelId',  protect, sendChannelMessage);
-router.get('/channels', protect, getMyChannels);
+router.post('/channels/:channelId/messages', protect, sendChannelMessage);
+
 
 export default router;
