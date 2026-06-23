@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Calendar,
   FileText,
@@ -18,6 +18,9 @@ import {
   BarChart2,
   Download,
   AlertCircle,
+  Send,
+  ArrowLeft,
+  ChevronDown,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -70,14 +73,25 @@ interface Paiement {
   dateEmission?: string;
 }
 
-interface Message {
+// ─── Messagerie : types channel ───────────────────────────────────────────────
+
+interface ChannelMessage {
   _id: string;
-  sujet?: string;
-  contenu?: string;
-  expediteur?: string;
+  contenu: string;
+  expediteurId?: string;
   createdAt?: string;
   lu?: boolean;
-  channelId?: string;
+}
+
+interface Channel {
+  _id: string;
+  nom?: string;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  updatedAt?: string;
+  messages: ChannelMessage[];
+  participants?: string[];
+  unreadCount?: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -124,6 +138,11 @@ function titreMission(m: Mission): string {
   return m.posteRecherche || m.titre || m.poste || 'Mission';
 }
 
+function channelLabel(ch: Channel, userId: string): string {
+  if (ch.nom) return ch.nom;
+  return 'Conversation EDÈN';
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const ExtraDashboard = ({
@@ -133,23 +152,34 @@ export const ExtraDashboard = ({
   user?: UserType;
   onLogout?: () => void;
 }) => {
-  // Fusionne le prop user avec localStorage (localStorage est plus à jour après login)
   const [user, setUser] = useState<UserType>(() => ({
     ...getLocalUser(),
     ...(userProp || {}),
   }));
 
-  const [missions, setMissions]     = useState<Mission[]>([]);
-  const [contrats, setContrats]     = useState<Contrat[]>([]);
-  const [paiements, setPaiements]   = useState<Paiement[]>([]);
-  const [messages, setMessages]     = useState<Message[]>([]);
+  const [missions, setMissions]   = useState<Mission[]>([]);
+  const [contrats, setContrats]   = useState<Contrat[]>([]);
+  const [paiements, setPaiements] = useState<Paiement[]>([]);
 
+  // ── Messagerie ──────────────────────────────────────────────────────────────
+  const [channels, setChannels]             = useState<Channel[]>([]);
+  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
+  const [newMessage, setNewMessage]         = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [sendError, setSendError]           = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // ── UI ──────────────────────────────────────────────────────────────────────
   const [activeSection, setActiveSection] = useState('dashboard');
   const [searchQuery, setSearchQuery]     = useState('');
   const [applySuccess, setApplySuccess]   = useState<string | null>(null);
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState<string | null>(null);
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+
+  // ─── Scroll to bottom des messages ────────────────────────────────────────
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [selectedChannel]);
 
   // ─── Chargement données ────────────────────────────────────────────────────
   useEffect(() => {
@@ -167,25 +197,21 @@ export const ExtraDashboard = ({
       setError(null);
 
       try {
-        // 1. Profil frais depuis /api/auth/me
+        // 1. Profil frais
         const meRes = await fetch(`${API}/api/auth/me`, { headers: h });
         if (meRes.ok) {
           const { user: freshUser } = await meRes.json();
-          // freshUser = { id, email, role, nom, prenom }
           setUser(prev => ({ ...prev, ...freshUser }));
         }
 
-        // 2. Missions ouvertes (liste publique/filtrée pour les extras)
-        //    Route réelle : GET /api/mission/ouvertes
+        // 2. Missions ouvertes
         const missionsRes = await fetch(`${API}/api/mission/ouvertes`, { headers: h });
         if (missionsRes.ok) {
           const json = await missionsRes.json();
-          // Structure : { status, results, data: [...] }
           setMissions(Array.isArray(json) ? json : (json.data || []));
         }
 
         // 3. Contrats du candidat
-        //    Route réelle : GET /api/contrats/candidat/:candidatId
         const userId = getUserId({ ...getLocalUser(), ...(userProp || {}) });
         if (userId) {
           const contratsRes = await fetch(`${API}/api/contrats/candidat/${userId}`, { headers: h });
@@ -193,11 +219,9 @@ export const ExtraDashboard = ({
             const json = await contratsRes.json();
             setContrats(Array.isArray(json) ? json : (json.data || json.contrats || []));
           }
-          // Pas d'erreur si 404 — l'extra peut n'avoir aucun contrat encore
         }
 
-        // 4. Paiements du candidat
-        //    Route : GET /api/paiements/candidat/:id
+        // 4. Paiements
         try {
           const userId2 = getUserId({ ...getLocalUser(), ...(userProp || {}) });
           if (userId2) {
@@ -209,40 +233,8 @@ export const ExtraDashboard = ({
           }
         } catch { /* route pas encore dispo */ }
 
-        // 5. Messagerie — channels de l'extra connecté
-        //    Route : GET /api/messagerie/channels
-        //    Retourne des Channel[] avec messages[] imbriqués (champ `contenu`)
-        try {
-          const messagerieRes = await fetch(`${API}/api/messagerie/channels`, { headers: h });
-          if (messagerieRes.ok) {
-            const json = await messagerieRes.json();
-            const channels: any[] = Array.isArray(json) ? json : (json.data || json.channels || []);
-
-            // Aplatir tous les messages de tous les channels
-            // Chaque message Channel a : { _id, expediteurId, contenu, lu, createdAt }
-            const allMessages: Message[] = channels.flatMap((ch: any) =>
-              (ch.messages || []).map((msg: any) => ({
-                _id: msg._id,
-                // Sujet = lastMessage tronqué ou fallback générique
-                sujet: ch.lastMessage
-                  ? ch.lastMessage.substring(0, 60)
-                  : 'Message EDÈN',
-                contenu: msg.contenu || '',
-                expediteur: msg.expediteurId,
-                createdAt: msg.createdAt,
-                lu: msg.lu ?? false,
-                channelId: ch._id,
-              }))
-            );
-
-            // Trier par date décroissante (plus récent en haut)
-            allMessages.sort(
-              (a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
-            );
-
-            setMessages(allMessages);
-          }
-        } catch { /* route pas encore dispo */ }
+        // 5. Channels de messagerie
+        await loadChannels(h);
 
       } catch (err) {
         console.error('[ExtraDashboard] loadData:', err);
@@ -256,6 +248,88 @@ export const ExtraDashboard = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ─── Chargement des channels ───────────────────────────────────────────────
+  const loadChannels = async (h = authHeaders()) => {
+    try {
+      const res = await fetch(`${API}/api/messagerie/channels`, { headers: h });
+      if (!res.ok) return;
+      const json = await res.json();
+      const raw: any[] = Array.isArray(json) ? json : (json.data || json.channels || []);
+
+      const parsed: Channel[] = raw.map((ch: any) => {
+        const msgs: ChannelMessage[] = (ch.messages || []).map((msg: any) => ({
+          _id: msg._id,
+          contenu: msg.contenu || '',
+          expediteurId: msg.expediteurId,
+          createdAt: msg.createdAt,
+          lu: msg.lu ?? false,
+        }));
+
+        // Tri chronologique (plus ancien en premier pour affichage dans le fil)
+        msgs.sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
+
+        const unread = msgs.filter(m => !m.lu).length;
+
+        return {
+          _id: ch._id,
+          nom: ch.nom,
+          lastMessage: ch.lastMessage || msgs[msgs.length - 1]?.contenu || '',
+          lastMessageAt: ch.lastMessageAt || ch.updatedAt || msgs[msgs.length - 1]?.createdAt,
+          updatedAt: ch.updatedAt,
+          messages: msgs,
+          participants: ch.participants || [],
+          unreadCount: unread,
+        };
+      });
+
+      // Trier les channels par date du dernier message (plus récent en haut)
+      parsed.sort((a, b) =>
+        new Date(b.lastMessageAt ?? 0).getTime() - new Date(a.lastMessageAt ?? 0).getTime()
+      );
+
+      setChannels(parsed);
+
+      // Mettre à jour le channel sélectionné si déjà ouvert
+      if (selectedChannel) {
+        const updated = parsed.find(c => c._id === selectedChannel._id);
+        if (updated) setSelectedChannel(updated);
+      }
+    } catch {
+      /* messagerie pas encore dispo */
+    }
+  };
+
+  // ─── Envoi d'un message ────────────────────────────────────────────────────
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedChannel) return;
+    setSendingMessage(true);
+    setSendError(null);
+
+    try {
+      const res = await fetch(
+        `${API}/api/messagerie/channels/${selectedChannel._id}/messages`,
+        {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ contenu: newMessage.trim() }),
+        }
+      );
+
+      if (res.ok) {
+        setNewMessage('');
+        // Recharger les channels pour avoir le message à jour
+        await loadChannels();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setSendError(err.message || 'Erreur lors de l\'envoi.');
+      }
+    } catch {
+      setSendError('Impossible de contacter le serveur.');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
   // ─── Postuler à une mission ────────────────────────────────────────────────
   const handlePostuler = async (missionId: string) => {
     try {
@@ -266,8 +340,6 @@ export const ExtraDashboard = ({
       if (res.ok) {
         setApplySuccess(missionId);
         setTimeout(() => setApplySuccess(null), 4000);
-      } else {
-        console.warn('[ExtraDashboard] postuler:', res.status, await res.text());
       }
     } catch (err) {
       console.error('[ExtraDashboard] postuler:', err);
@@ -293,17 +365,26 @@ export const ExtraDashboard = ({
       m.description?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  const messagesNonLus = messages.filter(m => !m.lu).length;
+  const totalUnread    = channels.reduce((s, c) => s + (c.unreadCount || 0), 0);
+  const totalPaye      = paiements.reduce((s, p) => s + (p.montant || 0), 0);
 
   const formatDate = (d?: string) =>
-    d
-      ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
-      : '—';
+    d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+
+  const formatTime = (d?: string) => {
+    if (!d) return '';
+    const date = new Date(d);
+    const now  = new Date();
+    const isToday =
+      date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear();
+    if (isToday) return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  };
 
   const formatMontant = (n?: number) =>
     n != null ? `${n.toLocaleString('fr-FR')} €` : '—';
-
-  const totalPaye = paiements.reduce((s, p) => s + (p.montant || 0), 0);
 
   // ─── Nav ──────────────────────────────────────────────────────────────────
   const navSections = [
@@ -317,16 +398,16 @@ export const ExtraDashboard = ({
     {
       label: 'GESTION',
       items: [
-        { id: 'planning',  label: 'Planning',        icon: <Calendar size={16} /> },
-        { id: 'contrats',  label: 'Contrats',        icon: <FileText size={16} />, badge: contrats.length },
-        { id: 'rapports',  label: 'Rapports',        icon: <BarChart2 size={16} /> },
-        { id: 'paiements', label: 'Paiements',       icon: <Euro size={16} /> },
+        { id: 'planning',  label: 'Planning',  icon: <Calendar size={16} /> },
+        { id: 'contrats',  label: 'Contrats',  icon: <FileText size={16} />, badge: contrats.length },
+        { id: 'rapports',  label: 'Rapports',  icon: <BarChart2 size={16} /> },
+        { id: 'paiements', label: 'Paiements', icon: <Euro size={16} /> },
       ],
     },
     {
       label: 'OUTILS',
       items: [
-        { id: 'messagerie', label: 'Messagerie', icon: <MessageSquare size={16} />, badge: messagesNonLus || undefined },
+        { id: 'messagerie', label: 'Messagerie', icon: <MessageSquare size={16} />, badge: totalUnread || undefined },
         { id: 'parametres', label: 'Paramètres', icon: <Settings size={16} /> },
       ],
     },
@@ -340,14 +421,14 @@ export const ExtraDashboard = ({
   const displayName = `${user?.prenom || ''} ${user?.nom || ''}`.trim() || 'Extra';
   const initiale    = user?.prenom?.[0]?.toUpperCase() || user?.nom?.[0]?.toUpperCase() || 'E';
 
+  const currentUserId = getUserId(user);
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex bg-[#F4F1EA]">
 
       {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
       <aside className="w-[260px] bg-[#073B4C] text-white flex flex-col fixed h-full z-20">
-
-        {/* Logo */}
         <div className="p-6 pb-4">
           <div className="flex items-center gap-3 mb-1">
             <div className="w-9 h-9 rounded-lg bg-[#C5A46D] flex items-center justify-center">
@@ -363,7 +444,6 @@ export const ExtraDashboard = ({
 
         <div className="mx-4 h-px bg-white/10 mb-2" />
 
-        {/* Nav */}
         <nav className="flex-1 px-3 overflow-y-auto py-2">
           {navSections.map(section => (
             <div key={section.label} className="mb-5">
@@ -371,7 +451,10 @@ export const ExtraDashboard = ({
               {section.items.map(item => (
                 <button
                   key={item.id}
-                  onClick={() => setActiveSection(item.id)}
+                  onClick={() => {
+                    setActiveSection(item.id);
+                    if (item.id !== 'messagerie') setSelectedChannel(null);
+                  }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl mb-0.5 transition-all text-sm ${
                     activeSection === item.id
                       ? 'bg-white/15 text-white font-semibold'
@@ -397,7 +480,6 @@ export const ExtraDashboard = ({
           ))}
         </nav>
 
-        {/* User footer */}
         <div className="mx-4 h-px bg-white/10 mb-3" />
         <div className="p-4 pt-0">
           <div className="flex items-center gap-3">
@@ -437,7 +519,7 @@ export const ExtraDashboard = ({
             </div>
             <button className="relative w-9 h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors">
               <Bell size={16} />
-              {messagesNonLus > 0 && (
+              {totalUnread > 0 && (
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-400 rounded-full" />
               )}
             </button>
@@ -456,14 +538,12 @@ export const ExtraDashboard = ({
         {/* Content */}
         <main className="flex-1 p-8">
 
-          {/* Error banner */}
           {error && (
             <div className="mb-6 flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-5 py-3 rounded-xl text-sm">
               <AlertCircle size={16} /> {error}
             </div>
           )}
 
-          {/* Loading */}
           {loading ? (
             <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
               <div className="flex flex-col items-center gap-3">
@@ -477,8 +557,6 @@ export const ExtraDashboard = ({
               {/* ── TABLEAU DE BORD ── */}
               {activeSection === 'dashboard' && (
                 <div className="space-y-6">
-
-                  {/* KPIs */}
                   <div className="grid grid-cols-4 gap-5">
                     {[
                       {
@@ -528,9 +606,7 @@ export const ExtraDashboard = ({
                     ))}
                   </div>
 
-                  {/* Profil + Missions récentes */}
                   <div className="grid grid-cols-3 gap-5">
-
                     {/* Card profil */}
                     <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6 flex flex-col gap-4">
                       <div className="flex items-center gap-3">
@@ -774,10 +850,7 @@ export const ExtraDashboard = ({
                                 {c.statut}
                               </span>
                             )}
-                            <button
-                              className="text-gray-400 hover:text-[#073B4C] transition-colors"
-                              title="Télécharger"
-                            >
+                            <button className="text-gray-400 hover:text-[#073B4C] transition-colors" title="Télécharger">
                               <Download size={15} />
                             </button>
                           </div>
@@ -845,9 +918,7 @@ export const ExtraDashboard = ({
                           className="rounded-xl border border-[#E6DDD1] p-5 flex items-center justify-between hover:border-[#073B4C]/20 transition-all"
                         >
                           <div>
-                            <p className="font-semibold text-[#073B4C]">
-                              {p.mois || formatDate(p.dateEmission)}
-                            </p>
+                            <p className="font-semibold text-[#073B4C]">{p.mois || formatDate(p.dateEmission)}</p>
                             <p className="text-xs text-gray-400 mt-1">{formatDate(p.dateEmission)}</p>
                           </div>
                           <div className="flex items-center gap-4">
@@ -863,10 +934,7 @@ export const ExtraDashboard = ({
                                 {p.statut}
                               </span>
                             )}
-                            <button
-                              className="text-gray-400 hover:text-[#073B4C] transition-colors"
-                              title="Télécharger"
-                            >
+                            <button className="text-gray-400 hover:text-[#073B4C] transition-colors" title="Télécharger">
                               <Download size={15} />
                             </button>
                           </div>
@@ -877,73 +945,224 @@ export const ExtraDashboard = ({
                 </div>
               )}
 
-              {/* ── MESSAGERIE ── */}
+              {/* ── MESSAGERIE ────────────────────────────────────────────────── */}
               {activeSection === 'messagerie' && (
-                <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
-                  <div className="flex items-center justify-between mb-5">
-                    <div>
-                      <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Communication</p>
-                      <h2 className="text-xl font-bold text-[#073B4C]">Messagerie</h2>
-                    </div>
-                    {messagesNonLus > 0 && (
-                      <span className="bg-orange-100 text-orange-600 text-xs font-semibold px-3 py-1 rounded-full">
-                        {messagesNonLus} non lu{messagesNonLus > 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </div>
+                <div className="bg-white rounded-2xl border border-[#E6DDD1] overflow-hidden" style={{ height: 'calc(100vh - 160px)' }}>
+                  <div className="flex h-full">
 
-                  {messages.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
-                      <MessageSquare className="mx-auto text-[#E6DDD1] mb-3" size={32} />
-                      <p className="text-gray-400 text-sm">Aucun message pour le moment.</p>
-                      <p className="text-gray-300 text-xs mt-1">
-                        La messagerie sera disponible une fois les routes activées.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {messages.map(m => (
-                        <div
-                          key={m._id}
-                          onClick={() => setSelectedMessage(m)}
-                          className={`cursor-pointer rounded-xl border px-4 py-3 flex items-start gap-3 hover:border-[#073B4C]/20 transition-all ${
-                            selectedMessage?._id === m._id
-                              ? 'border-[#073B4C]/50 bg-[#F4F1EA]'
-                              : !m.lu
-                              ? 'border-[#073B4C]/20 bg-[#F4F1EA]'
-                              : 'border-[#E6DDD1]'
-                          }`}
-                        >
-                          <div
-                            className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                              !m.lu ? 'bg-orange-400' : 'bg-transparent'
-                            }`}
-                          />
-                          <div className="flex-1">
-                            <p className={`text-sm ${!m.lu ? 'font-semibold text-[#073B4C]' : 'text-gray-600'}`}>
-                              {m.sujet || 'Message EDÈN'}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-0.5 truncate">{m.contenu}</p>
-                          </div>
-                          <p className="text-xs text-gray-400 flex-shrink-0">{formatDate(m.createdAt)}</p>
+                    {/* ── Colonne gauche : liste des channels ── */}
+                    <div className={`flex flex-col border-r border-[#E6DDD1] ${selectedChannel ? 'w-[300px]' : 'flex-1'} transition-all`}>
+
+                      {/* Header liste */}
+                      <div className="px-5 py-4 border-b border-[#E6DDD1] flex items-center justify-between flex-shrink-0">
+                        <div>
+                          <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-0.5">Communication</p>
+                          <h2 className="font-bold text-[#073B4C] text-lg">Messagerie</h2>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        {totalUnread > 0 && (
+                          <span className="bg-orange-100 text-orange-600 text-xs font-semibold px-2.5 py-1 rounded-full">
+                            {totalUnread} non lu{totalUnread > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
 
-                  {selectedMessage && (
-                    <div className="mt-6 border rounded-xl p-5 bg-white shadow-sm border-[#E6DDD1]">
-                      <h3 className="font-bold text-lg text-[#073B4C]">
-                        {selectedMessage.sujet || 'Message EDÈN'}
-                      </h3>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatDate(selectedMessage.createdAt)}
-                      </p>
-                      <div className="mt-4 whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
-                        {selectedMessage.contenu}
+                      {/* Liste channels */}
+                      <div className="flex-1 overflow-y-auto">
+                        {channels.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
+                            <MessageSquare className="text-[#E6DDD1] mb-3" size={32} />
+                            <p className="text-gray-400 text-sm">Aucune conversation.</p>
+                            <p className="text-gray-300 text-xs mt-1">
+                              Vos échanges avec EDÈN apparaîtront ici.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-[#F4F1EA]">
+                            {channels.map(ch => {
+                              const isActive = selectedChannel?._id === ch._id;
+                              const hasUnread = (ch.unreadCount || 0) > 0;
+                              return (
+                                <button
+                                  key={ch._id}
+                                  onClick={() => setSelectedChannel(ch)}
+                                  className={`w-full text-left px-5 py-4 flex items-start gap-3 transition-all ${
+                                    isActive
+                                      ? 'bg-[#073B4C]/5 border-l-2 border-l-[#073B4C]'
+                                      : 'hover:bg-[#F4F1EA] border-l-2 border-l-transparent'
+                                  }`}
+                                >
+                                  {/* Avatar channel */}
+                                  <div className="w-10 h-10 rounded-full bg-[#073B4C] flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <span className="text-white text-xs font-bold">E</span>
+                                  </div>
+
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                      <p className={`text-sm truncate ${hasUnread ? 'font-bold text-[#073B4C]' : 'font-medium text-gray-700'}`}>
+                                        {channelLabel(ch, currentUserId)}
+                                      </p>
+                                      <span className="text-[10px] text-gray-400 flex-shrink-0">
+                                        {formatTime(ch.lastMessageAt)}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <p className={`text-xs truncate ${hasUnread ? 'text-gray-600' : 'text-gray-400'}`}>
+                                        {ch.lastMessage || 'Aucun message'}
+                                      </p>
+                                      {hasUnread && (
+                                        <span className="flex-shrink-0 w-5 h-5 bg-orange-400 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                          {ch.unreadCount}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  )}
+
+                    {/* ── Colonne droite : fil de messages ── */}
+                    {selectedChannel ? (
+                      <div className="flex-1 flex flex-col min-w-0">
+
+                        {/* Header conversation */}
+                        <div className="px-6 py-4 border-b border-[#E6DDD1] flex items-center gap-3 flex-shrink-0 bg-white">
+                          <button
+                            onClick={() => setSelectedChannel(null)}
+                            className="text-gray-400 hover:text-[#073B4C] transition-colors mr-1 md:hidden"
+                          >
+                            <ArrowLeft size={18} />
+                          </button>
+                          <div className="w-9 h-9 rounded-full bg-[#073B4C] flex items-center justify-center flex-shrink-0">
+                            <span className="text-white text-xs font-bold">E</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-[#073B4C] truncate">
+                              {channelLabel(selectedChannel, currentUserId)}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {selectedChannel.messages.length} message{selectedChannel.messages.length > 1 ? 's' : ''}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => loadChannels()}
+                            className="text-gray-400 hover:text-[#073B4C] transition-colors text-xs flex items-center gap-1"
+                            title="Actualiser"
+                          >
+                            <ChevronDown size={14} className="rotate-180" />
+                          </button>
+                        </div>
+
+                        {/* Fil de messages */}
+                        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-[#FAFAF8]">
+                          {selectedChannel.messages.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-full text-center">
+                              <MessageSquare className="text-[#E6DDD1] mb-3" size={28} />
+                              <p className="text-gray-400 text-sm">Aucun message dans cette conversation.</p>
+                              <p className="text-gray-300 text-xs mt-1">Envoyez le premier message ci-dessous.</p>
+                            </div>
+                          ) : (
+                            <>
+                              {selectedChannel.messages.map((msg, idx) => {
+                                const isOwn = msg.expediteurId === currentUserId;
+                                const showDate =
+                                  idx === 0 ||
+                                  new Date(msg.createdAt ?? 0).toDateString() !==
+                                    new Date(selectedChannel.messages[idx - 1]?.createdAt ?? 0).toDateString();
+
+                                return (
+                                  <React.Fragment key={msg._id}>
+                                    {showDate && (
+                                      <div className="flex items-center gap-3 my-4">
+                                        <div className="flex-1 h-px bg-[#E6DDD1]" />
+                                        <span className="text-[10px] text-gray-400 flex-shrink-0">
+                                          {new Date(msg.createdAt ?? 0).toLocaleDateString('fr-FR', {
+                                            weekday: 'long', day: 'numeric', month: 'long',
+                                          })}
+                                        </span>
+                                        <div className="flex-1 h-px bg-[#E6DDD1]" />
+                                      </div>
+                                    )}
+                                    <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                                      <div className={`max-w-[70%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+                                        <div
+                                          className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                                            isOwn
+                                              ? 'bg-[#073B4C] text-white rounded-br-md'
+                                              : 'bg-white text-gray-800 border border-[#E6DDD1] rounded-bl-md shadow-sm'
+                                          }`}
+                                        >
+                                          {msg.contenu}
+                                        </div>
+                                        <span className="text-[10px] text-gray-400 px-1">
+                                          {formatTime(msg.createdAt)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </React.Fragment>
+                                );
+                              })}
+                              <div ref={messagesEndRef} />
+                            </>
+                          )}
+                        </div>
+
+                        {/* Zone de saisie */}
+                        <div className="px-6 py-4 border-t border-[#E6DDD1] bg-white flex-shrink-0">
+                          {sendError && (
+                            <p className="text-xs text-red-500 mb-2 flex items-center gap-1">
+                              <AlertCircle size={12} /> {sendError}
+                            </p>
+                          )}
+                          <div className="flex items-end gap-3">
+                            <textarea
+                              value={newMessage}
+                              onChange={e => setNewMessage(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleSendMessage();
+                                }
+                              }}
+                              placeholder="Écrire un message… (Entrée pour envoyer)"
+                              rows={1}
+                              className="flex-1 resize-none bg-[#F4F1EA] rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#073B4C]/20 min-h-[44px] max-h-32"
+                              style={{ lineHeight: '1.5' }}
+                            />
+                            <button
+                              onClick={handleSendMessage}
+                              disabled={!newMessage.trim() || sendingMessage}
+                              className="flex-shrink-0 w-11 h-11 rounded-xl bg-[#073B4C] hover:bg-[#0A5268] disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-all"
+                              title="Envoyer"
+                            >
+                              {sendingMessage ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              ) : (
+                                <Send size={16} />
+                              )}
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-gray-300 mt-2 text-right">
+                            Shift+Entrée pour aller à la ligne
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Placeholder si aucun channel sélectionné */
+                      <div className="flex-1 flex flex-col items-center justify-center bg-[#FAFAF8] text-center px-12">
+                        <div className="w-16 h-16 rounded-2xl bg-[#F4EFE8] flex items-center justify-center mb-4">
+                          <MessageSquare className="text-[#C5A46D]" size={28} />
+                        </div>
+                        <p className="font-semibold text-[#073B4C] mb-1">Sélectionnez une conversation</p>
+                        <p className="text-sm text-gray-400">
+                          Choisissez un échange dans la liste pour lire et répondre aux messages.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -994,4 +1213,4 @@ export const ExtraDashboard = ({
 
     </div>
   );
-};  
+};
