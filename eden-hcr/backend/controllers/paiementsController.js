@@ -1,4 +1,4 @@
-import Paiements from '../models/Paiements.js';
+import Paiements from '../models/Paiements.js'; // ✅ déjà présent
 
 export const processPaiementRecord = async (req, res) => {
   try {
@@ -19,7 +19,7 @@ export const processPaiementRecord = async (req, res) => {
 
 export const getPaiementsByCandidat = async (req, res) => {
   try {
-    const paiements = await Paiement.find({ candidatId: req.params.id })
+    const paiements = await Paiements.find({ candidatId: req.params.id })
       .sort({ dateEmission: -1 });
     res.json({ status: 'success', data: paiements });
   } catch (err) {
