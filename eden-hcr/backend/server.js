@@ -30,6 +30,7 @@ const PORT = process.env.PORT || 5000;
 
 // ── CORS ─── EN PREMIER, AVANT TOUT ──────────────────────────────────────────
 const allowedOrigins = [
+  'https://app.eden-group.co',
   'https://eden-hcr.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000'
