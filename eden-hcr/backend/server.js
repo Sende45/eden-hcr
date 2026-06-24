@@ -79,6 +79,7 @@ app.use('/api/contrats', contratsRoutes);
 app.use('/api/planning', planningRoutes);
 app.use('/api/paiements', paiementsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/uploads', express.static('uploads'));
 
 // ── MongoDB ────────────────────────────────────────────────────────────────────
 const connectDB = async () => {

@@ -1,13 +1,14 @@
+// candidatController.js
 import Candidat from '../models/Candidat.js';
+import fs from 'fs';
+import path from 'path';
 
-// @desc    Soumettre une candidature (Tunnel Onboarding)
+// @desc    Soumettre une candidature
 // @route   POST /api/candidat
-// @access  Public
 export const registerCandidat = async (req, res) => {
   try {
     const { email } = req.body;
 
-    // Vérification de doublon d'email
     const candidatExiste = await Candidat.findOne({ email });
     if (candidatExiste) {
       return res.status(400).json({
@@ -16,7 +17,6 @@ export const registerCandidat = async (req, res) => {
       });
     }
 
-    // Création du profil
     const nouveauCandidat = await Candidat.create(req.body);
 
     res.status(201).json({
@@ -33,67 +33,86 @@ export const registerCandidat = async (req, res) => {
   }
 };
 
+// @desc    Upload des documents d'un candidat
+// @route   POST /api/candidat/:id/documents
+export const uploadDocuments = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const candidat = await Candidat.findById(id);
+    if (!candidat) {
+      return res.status(404).json({ status: 'error', message: 'Candidat introuvable.' });
+    }
+
+    const files = req.files || {};
+    const documents = {};
+
+    if (files.idCard?.[0])      documents.idCardUrl      = `/uploads/documents/${files.idCard[0].filename}`;
+    if (files.vitaleCard?.[0])  documents.vitaleCardUrl  = `/uploads/documents/${files.vitaleCard[0].filename}`;
+    if (files.rib?.[0])         documents.ribUrl         = `/uploads/documents/${files.rib[0].filename}`;
+    if (files.titreSejour?.[0]) documents.titreSejourUrl = `/uploads/documents/${files.titreSejour[0].filename}`;
+
+    if (Object.keys(documents).length === 0) {
+      return res.status(400).json({ status: 'error', message: 'Aucun document reçu.' });
+    }
+
+    // Merge avec les documents existants
+    candidat.documents = { ...(candidat.documents || {}), ...documents };
+    await candidat.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: `${Object.keys(documents).length} document(s) enregistré(s).`,
+      data: { documents: candidat.documents }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: "Erreur lors de l'upload des documents.",
+      error: error.message
+    });
+  }
+};
+
 // @desc    Modifier le statut d'un candidat
 // @route   PATCH /api/candidat/:id/status
-// @access  Admin
 export const updateCandidateStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
     const candidat = await Candidat.findById(id);
-
     if (!candidat) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Candidat introuvable'
-      });
+      return res.status(404).json({ status: 'error', message: 'Candidat introuvable' });
     }
 
     candidat.status = status;
     await candidat.save();
 
-    res.status(200).json({
-      status: 'success',
-      message: 'Statut mis à jour avec succès',
-      data: candidat
-    });
+    res.status(200).json({ status: 'success', message: 'Statut mis à jour avec succès', data: candidat });
   } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: 'Erreur lors de la mise à jour du statut',
-      error: error.message
-    });
+    res.status(500).json({ status: 'error', message: 'Erreur lors de la mise à jour du statut', error: error.message });
   }
 };
 
 // @desc    Rechercher des candidats
 // @route   GET /api/candidat/search?q=...
-// @access  Admin
 export const searchCandidats = async (req, res) => {
   try {
     const { q } = req.query;
 
-    if (!q) {
-      return res.status(200).json([]);
-    }
+    if (!q) return res.status(200).json([]);
 
     const candidats = await Candidat.find({
       $or: [
-        { nom: { $regex: q, $options: 'i' } },
+        { nom:    { $regex: q, $options: 'i' } },
         { prenom: { $regex: q, $options: 'i' } },
-        { email: { $regex: q, $options: 'i' } }
+        { email:  { $regex: q, $options: 'i' } },
       ]
-    })
-      .limit(20)
-      .sort({ createdAt: -1 });
+    }).limit(20).sort({ createdAt: -1 });
 
     res.status(200).json(candidats);
   } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: 'Erreur lors de la recherche des candidats',
-      error: error.message
-    });
+    res.status(500).json({ status: 'error', message: 'Erreur lors de la recherche des candidats', error: error.message });
   }
 };

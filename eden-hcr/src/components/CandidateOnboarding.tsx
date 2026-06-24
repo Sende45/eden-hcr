@@ -55,7 +55,6 @@ interface CandidateOnboardingProps {
   onComplete: (result: OnboardingResult) => void;
 }
 
-// Vérifie si le titre expire dans moins de 3 mois ou est déjà expiré
 const getTitreStatus = (dateStr: string): 'valide' | 'expire_bientot' | 'expire' | null => {
   if (!dateStr) return null;
   const expiration = new Date(dateStr);
@@ -67,13 +66,13 @@ const getTitreStatus = (dateStr: string): 'valide' | 'expire_bientot' | 'expire'
 };
 
 const TITRE_TYPES = [
-  { value: 'carte_sejour_temporaire',   label: 'Carte de séjour temporaire' },
+  { value: 'carte_sejour_temporaire',    label: 'Carte de séjour temporaire' },
   { value: 'carte_sejour_pluriannuelle', label: 'Carte de séjour pluriannuelle' },
-  { value: 'carte_resident',            label: 'Carte de résident (10 ans)' },
-  { value: 'titre_etudiant',            label: 'Titre de séjour étudiant' },
-  { value: 'passeport_talent',          label: 'Passeport talent' },
-  { value: 'vie_privee_familiale',      label: 'Vie privée et familiale' },
-  { value: 'autre',                     label: 'Autre titre' },
+  { value: 'carte_resident',             label: 'Carte de résident (10 ans)' },
+  { value: 'titre_etudiant',             label: 'Titre de séjour étudiant' },
+  { value: 'passeport_talent',           label: 'Passeport talent' },
+  { value: 'vie_privee_familiale',       label: 'Vie privée et familiale' },
+  { value: 'autre',                      label: 'Autre titre' },
 ];
 
 export const CandidateOnboarding: React.FC<CandidateOnboardingProps> = ({ onComplete }) => {
@@ -81,6 +80,7 @@ export const CandidateOnboarding: React.FC<CandidateOnboardingProps> = ({ onComp
   const [formData, setFormData] = useState<FormData>(INITIAL_STATE);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState('');
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'done' | 'partial'>('idle');
 
   const isEtranger = formData.nationalite === 'etranger';
   const titreStatus = isEtranger ? getTitreStatus(formData.titreSejour.dateExpiration) : null;
@@ -115,7 +115,6 @@ export const CandidateOnboarding: React.FC<CandidateOnboardingProps> = ({ onComp
     }
   };
 
-  // Bloquer l'avancement si titre expiré
   const canProceedStep1 = () => {
     if (!formData.nationalite) return false;
     if (isEtranger && titreStatus === 'expire') return false;
@@ -132,8 +131,10 @@ export const CandidateOnboarding: React.FC<CandidateOnboardingProps> = ({ onComp
     e.preventDefault();
     setIsSubmitting(true);
     setServerError('');
+    setUploadStatus('idle');
 
     try {
+      // ── ÉTAPE A : Créer le compte Auth ──────────────────────────────────
       const password = formData.password.trim() || `Eden_${Math.random().toString(36).slice(2, 10)}!`;
 
       const registerRes = await fetch(`${API}/api/auth/register`, {
@@ -159,6 +160,7 @@ export const CandidateOnboarding: React.FC<CandidateOnboardingProps> = ({ onComp
       const { token, user } = registerData;
       localStorage.setItem('eden_token', token);
 
+      // ── ÉTAPE B : Créer le profil Candidat (JSON) ───────────────────────
       const candidatPayload = {
         civilite: 'M.',
         nom: formData.lastName,
@@ -184,15 +186,54 @@ export const CandidateOnboarding: React.FC<CandidateOnboardingProps> = ({ onComp
       });
 
       const candidatData = await candidatRes.json();
+      const candidatId = candidatData?.candidat?._id || candidatData?.data?._id || candidatData?._id;
 
+      // ── ÉTAPE C : Upload des documents via FormData ──────────────────────
+      const hasFiles = formData.idCard || formData.vitaleCard || formData.rib || formData.titreSejeurDoc;
+
+      if (hasFiles && candidatId) {
+        setUploadStatus('uploading');
+
+        const fd = new FormData();
+        if (formData.idCard)         fd.append('idCard',      formData.idCard);
+        if (formData.vitaleCard)     fd.append('vitaleCard',  formData.vitaleCard);
+        if (formData.rib)            fd.append('rib',         formData.rib);
+        if (formData.titreSejeurDoc) fd.append('titreSejour', formData.titreSejeurDoc);
+
+        try {
+          const uploadRes = await fetch(`${API}/api/candidat/${candidatId}/documents`, {
+            method: 'POST',
+            // PAS de Content-Type ici — le browser le génère automatiquement avec le boundary
+            headers: { Authorization: `Bearer ${token}` },
+            body: fd,
+          });
+
+          if (uploadRes.ok) {
+            setUploadStatus('done');
+          } else {
+            const uploadErr = await uploadRes.json().catch(() => ({}));
+            console.warn('[Onboarding] Upload documents échoué :', uploadErr.message);
+            setUploadStatus('partial');
+          }
+        } catch (uploadError) {
+          console.warn('[Onboarding] Erreur réseau upload :', uploadError);
+          setUploadStatus('partial');
+        }
+      }
+
+      // ── ÉTAPE D : Redirection dashboard Extra ───────────────────────────
       onComplete({
         token,
         user: {
-          id: user.id, email: user.email, role: user.role,
-          nom: user.nom, prenom: user.prenom,
-          candidatRef: candidatData?.candidat?._id || candidatData?._id
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          nom: user.nom,
+          prenom: user.prenom,
+          candidatRef: candidatId,
         }
       });
+
     } catch (error) {
       console.error('Erreur onboarding :', error);
       setServerError("Erreur de liaison réseau avec l'infrastructure EDÈN.");
@@ -202,6 +243,12 @@ export const CandidateOnboarding: React.FC<CandidateOnboardingProps> = ({ onComp
   };
 
   const daysOfWeek = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
+  const getSubmitLabel = () => {
+    if (uploadStatus === 'uploading') return 'Envoi des documents…';
+    if (isSubmitting) return 'Transmission sécurisée…';
+    return 'Valider mon inscription';
+  };
 
   return (
     <div className="max-w-2xl mx-auto bg-eden-bg2 border border-eden-border rounded-2xl p-8 lg:p-10 shadow-2xl font-sans relative overflow-hidden backdrop-blur-md animate-[fadeInUp_0.4s_ease-out]">
@@ -229,6 +276,13 @@ export const CandidateOnboarding: React.FC<CandidateOnboardingProps> = ({ onComp
       <form onSubmit={handleSubmit} noValidate className="space-y-8 relative z-10">
         {serverError && (
           <div className="p-3 text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl">{serverError}</div>
+        )}
+
+        {uploadStatus === 'partial' && (
+          <div className="p-3 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2">
+            <AlertTriangle size={13} />
+            Documents non envoyés — vous pourrez les uploader depuis votre espace personnel.
+          </div>
         )}
 
         {/* ── ÉTAPE 1 ── */}
@@ -295,7 +349,7 @@ export const CandidateOnboarding: React.FC<CandidateOnboardingProps> = ({ onComp
               </div>
             </div>
 
-            {/* ── TITRE DE SÉJOUR si étranger hors UE ── */}
+            {/* ── TITRE DE SÉJOUR ── */}
             {isEtranger && (
               <div className="space-y-4 p-4 rounded-xl border border-eden-border bg-eden-bg animate-[fadeInUp_0.2s_ease-out]">
                 <div className="flex items-center gap-2 text-xs font-semibold text-eden-navy">
@@ -328,14 +382,13 @@ export const CandidateOnboarding: React.FC<CandidateOnboardingProps> = ({ onComp
                   />
                 </div>
 
-                {/* Alerte statut titre */}
                 {titreStatus === 'expire' && (
                   <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl">
                     <AlertTriangle size={14} className="text-red-500 mt-0.5 shrink-0" />
                     <div>
                       <p className="text-xs font-semibold text-red-600">Titre de séjour expiré</p>
                       <p className="text-[11px] text-red-500 mt-0.5">
-                        Votre titre est expiré. Vous ne pouvez pas être embauché légalement en France. 
+                        Votre titre est expiré. Vous ne pouvez pas être embauché légalement en France.
                         Veuillez renouveler votre titre avant de vous inscrire.
                       </p>
                     </div>
@@ -368,7 +421,6 @@ export const CandidateOnboarding: React.FC<CandidateOnboardingProps> = ({ onComp
               </div>
             )}
 
-            {/* Info UE */}
             {formData.nationalite === 'ue' && (
               <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl animate-[fadeInUp_0.2s_ease-out]">
                 <ShieldCheck size={14} className="text-blue-500 shrink-0" />
@@ -466,7 +518,6 @@ export const CandidateOnboarding: React.FC<CandidateOnboardingProps> = ({ onComp
               <span>Vérification de conformité réglementaire</span>
             </div>
 
-            {/* Alerte titre bientôt expiré en rappel étape 4 */}
             {isEtranger && titreStatus === 'expire_bientot' && (
               <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                 <AlertTriangle size={14} className="text-amber-500 mt-0.5 shrink-0" />
@@ -477,9 +528,9 @@ export const CandidateOnboarding: React.FC<CandidateOnboardingProps> = ({ onComp
             )}
 
             {[
-              { field: 'idCard' as const,       label: "Pièce d'Identité officielle",         sub: 'CNI recto/verso, Passeport ou Titre de séjour' },
-              { field: 'vitaleCard' as const,   label: 'Attestation Vitale',                  sub: "Requis pour la Déclaration Préalable à l'Embauche" },
-              { field: 'rib' as const,          label: 'Relevé d\'Identité Bancaire (RIB)',   sub: 'Destiné aux virements sécurisés de vos rémunérations' },
+              { field: 'idCard' as const,     label: "Pièce d'Identité officielle",       sub: 'CNI recto/verso, Passeport ou Titre de séjour' },
+              { field: 'vitaleCard' as const, label: 'Attestation Vitale',                sub: "Requis pour la Déclaration Préalable à l'Embauche" },
+              { field: 'rib' as const,        label: "Relevé d'Identité Bancaire (RIB)",  sub: 'Destiné aux virements sécurisés de vos rémunérations' },
               ...(isEtranger ? [{
                 field: 'titreSejeurDoc' as const,
                 label: 'Titre de séjour (recto/verso)',
@@ -535,7 +586,7 @@ export const CandidateOnboarding: React.FC<CandidateOnboardingProps> = ({ onComp
           ) : (
             <button type="submit" disabled={isSubmitting}
               className="flex items-center gap-2 bg-eden-tan hover:bg-eden-navy text-white py-3 px-6 rounded-xl text-xs font-bold tracking-wide cursor-pointer transition-all disabled:opacity-50 shadow-md active:scale-98">
-              <span>{isSubmitting ? 'Transmission sécurisée...' : 'Valider mon inscription'}</span>
+              <span>{getSubmitLabel()}</span>
               <CheckCircle2 size={15} />
             </button>
           )}
