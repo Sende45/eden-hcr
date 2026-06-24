@@ -12,7 +12,7 @@ import { ReportManager } from '../components/ReportManager';
 import { PaymentManager } from '../components/PaymentManager';
 import { MessageManager } from '../components/MessageManager'; 
 import { SuperAdminDashboard } from '../components/SuperAdminDashboard'; 
-import { ExtraDashboard } from '../components/ExtraDashboard'; // Nouveau composant à créer
+import { ExtraDashboard } from '../components/ExtraDashboard';
 import { CreateMissionModal } from '../components/CreateMissionModal';
 import { type CreateMissionInput } from '../types/missionForm';
 import { type DashboardView } from '../types/navigation';
@@ -32,23 +32,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [notification, setNotification] = useState<string | null>(null);
   
-  // Initialisation de la vue par défaut selon le rôle
   const [view, setView] = useState<DashboardView>(
-    user?.role === 'superadmin' ? 'superadmin' : (user?.role === 'extra' ? 'dashboard' : 'dashboard')
+    user?.role === 'superadmin' ? 'superadmin' : 'dashboard'
   );
   
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [hasToken, setHasToken] = useState<boolean>(true);
 
-  // Synchronisation de la session JWT via la clé globale unifiée
   useEffect(() => {
     const token = localStorage.getItem('eden_token');
-    if (!token) {
-      setHasToken(false);
-    }
+    if (!token) setHasToken(false);
   }, [view]);
 
-  // Si l'utilisateur change ou rafraîchit, on force l'ajustement de la vue
   useEffect(() => {
     if (user?.role === 'superadmin') {
       setView('superadmin');
@@ -57,7 +52,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     }
   }, [user]);
 
-  // ACTION DYNAMIQUE : ENVOI DE LA MISSION CRÉÉE VERS LE BACKEND MERN
+  const handleNavigate = (newView: DashboardView) => {
+    if (newView === 'superadmin' && user?.role !== 'superadmin') return;
+    setView(newView);
+  };
+
   const handleCreateMission = useCallback(async (data: CreateMissionInput) => {
     setIsSubmitting(true);
     const token = localStorage.getItem('eden_token');
@@ -88,10 +87,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       if (response.ok) {
         setNotification(`La mission "${data.title}" a été enregistrée en base et publiée au sein de la brigade.`);
         setIsModalOpen(false);
-        
-        if (view === 'missions') {
-          window.location.reload();
-        }
+        if (view === 'missions') window.location.reload();
       } else {
         setNotification(`Erreur serveur : ${resData.message}`);
       }
@@ -100,13 +96,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       setNotification('Échec de la publication : Impossible de joindre le serveur EDÈN.');
     } finally {
       setIsSubmitting(false);
-      setTimeout(() => {
-        setNotification(null);
-      }, 5000);
+      setTimeout(() => setNotification(null), 5000);
     }
   }, [view]);
 
-  // Intercepteur d'affichage si la session a expiré ou est absente
   if (!hasToken) {
     return (
       <div className="flex flex-col items-center justify-center h-screen w-full bg-eden-bg p-6 text-center font-sans">
@@ -122,7 +115,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }
 
   const renderMainContent = () => {
-    // Gestion spécifique de l'interface Prestataire/Extra
     if (user?.role === 'extra') {
       return <div className="animate-[fadeInUp_0.35s_ease-out]"><ExtraDashboard user={user} /></div>;
     }
@@ -144,7 +136,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         return <div className="animate-[fadeInUp_0.35s_ease-out]"><PaymentManager /></div>;
       case 'messages': 
         return <div className="animate-[fadeInUp_0.35s_ease-out]"><MessageManager /></div>;
-        
       case 'superadmin': 
         if (user?.role !== 'superadmin') {
           return (
@@ -157,7 +148,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           );
         }
         return <div className="animate-[fadeInUp_0.35s_ease-out]"><SuperAdminDashboard /></div>;
-        
       case 'dashboard':
       default:
         return (
@@ -176,22 +166,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         currentView={view}
         userRole={user?.role}
         onViewChange={(newView: DashboardView) => {
-          if (newView === 'superadmin' && user?.role !== 'superadmin') {
-            return;
-          }
+          if (newView === 'superadmin' && user?.role !== 'superadmin') return;
           setView(newView);
         }}
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-full relative">
-        <Topbar onNewMissionClick={() => setIsModalOpen(true)} />
+        <Topbar
+          onNewMissionClick={() => setIsModalOpen(true)}
+          onNavigate={handleNavigate}
+        />
         <main className="flex-1 overflow-y-auto scrollbar-thin scroll-smooth pb-12 transition-all duration-300">
           {renderMainContent()}
         </main>
 
         {notification && (
           <div className="fixed bottom-6 right-6 z-50 bg-eden-navy border border-eden-tan/30 text-white p-[14px_24px] rounded-xl shadow-2xl flex items-center gap-3 transition-all duration-300 animate-[slideIn_0.3s_ease-out] backdrop-blur-md">
-            {isSubmitting ? <Loader2 className="animate-spin text-eden-tan" size={14} /> : <span className="w-2 h-2 rounded-full bg-eden-teal animate-pulse" />}
+            {isSubmitting
+              ? <Loader2 className="animate-spin text-eden-tan" size={14} />
+              : <span className="w-2 h-2 rounded-full bg-eden-teal animate-pulse" />
+            }
             <p className="text-xs font-medium tracking-wide font-sans">{notification}</p>
           </div>
         )}
