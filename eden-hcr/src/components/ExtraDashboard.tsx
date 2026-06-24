@@ -143,6 +143,37 @@ function channelLabel(ch: Channel, userId: string): string {
   return 'Conversation EDÈN';
 }
 
+// ─── Navigation search map ────────────────────────────────────────────────────
+
+const NAV_SEARCH_MAP: Record<string, string> = {
+  mission: 'missions',
+  missions: 'missions',
+  planning: 'planning',
+  calendrier: 'planning',
+  agenda: 'planning',
+  contrat: 'contrats',
+  contrats: 'contrats',
+  document: 'contrats',
+  rapport: 'rapports',
+  rapports: 'rapports',
+  stats: 'rapports',
+  paiement: 'paiements',
+  paiements: 'paiements',
+  salaire: 'paiements',
+  fiche: 'paiements',
+  message: 'messagerie',
+  messagerie: 'messagerie',
+  chat: 'messagerie',
+  discussion: 'messagerie',
+  parametre: 'parametres',
+  parametres: 'parametres',
+  profil: 'parametres',
+  compte: 'parametres',
+  tableau: 'dashboard',
+  dashboard: 'dashboard',
+  accueil: 'dashboard',
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const ExtraDashboard = ({
@@ -162,11 +193,11 @@ export const ExtraDashboard = ({
   const [paiements, setPaiements] = useState<Paiement[]>([]);
 
   // ── Messagerie ──────────────────────────────────────────────────────────────
-  const [channels, setChannels]             = useState<Channel[]>([]);
+  const [channels, setChannels]               = useState<Channel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
-  const [newMessage, setNewMessage]         = useState('');
-  const [sendingMessage, setSendingMessage] = useState(false);
-  const [sendError, setSendError]           = useState<string | null>(null);
+  const [newMessage, setNewMessage]           = useState('');
+  const [sendingMessage, setSendingMessage]   = useState(false);
+  const [sendError, setSendError]             = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // ── UI ──────────────────────────────────────────────────────────────────────
@@ -265,7 +296,6 @@ export const ExtraDashboard = ({
           lu: msg.lu ?? false,
         }));
 
-        // Tri chronologique (plus ancien en premier pour affichage dans le fil)
         msgs.sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
 
         const unread = msgs.filter(m => !m.lu).length;
@@ -282,14 +312,12 @@ export const ExtraDashboard = ({
         };
       });
 
-      // Trier les channels par date du dernier message (plus récent en haut)
       parsed.sort((a, b) =>
         new Date(b.lastMessageAt ?? 0).getTime() - new Date(a.lastMessageAt ?? 0).getTime()
       );
 
       setChannels(parsed);
 
-      // Mettre à jour le channel sélectionné si déjà ouvert
       if (selectedChannel) {
         const updated = parsed.find(c => c._id === selectedChannel._id);
         if (updated) setSelectedChannel(updated);
@@ -317,11 +345,10 @@ export const ExtraDashboard = ({
 
       if (res.ok) {
         setNewMessage('');
-        // Recharger les channels pour avoir le message à jour
         await loadChannels();
       } else {
         const err = await res.json().catch(() => ({}));
-        setSendError(err.message || 'Erreur lors de l\'envoi.');
+        setSendError(err.message || "Erreur lors de l'envoi.");
       }
     } catch {
       setSendError('Impossible de contacter le serveur.');
@@ -346,6 +373,22 @@ export const ExtraDashboard = ({
     }
   };
 
+  // ─── Recherche avec navigation sidebar ────────────────────────────────────
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+
+    if (value.length < 2) return;
+
+    const q = value.toLowerCase().trim();
+    const match = Object.keys(NAV_SEARCH_MAP).find(k => q.includes(k));
+    if (match) {
+      const target = NAV_SEARCH_MAP[match];
+      setActiveSection(target);
+      if (target !== 'messagerie') setSelectedChannel(null);
+    }
+  };
+
   // ─── Helpers UI ───────────────────────────────────────────────────────────
   const today = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
@@ -365,8 +408,8 @@ export const ExtraDashboard = ({
       m.description?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  const totalUnread    = channels.reduce((s, c) => s + (c.unreadCount || 0), 0);
-  const totalPaye      = paiements.reduce((s, p) => s + (p.montant || 0), 0);
+  const totalUnread = channels.reduce((s, c) => s + (c.unreadCount || 0), 0);
+  const totalPaye   = paiements.reduce((s, p) => s + (p.montant || 0), 0);
 
   const formatDate = (d?: string) =>
     d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
@@ -500,34 +543,59 @@ export const ExtraDashboard = ({
       {/* ── MAIN ────────────────────────────────────────────────────────── */}
       <div className="ml-[260px] flex-1 flex flex-col min-h-screen">
 
-        {/* Header */}
+        {/* ── HEADER ── */}
         <header className="bg-white border-b border-[#E6DDD1] px-8 py-4 flex items-center justify-between sticky top-0 z-10">
           <div>
             <h1 className="text-2xl font-bold text-[#073B4C]">{getSectionTitle()}</h1>
             <p className="text-sm text-gray-400 capitalize">{today} · Semaine {semaine}</p>
           </div>
           <div className="flex items-center gap-3">
+
+            {/* Recherche avec navigation sidebar */}
             <div className="relative">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Rechercher..."
+                placeholder="Missions, messagerie, contrats…"
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
                 className="pl-9 pr-4 py-2 bg-[#F4F1EA] rounded-xl text-sm text-gray-700 w-52 focus:outline-none focus:ring-2 focus:ring-[#073B4C]/20"
               />
             </div>
-            <button className="relative w-9 h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors">
+
+            {/* Cloche → ouvre Messagerie */}
+            <button
+              onClick={() => {
+                setActiveSection('messagerie');
+                setSelectedChannel(null);
+              }}
+              className="relative w-9 h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors"
+              title="Messagerie"
+            >
               <Bell size={16} />
               {totalUnread > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-400 rounded-full" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-400 rounded-full animate-pulse" />
               )}
             </button>
-            <button className="w-9 h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors">
+
+            {/* Filtres → ouvre Missions */}
+            <button
+              onClick={() => {
+                setActiveSection('missions');
+                setSelectedChannel(null);
+              }}
+              className="w-9 h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors"
+              title="Voir les missions"
+            >
               <SlidersHorizontal size={16} />
             </button>
+
+            {/* Bouton principal → Missions */}
             <button
-              onClick={() => setActiveSection('missions')}
+              onClick={() => {
+                setActiveSection('missions');
+                setSelectedChannel(null);
+              }}
               className="flex items-center gap-2 bg-[#073B4C] hover:bg-[#0A5268] text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
             >
               + Voir missions
@@ -838,15 +906,13 @@ export const ExtraDashboard = ({
                           </div>
                           <div className="flex items-center gap-3">
                             {c.statut && (
-                              <span
-                                className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide ${
-                                  c.statut === 'signé'
-                                    ? 'bg-green-50 text-green-600'
-                                    : c.statut === 'en attente'
-                                    ? 'bg-yellow-50 text-yellow-600'
-                                    : 'bg-[#F4EFE8] text-[#C5A46D]'
-                                }`}
-                              >
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide ${
+                                c.statut === 'signé'
+                                  ? 'bg-green-50 text-green-600'
+                                  : c.statut === 'en attente'
+                                  ? 'bg-yellow-50 text-yellow-600'
+                                  : 'bg-[#F4EFE8] text-[#C5A46D]'
+                              }`}>
                                 {c.statut}
                               </span>
                             )}
@@ -924,13 +990,11 @@ export const ExtraDashboard = ({
                           <div className="flex items-center gap-4">
                             <p className="font-bold text-[#073B4C]">{formatMontant(p.montant)}</p>
                             {p.statut && (
-                              <span
-                                className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide ${
-                                  p.statut === 'payé'
-                                    ? 'bg-green-50 text-green-600'
-                                    : 'bg-yellow-50 text-yellow-600'
-                                }`}
-                              >
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide ${
+                                p.statut === 'payé'
+                                  ? 'bg-green-50 text-green-600'
+                                  : 'bg-yellow-50 text-yellow-600'
+                              }`}>
                                 {p.statut}
                               </span>
                             )}
@@ -945,15 +1009,12 @@ export const ExtraDashboard = ({
                 </div>
               )}
 
-              {/* ── MESSAGERIE ────────────────────────────────────────────────── */}
+              {/* ── MESSAGERIE ── */}
               {activeSection === 'messagerie' && (
                 <div className="bg-white rounded-2xl border border-[#E6DDD1] overflow-hidden" style={{ height: 'calc(100vh - 160px)' }}>
                   <div className="flex h-full">
 
-                    {/* ── Colonne gauche : liste des channels ── */}
                     <div className={`flex flex-col border-r border-[#E6DDD1] ${selectedChannel ? 'w-[300px]' : 'flex-1'} transition-all`}>
-
-                      {/* Header liste */}
                       <div className="px-5 py-4 border-b border-[#E6DDD1] flex items-center justify-between flex-shrink-0">
                         <div>
                           <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-0.5">Communication</p>
@@ -966,20 +1027,17 @@ export const ExtraDashboard = ({
                         )}
                       </div>
 
-                      {/* Liste channels */}
                       <div className="flex-1 overflow-y-auto">
                         {channels.length === 0 ? (
                           <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
                             <MessageSquare className="text-[#E6DDD1] mb-3" size={32} />
                             <p className="text-gray-400 text-sm">Aucune conversation.</p>
-                            <p className="text-gray-300 text-xs mt-1">
-                              Vos échanges avec EDÈN apparaîtront ici.
-                            </p>
+                            <p className="text-gray-300 text-xs mt-1">Vos échanges avec EDÈN apparaîtront ici.</p>
                           </div>
                         ) : (
                           <div className="divide-y divide-[#F4F1EA]">
                             {channels.map(ch => {
-                              const isActive = selectedChannel?._id === ch._id;
+                              const isActive  = selectedChannel?._id === ch._id;
                               const hasUnread = (ch.unreadCount || 0) > 0;
                               return (
                                 <button
@@ -991,11 +1049,9 @@ export const ExtraDashboard = ({
                                       : 'hover:bg-[#F4F1EA] border-l-2 border-l-transparent'
                                   }`}
                                 >
-                                  {/* Avatar channel */}
                                   <div className="w-10 h-10 rounded-full bg-[#073B4C] flex items-center justify-center flex-shrink-0 mt-0.5">
                                     <span className="text-white text-xs font-bold">E</span>
                                   </div>
-
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2 mb-1">
                                       <p className={`text-sm truncate ${hasUnread ? 'font-bold text-[#073B4C]' : 'font-medium text-gray-700'}`}>
@@ -1024,39 +1080,26 @@ export const ExtraDashboard = ({
                       </div>
                     </div>
 
-                    {/* ── Colonne droite : fil de messages ── */}
                     {selectedChannel ? (
                       <div className="flex-1 flex flex-col min-w-0">
-
-                        {/* Header conversation */}
                         <div className="px-6 py-4 border-b border-[#E6DDD1] flex items-center gap-3 flex-shrink-0 bg-white">
-                          <button
-                            onClick={() => setSelectedChannel(null)}
-                            className="text-gray-400 hover:text-[#073B4C] transition-colors mr-1 md:hidden"
-                          >
+                          <button onClick={() => setSelectedChannel(null)} className="text-gray-400 hover:text-[#073B4C] transition-colors mr-1 md:hidden">
                             <ArrowLeft size={18} />
                           </button>
                           <div className="w-9 h-9 rounded-full bg-[#073B4C] flex items-center justify-center flex-shrink-0">
                             <span className="text-white text-xs font-bold">E</span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-[#073B4C] truncate">
-                              {channelLabel(selectedChannel, currentUserId)}
-                            </p>
+                            <p className="font-semibold text-[#073B4C] truncate">{channelLabel(selectedChannel, currentUserId)}</p>
                             <p className="text-xs text-gray-400">
                               {selectedChannel.messages.length} message{selectedChannel.messages.length > 1 ? 's' : ''}
                             </p>
                           </div>
-                          <button
-                            onClick={() => loadChannels()}
-                            className="text-gray-400 hover:text-[#073B4C] transition-colors text-xs flex items-center gap-1"
-                            title="Actualiser"
-                          >
+                          <button onClick={() => loadChannels()} className="text-gray-400 hover:text-[#073B4C] transition-colors text-xs flex items-center gap-1" title="Actualiser">
                             <ChevronDown size={14} className="rotate-180" />
                           </button>
                         </div>
 
-                        {/* Fil de messages */}
                         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-[#FAFAF8]">
                           {selectedChannel.messages.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full text-center">
@@ -1067,11 +1110,10 @@ export const ExtraDashboard = ({
                           ) : (
                             <>
                               {selectedChannel.messages.map((msg, idx) => {
-                                const isOwn = msg.expediteurId === currentUserId;
-                                const showDate =
-                                  idx === 0 ||
+                                const isOwn    = msg.expediteurId === currentUserId;
+                                const showDate = idx === 0 ||
                                   new Date(msg.createdAt ?? 0).toDateString() !==
-                                    new Date(selectedChannel.messages[idx - 1]?.createdAt ?? 0).toDateString();
+                                  new Date(selectedChannel.messages[idx - 1]?.createdAt ?? 0).toDateString();
 
                                 return (
                                   <React.Fragment key={msg._id}>
@@ -1079,27 +1121,21 @@ export const ExtraDashboard = ({
                                       <div className="flex items-center gap-3 my-4">
                                         <div className="flex-1 h-px bg-[#E6DDD1]" />
                                         <span className="text-[10px] text-gray-400 flex-shrink-0">
-                                          {new Date(msg.createdAt ?? 0).toLocaleDateString('fr-FR', {
-                                            weekday: 'long', day: 'numeric', month: 'long',
-                                          })}
+                                          {new Date(msg.createdAt ?? 0).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
                                         </span>
                                         <div className="flex-1 h-px bg-[#E6DDD1]" />
                                       </div>
                                     )}
                                     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                                       <div className={`max-w-[70%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                                        <div
-                                          className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                                            isOwn
-                                              ? 'bg-[#073B4C] text-white rounded-br-md'
-                                              : 'bg-white text-gray-800 border border-[#E6DDD1] rounded-bl-md shadow-sm'
-                                          }`}
-                                        >
+                                        <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                                          isOwn
+                                            ? 'bg-[#073B4C] text-white rounded-br-md'
+                                            : 'bg-white text-gray-800 border border-[#E6DDD1] rounded-bl-md shadow-sm'
+                                        }`}>
                                           {msg.contenu}
                                         </div>
-                                        <span className="text-[10px] text-gray-400 px-1">
-                                          {formatTime(msg.createdAt)}
-                                        </span>
+                                        <span className="text-[10px] text-gray-400 px-1">{formatTime(msg.createdAt)}</span>
                                       </div>
                                     </div>
                                   </React.Fragment>
@@ -1110,7 +1146,6 @@ export const ExtraDashboard = ({
                           )}
                         </div>
 
-                        {/* Zone de saisie */}
                         <div className="px-6 py-4 border-t border-[#E6DDD1] bg-white flex-shrink-0">
                           {sendError && (
                             <p className="text-xs text-red-500 mb-2 flex items-center gap-1">
@@ -1138,28 +1173,22 @@ export const ExtraDashboard = ({
                               className="flex-shrink-0 w-11 h-11 rounded-xl bg-[#073B4C] hover:bg-[#0A5268] disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-all"
                               title="Envoyer"
                             >
-                              {sendingMessage ? (
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                              ) : (
-                                <Send size={16} />
-                              )}
+                              {sendingMessage
+                                ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                : <Send size={16} />
+                              }
                             </button>
                           </div>
-                          <p className="text-[10px] text-gray-300 mt-2 text-right">
-                            Shift+Entrée pour aller à la ligne
-                          </p>
+                          <p className="text-[10px] text-gray-300 mt-2 text-right">Shift+Entrée pour aller à la ligne</p>
                         </div>
                       </div>
                     ) : (
-                      /* Placeholder si aucun channel sélectionné */
                       <div className="flex-1 flex flex-col items-center justify-center bg-[#FAFAF8] text-center px-12">
                         <div className="w-16 h-16 rounded-2xl bg-[#F4EFE8] flex items-center justify-center mb-4">
                           <MessageSquare className="text-[#C5A46D]" size={28} />
                         </div>
                         <p className="font-semibold text-[#073B4C] mb-1">Sélectionnez une conversation</p>
-                        <p className="text-sm text-gray-400">
-                          Choisissez un échange dans la liste pour lire et répondre aux messages.
-                        </p>
+                        <p className="text-sm text-gray-400">Choisissez un échange dans la liste pour lire et répondre aux messages.</p>
                       </div>
                     )}
                   </div>
@@ -1180,18 +1209,12 @@ export const ExtraDashboard = ({
                       { label: 'Email',  value: user?.email },
                       { label: 'Rôle',   value: user?.role },
                     ].map((field, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between py-3 border-b border-[#E6DDD1]"
-                      >
+                      <div key={i} className="flex items-center justify-between py-3 border-b border-[#E6DDD1]">
                         <span className="text-sm text-gray-500">{field.label}</span>
                         <span className="text-sm font-medium text-[#073B4C]">{field.value || '—'}</span>
                       </div>
                     ))}
-                    <button
-                      onClick={onLogout}
-                      className="mt-4 flex items-center gap-2 text-sm text-red-500 hover:text-red-600 transition-colors"
-                    >
+                    <button onClick={onLogout} className="mt-4 flex items-center gap-2 text-sm text-red-500 hover:text-red-600 transition-colors">
                       <LogOut size={14} /> Se déconnecter
                     </button>
                   </div>
