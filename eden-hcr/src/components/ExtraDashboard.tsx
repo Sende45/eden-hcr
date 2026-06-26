@@ -1,164 +1,220 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   Calendar, FileText, Euro, Briefcase, Clock, LogOut, Bell,
   SlidersHorizontal, Search, CheckCircle, ChevronRight, MapPin,
   Star, MessageSquare, Settings, BarChart2, Download, AlertCircle,
-  Send, ArrowLeft, ChevronDown, Upload,
+  Send, ArrowLeft, ChevronDown, Upload, PenLine, X,
 } from 'lucide-react';
+import {
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
+} from 'recharts';
+import { io as socketIO } from 'socket.io-client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface UserType {
-  id?: string;
-  _id?: string;
-  prenom?: string;
-  nom?: string;
-  email?: string;
-  role?: string;
-  candidatRef?: string;
-  etablissementRef?: string;
-  nationalite?: string;
-  titreSejour?: { type?: string; dateExpiration?: string };
+  id?: string; _id?: string; prenom?: string; nom?: string; email?: string;
+  role?: string; candidatRef?: string; etablissementRef?: string;
+  nationalite?: string; titreSejour?: { type?: string; dateExpiration?: string };
 }
-
 interface Mission {
-  _id: string;
-  posteRecherche?: string;
-  titre?: string;
-  poste?: string;
-  briefing?: string;
-  description?: string;
-  lieu?: string;
-  ville?: string;
-  dateDebut?: string;
-  dateFin?: string;
-  dateDebutMission?: string;
-  dateFinMission?: string;
-  statut?: string;
-  taux?: number;
-  tauxHoraire?: number;
+  _id: string; posteRecherche?: string; titre?: string; poste?: string;
+  briefing?: string; description?: string; lieu?: string; ville?: string;
+  dateDebut?: string; dateFin?: string; dateDebutMission?: string;
+  dateFinMission?: string; statut?: string; taux?: number; tauxHoraire?: number;
 }
-
 interface Contrat {
-  _id: string;
-  titre?: string;
-  dateDebut?: string;
-  dateFin?: string;
-  statut?: string;
-  poste?: string;
+  _id: string; titre?: string; dateDebut?: string; dateFin?: string;
+  statut?: string; poste?: string; signatureData?: string; signéLe?: string;
   etablissement?: string | { nom?: string; nomEtablissement?: string };
   mission?: { posteRecherche?: string } | string;
 }
-
 interface Paiement {
-  _id: string;
-  mois?: string;
-  montant?: number;
-  statut?: string;
-  dateEmission?: string;
+  _id: string; mois?: string; montant?: number; statut?: string; dateEmission?: string;
 }
-
 interface ChannelMessage {
-  _id: string;
-  contenu: string;
-  expediteurId?: string;
-  createdAt?: string;
-  lu?: boolean;
+  _id: string; contenu: string; expediteurId?: string; createdAt?: string; lu?: boolean;
 }
-
 interface Channel {
-  _id: string;
-  nom?: string;
-  lastMessage?: string;
-  lastMessageAt?: string;
-  updatedAt?: string;
-  messages: ChannelMessage[];
-  participants?: string[];
-  unreadCount?: number;
+  _id: string; nom?: string; lastMessage?: string; lastMessageAt?: string;
+  updatedAt?: string; messages: ChannelMessage[]; participants?: string[]; unreadCount?: number;
 }
-
 interface DocumentsData {
-  idCardUrl?: string;
-  vitaleCardUrl?: string;
-  ribUrl?: string;
-  titreSejourUrl?: string;
-  idCardUploadedAt?: string;
-  vitaleCardUploadedAt?: string;
-  ribUploadedAt?: string;
-  titreSejourUploadedAt?: string;
+  idCardUrl?: string; vitaleCardUrl?: string; ribUrl?: string; titreSejourUrl?: string;
+  idCardUploadedAt?: string; vitaleCardUploadedAt?: string; ribUploadedAt?: string; titreSejourUploadedAt?: string;
+}
+interface Notification {
+  id: string; type: string; message: string; contratId?: string; channelId?: string;
+  createdAt: Date; read: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const API = 'https://eden-hcr.onrender.com';
+const COLORS = ['#073B4C', '#C5A46D', '#118AB2', '#06D6A0', '#FFD166', '#EF476F'];
 
-function getToken() {
-  return localStorage.getItem('eden_token') || localStorage.getItem('token') || '';
-}
-
+function getToken() { return localStorage.getItem('eden_token') || localStorage.getItem('token') || ''; }
 function getLocalUser(): UserType {
-  try { return JSON.parse(localStorage.getItem('eden_user') || '{}'); }
-  catch { return {}; }
+  try { return JSON.parse(localStorage.getItem('eden_user') || '{}'); } catch { return {}; }
 }
-
-function authHeaders() {
-  return { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' };
-}
-
-function getUserId(user: UserType): string {
-  return user.id || user._id || user.candidatRef || '';
-}
-
+function authHeaders() { return { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' }; }
+function getUserId(user: UserType): string { return user.id || user._id || user.candidatRef || ''; }
 function titreContrat(c: Contrat): string {
-  if (c.titre) return c.titre;
-  if (c.poste) return c.poste;
+  if (c.titre) return c.titre; if (c.poste) return c.poste;
   if (typeof c.mission === 'object' && c.mission?.posteRecherche) return c.mission.posteRecherche;
   return 'Contrat';
 }
-
 function nomEtabContrat(c: Contrat): string {
   if (!c.etablissement) return '';
   if (typeof c.etablissement === 'string') return c.etablissement;
   return c.etablissement.nom || c.etablissement.nomEtablissement || '';
 }
-
-function titreMission(m: Mission): string {
-  return m.posteRecherche || m.titre || m.poste || 'Mission';
-}
-
-function channelLabel(ch: Channel, _userId: string): string {
-  return ch.nom || 'Conversation EDÈN';
-}
-
-// ─── Nav search map ───────────────────────────────────────────────────────────
-
-const NAV_SEARCH_MAP: Record<string, string> = {
-  mission: 'missions', missions: 'missions',
-  planning: 'planning', calendrier: 'planning', agenda: 'planning',
-  contrat: 'contrats', contrats: 'contrats', document: 'contrats',
-  rapport: 'rapports', rapports: 'rapports', stats: 'rapports',
-  paiement: 'paiements', paiements: 'paiements', salaire: 'paiements', fiche: 'paiements',
-  message: 'messagerie', messagerie: 'messagerie', chat: 'messagerie', discussion: 'messagerie',
-  parametre: 'parametres', parametres: 'parametres', profil: 'parametres', compte: 'parametres',
-  tableau: 'dashboard', dashboard: 'dashboard', accueil: 'dashboard',
-};
-
-// ─── Titre statut ─────────────────────────────────────────────────────────────
-
+function titreMission(m: Mission): string { return m.posteRecherche || m.titre || m.poste || 'Mission'; }
+function channelLabel(ch: Channel): string { return ch.nom || 'Conversation EDÈN'; }
 function getTitreStatus(dateStr?: string): 'valide' | 'expire_bientot' | 'expire' | null {
   if (!dateStr) return null;
   const diff = Math.floor((new Date(dateStr).getTime() - Date.now()) / 86400000);
-  if (diff < 0) return 'expire';
-  if (diff <= 90) return 'expire_bientot';
-  return 'valide';
+  if (diff < 0) return 'expire'; if (diff <= 90) return 'expire_bientot'; return 'valide';
 }
+
+const NAV_SEARCH_MAP: Record<string, string> = {
+  mission: 'missions', missions: 'missions', planning: 'planning',
+  calendrier: 'planning', contrat: 'contrats', contrats: 'contrats',
+  rapport: 'rapports', rapports: 'rapports', paiement: 'paiements',
+  paiements: 'paiements', salaire: 'paiements', message: 'messagerie',
+  messagerie: 'messagerie', parametre: 'parametres', parametres: 'parametres',
+  profil: 'parametres', tableau: 'dashboard', dashboard: 'dashboard',
+};
+
+// ─── Signature Pad Component ──────────────────────────────────────────────────
+
+const SignaturePad: React.FC<{
+  contrat: Contrat;
+  onSigned: (contratId: string) => void;
+  onClose: () => void;
+}> = ({ contrat, onSigned, onClose }) => {
+  const canvasRef    = useRef<HTMLCanvasElement>(null);
+  const [drawing, setDrawing] = useState(false);
+  const [hasDrawn, setHasDrawn] = useState(false);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+
+  const getPos = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
+    const rect = canvas.getBoundingClientRect();
+    const src  = 'touches' in e ? e.touches[0] : e;
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+  };
+
+  const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    const { x, y } = getPos(e, canvas);
+    ctx.beginPath(); ctx.moveTo(x, y);
+    setDrawing(true); setHasDrawn(true);
+  };
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!drawing) return;
+    const canvas = canvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    const { x, y } = getPos(e, canvas);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = '#073B4C'; ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.stroke();
+  };
+  const endDraw = () => setDrawing(false);
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawn(false);
+  };
+
+  const handleSave = async () => {
+    const canvas = canvasRef.current; if (!canvas || !hasDrawn) return;
+    setSaving(true); setError(null);
+    const signatureData = canvas.toDataURL('image/png');
+    try {
+      const res = await fetch(`${API}/api/admin/contracts/${contrat._id}/sign`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ signatureData }),
+      });
+      const data = await res.json();
+      if (res.ok) { onSigned(contrat._id); }
+      else { setError(data.message || 'Erreur lors de la signature.'); }
+    } catch { setError('Impossible de contacter le serveur.'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between p-5 border-b border-[#E6DDD1]">
+          <div>
+            <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-0.5">Signature électronique</p>
+            <h3 className="font-bold text-[#073B4C]">{titreContrat(contrat)}</h3>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-[#073B4C] transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          <p className="text-xs text-gray-500">
+            En signant, vous acceptez les termes du contrat. Signez dans le cadre ci-dessous avec votre souris ou votre doigt.
+          </p>
+          <div className="border-2 border-dashed border-[#E6DDD1] rounded-xl overflow-hidden bg-[#FAFAF8] touch-none">
+            <canvas
+              ref={canvasRef}
+              width={460}
+              height={160}
+              className="w-full cursor-crosshair"
+              onMouseDown={startDraw}
+              onMouseMove={draw}
+              onMouseUp={endDraw}
+              onMouseLeave={endDraw}
+              onTouchStart={startDraw}
+              onTouchMove={draw}
+              onTouchEnd={endDraw}
+            />
+          </div>
+          {!hasDrawn && (
+            <p className="text-[11px] text-gray-400 text-center">↑ Dessinez votre signature ici</p>
+          )}
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
+              <AlertCircle size={13} /> {error}
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={clearCanvas}
+              className="flex-1 border border-[#E6DDD1] text-gray-500 hover:text-[#073B4C] py-2.5 rounded-xl text-sm transition-colors"
+            >
+              Effacer
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!hasDrawn || saving}
+              className="flex-1 bg-[#073B4C] hover:bg-[#0A5268] disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              {saving
+                ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Enregistrement…</>
+                : <><PenLine size={15} /> Signer le contrat</>
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ─── DocumentsSection ────────────────────────────────────────────────────────
 
 const DocumentsSection: React.FC<{
-  userId: string;
-  token: string;
-  nationalite?: string;
+  userId: string; token: string; nationalite?: string;
   titreSejour?: { type?: string; dateExpiration?: string };
 }> = ({ userId, token, nationalite, titreSejour }) => {
   const [docs, setDocs]           = useState<DocumentsData>({});
@@ -169,70 +225,45 @@ const DocumentsSection: React.FC<{
   const isEtranger  = nationalite === 'etranger';
   const titreStatus = getTitreStatus(titreSejour?.dateExpiration);
   const expiration  = titreSejour?.dateExpiration
-    ? new Date(titreSejour.dateExpiration).toLocaleDateString('fr-FR')
-    : null;
+    ? new Date(titreSejour.dateExpiration).toLocaleDateString('fr-FR') : null;
 
   useEffect(() => {
     if (!userId || !token) { setLoading(false); return; }
-    fetch(`${API}/api/candidat/${userId}`, {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    })
+    fetch(`${API}/api/candidat/${userId}`, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } })
       .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        const c = data?.data || data?.candidat || data;
-        if (c?.documents) setDocs(c.documents);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .then(data => { const c = data?.data || data?.candidat || data; if (c?.documents) setDocs(c.documents); })
+      .catch(() => {}).finally(() => setLoading(false));
   }, [userId, token]);
 
   const handleUpload = async (file: File, field: string) => {
     if (!userId || !token) return;
-    setUploading(field);
-    setMessage(null);
-    const fd = new FormData();
-    fd.append(field, file);
+    setUploading(field); setMessage(null);
+    const fd = new FormData(); fd.append(field, file);
     try {
       const res  = await fetch(`${API}/api/candidat/${userId}/documents`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
+        method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
       });
       const data = await res.json();
       if (res.ok) {
         setDocs(prev => ({ ...prev, ...data.data?.documents }));
         setMessage({ type: 'success', text: 'Document enregistré avec succès.' });
-      } else {
-        setMessage({ type: 'error', text: data.message || "Erreur lors de l'upload." });
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Impossible de contacter le serveur.' });
-    } finally {
-      setUploading(null);
-      setTimeout(() => setMessage(null), 4000);
-    }
+      } else { setMessage({ type: 'error', text: data.message || "Erreur lors de l'upload." }); }
+    } catch { setMessage({ type: 'error', text: 'Impossible de contacter le serveur.' }); }
+    finally { setUploading(null); setTimeout(() => setMessage(null), 4000); }
   };
 
   const docList = [
     { field: 'idCard',     label: "Pièce d'identité",    sub: 'CNI recto/verso, Passeport',     url: docs.idCardUrl,     uploadedAt: docs.idCardUploadedAt },
     { field: 'vitaleCard', label: 'Attestation Vitale',   sub: 'Carte vitale ou attestation SS', url: docs.vitaleCardUrl, uploadedAt: docs.vitaleCardUploadedAt },
     { field: 'rib',        label: 'RIB',                  sub: "Relevé d'identité bancaire",      url: docs.ribUrl,        uploadedAt: docs.ribUploadedAt },
-    ...(isEtranger ? [{
-      field: 'titreSejour',
-      label: 'Titre de séjour',
-      sub: titreSejour?.type || 'Document officiel',
-      url: docs.titreSejourUrl,
-      uploadedAt: docs.titreSejourUploadedAt,
-    }] : []),
+    ...(isEtranger ? [{ field: 'titreSejour', label: 'Titre de séjour', sub: titreSejour?.type || 'Document officiel', url: docs.titreSejourUrl, uploadedAt: docs.titreSejourUploadedAt }] : []),
   ];
 
-  if (loading) {
-    return (
-      <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6 flex items-center justify-center h-40">
-        <div className="w-6 h-6 border-2 border-[#073B4C]/20 border-t-[#073B4C] rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6 flex items-center justify-center h-40">
+      <div className="w-6 h-6 border-2 border-[#073B4C]/20 border-t-[#073B4C] rounded-full animate-spin" />
+    </div>
+  );
 
   return (
     <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
@@ -241,27 +272,21 @@ const DocumentsSection: React.FC<{
           <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Conformité</p>
           <h2 className="text-xl font-bold text-[#073B4C]">Mes documents</h2>
         </div>
-        <span className="text-xs text-gray-400">
-          {docList.filter(d => d.url).length} / {docList.length} fourni{docList.filter(d => d.url).length > 1 ? 's' : ''}
-        </span>
+        <span className="text-xs text-gray-400">{docList.filter(d => d.url).length} / {docList.length} fourni{docList.filter(d => d.url).length > 1 ? 's' : ''}</span>
       </div>
 
       {isEtranger && titreStatus === 'expire' && (
         <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl mb-4">
           <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-xs font-semibold text-red-600">Titre de séjour expiré</p>
-            <p className="text-[11px] text-red-500 mt-0.5">Expiré le {expiration}. Contactez EDÈN Group immédiatement.</p>
-          </div>
+          <div><p className="text-xs font-semibold text-red-600">Titre de séjour expiré</p>
+            <p className="text-[11px] text-red-500 mt-0.5">Expiré le {expiration}. Contactez EDÈN Group immédiatement.</p></div>
         </div>
       )}
       {isEtranger && titreStatus === 'expire_bientot' && (
         <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-4">
           <AlertCircle size={14} className="text-amber-500 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-xs font-semibold text-amber-600">Titre expire bientôt</p>
-            <p className="text-[11px] text-amber-500 mt-0.5">Expire le {expiration}. Engagez le renouvellement rapidement.</p>
-          </div>
+          <div><p className="text-xs font-semibold text-amber-600">Titre expire bientôt</p>
+            <p className="text-[11px] text-amber-500 mt-0.5">Expire le {expiration}. Engagez le renouvellement rapidement.</p></div>
         </div>
       )}
       {isEtranger && titreStatus === 'valide' && (
@@ -270,13 +295,8 @@ const DocumentsSection: React.FC<{
           <p className="text-xs font-semibold text-green-600">Titre valide jusqu'au {expiration}</p>
         </div>
       )}
-
       {message && (
-        <div className={`flex items-center gap-2 p-3 rounded-xl mb-4 text-xs font-medium ${
-          message.type === 'success'
-            ? 'bg-green-50 border border-green-200 text-green-600'
-            : 'bg-red-50 border border-red-200 text-red-600'
-        }`}>
+        <div className={`flex items-center gap-2 p-3 rounded-xl mb-4 text-xs font-medium ${message.type === 'success' ? 'bg-green-50 border border-green-200 text-green-600' : 'bg-red-50 border border-red-200 text-red-600'}`}>
           {message.type === 'success' ? <CheckCircle size={13} /> : <AlertCircle size={13} />}
           {message.text}
         </div>
@@ -289,32 +309,13 @@ const DocumentsSection: React.FC<{
           const isTitre     = doc.field === 'titreSejour';
           const titreExp    = isTitre && titreStatus === 'expire';
           const titreSoon   = isTitre && titreStatus === 'expire_bientot';
-          const uploadedDate = doc.uploadedAt
-            ? new Date(doc.uploadedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
-            : null;
+          const uploadedDate = doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
 
           return (
-            <div
-              key={doc.field}
-              className={`rounded-xl border p-4 flex items-center justify-between gap-4 transition-all ${
-                titreExp    ? 'border-red-200 bg-red-50/30'
-                : titreSoon ? 'border-amber-200 bg-amber-50/30'
-                : isUploaded ? 'border-green-200 bg-green-50/20'
-                : 'border-[#E6DDD1] bg-[#FAFAF8]'
-              }`}
-            >
+            <div key={doc.field} className={`rounded-xl border p-4 flex items-center justify-between gap-4 transition-all ${titreExp ? 'border-red-200 bg-red-50/30' : titreSoon ? 'border-amber-200 bg-amber-50/30' : isUploaded ? 'border-green-200 bg-green-50/20' : 'border-[#E6DDD1] bg-[#FAFAF8]'}`}>
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                  titreExp    ? 'bg-red-100 text-red-500'
-                  : titreSoon ? 'bg-amber-100 text-amber-500'
-                  : isUploaded ? 'bg-green-100 text-green-600'
-                  : 'bg-[#F4EFE8] text-[#073B4C]/40'
-                }`}>
-                  {titreExp || titreSoon
-                    ? <AlertCircle size={16} />
-                    : isUploaded ? <CheckCircle size={16} />
-                    : <FileText size={16} />
-                  }
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${titreExp ? 'bg-red-100 text-red-500' : titreSoon ? 'bg-amber-100 text-amber-500' : isUploaded ? 'bg-green-100 text-green-600' : 'bg-[#F4EFE8] text-[#073B4C]/40'}`}>
+                  {titreExp || titreSoon ? <AlertCircle size={16} /> : isUploaded ? <CheckCircle size={16} /> : <FileText size={16} />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -324,53 +325,27 @@ const DocumentsSection: React.FC<{
                     {isUploaded && !titreExp && !titreSoon && <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-600">Fourni</span>}
                     {!isUploaded && <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">Manquant</span>}
                   </div>
-                  <p className="text-[11px] text-gray-400 mt-0.5 truncate">
-                    {isUploaded && uploadedDate ? `Uploadé le ${uploadedDate}` : doc.sub}
-                  </p>
+                  <p className="text-[11px] text-gray-400 mt-0.5 truncate">{isUploaded && uploadedDate ? `Uploadé le ${uploadedDate}` : doc.sub}</p>
                 </div>
               </div>
-
               <div className="flex items-center gap-2 shrink-0">
                 {isUploaded && doc.url && (
-                  <a
-                    href={`${API}${doc.url}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-8 h-8 rounded-lg bg-[#F4F1EA] hover:bg-[#E6DDD1] flex items-center justify-center text-gray-500 hover:text-[#073B4C] transition-colors"
-                    title="Voir le document"
-                  >
+                  <a href={`${API}${doc.url}`} target="_blank" rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-lg bg-[#F4F1EA] hover:bg-[#E6DDD1] flex items-center justify-center text-gray-500 hover:text-[#073B4C] transition-colors" title="Voir le document">
                     <Download size={14} />
                   </a>
                 )}
-                <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
-                  isUploading  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : isUploaded ? 'bg-[#F4F1EA] hover:bg-[#E6DDD1] text-[#073B4C]'
-                  : 'bg-[#073B4C] hover:bg-[#0A5268] text-white'
-                }`}>
-                  {isUploading ? (
-                    <><div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" /> Envoi…</>
-                  ) : isUploaded ? (
-                    <><Upload size={12} /> Remplacer</>
-                  ) : (
-                    <><Upload size={12} /> Uploader</>
-                  )}
-                  <input
-                    type="file"
-                    accept=".pdf,.png,.jpg,.jpeg"
-                    disabled={uploading !== null}
-                    onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f, doc.field); }}
-                    className="hidden"
-                  />
+                <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${isUploading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : isUploaded ? 'bg-[#F4F1EA] hover:bg-[#E6DDD1] text-[#073B4C]' : 'bg-[#073B4C] hover:bg-[#0A5268] text-white'}`}>
+                  {isUploading ? <><div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" /> Envoi…</> : isUploaded ? <><Upload size={12} /> Remplacer</> : <><Upload size={12} /> Uploader</>}
+                  <input type="file" accept=".pdf,.png,.jpg,.jpeg" disabled={uploading !== null}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f, doc.field); }} className="hidden" />
                 </label>
               </div>
             </div>
           );
         })}
       </div>
-
-      <p className="text-[10px] text-gray-400 text-center mt-4">
-        Documents chiffrés et stockés de manière sécurisée. Conformité RGPD.
-      </p>
+      <p className="text-[10px] text-gray-400 text-center mt-4">Documents chiffrés et stockés de manière sécurisée. Conformité RGPD.</p>
     </div>
   );
 };
@@ -394,16 +369,71 @@ export const ExtraDashboard = ({
   const [sendingMessage, setSendingMessage]   = useState(false);
   const [sendError, setSendError]             = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
   const [activeSection, setActiveSection] = useState('dashboard');
   const [searchQuery, setSearchQuery]     = useState('');
   const [applySuccess, setApplySuccess]   = useState<string | null>(null);
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState<string | null>(null);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [selectedChannel]);
+  // Notifications
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifs, setShowNotifs]       = useState(false);
+  const unreadNotifs = notifications.filter(n => !n.read).length;
 
+  // Signature
+  const [contratASignerModal, setContratASignerModal] = useState<Contrat | null>(null);
+
+  // ── Socket.io ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const userId = getUserId({ ...getLocalUser(), ...(userProp || {}) });
+    if (!userId) return;
+
+    const socket = socketIO(API, { query: { userId }, transports: ['websocket'] });
+
+    socket.on('notification', (payload: { type: string; message: string; contratId?: string; channelId?: string }) => {
+      const notif: Notification = {
+        id: Math.random().toString(36).slice(2),
+        type: payload.type,
+        message: payload.message,
+        contratId: payload.contratId,
+        channelId: payload.channelId,
+        createdAt: new Date(),
+        read: false,
+      };
+      setNotifications(prev => [notif, ...prev].slice(0, 20));
+
+      // Si c'est un contrat à signer → charger le contrat et ouvrir la modal
+      if (payload.type === 'contrat_a_signer' && payload.contratId) {
+        fetch(`${API}/api/contrats/${payload.contratId}`, { headers: authHeaders() })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            const c = data?.data || data;
+            if (c?._id) setContratASignerModal(c);
+          }).catch(() => {});
+      }
+    });
+
+    socket.on('new_message', (payload: { channelId: string; message: ChannelMessage }) => {
+      setChannels(prev => prev.map(ch => {
+        if (ch._id !== payload.channelId) return ch;
+        const msgs = [...ch.messages, payload.message];
+        return { ...ch, messages: msgs, lastMessage: payload.message.contenu, lastMessageAt: payload.message.createdAt, unreadCount: (ch.unreadCount || 0) + 1 };
+      }));
+      setSelectedChannel(prev => {
+        if (!prev || prev._id !== payload.channelId) return prev;
+        return { ...prev, messages: [...prev.messages, payload.message] };
+      });
+    });
+
+    return () => { socket.disconnect(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Scroll messages ────────────────────────────────────────────────────────
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [selectedChannel]);
+
+  // ── Chargement initial ─────────────────────────────────────────────────────
   useEffect(() => {
     const token = getToken();
     if (!token) { setError('Session expirée. Veuillez vous reconnecter.'); setLoading(false); return; }
@@ -431,8 +461,7 @@ export const ExtraDashboard = ({
         } catch { /* pas encore dispo */ }
         await loadChannels(h);
       } catch (err) {
-        console.error('[ExtraDashboard]', err);
-        setError('Erreur de connexion au serveur EDÈN.');
+        console.error('[ExtraDashboard]', err); setError('Erreur de connexion au serveur EDÈN.');
       } finally { setLoading(false); }
     };
     loadData();
@@ -447,16 +476,14 @@ export const ExtraDashboard = ({
       const raw: any[] = Array.isArray(json) ? json : (json.data || json.channels || []);
       const parsed: Channel[] = raw.map((ch: any) => {
         const msgs: ChannelMessage[] = (ch.messages || []).map((msg: any) => ({
-          _id: msg._id, contenu: msg.contenu || '',
-          expediteurId: msg.expediteurId, createdAt: msg.createdAt, lu: msg.lu ?? false,
+          _id: msg._id, contenu: msg.contenu || '', expediteurId: msg.expediteurId, createdAt: msg.createdAt, lu: msg.lu ?? false,
         }));
         msgs.sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
         return {
           _id: ch._id, nom: ch.nom,
           lastMessage: ch.lastMessage || msgs[msgs.length - 1]?.contenu || '',
           lastMessageAt: ch.lastMessageAt || ch.updatedAt || msgs[msgs.length - 1]?.createdAt,
-          updatedAt: ch.updatedAt, messages: msgs,
-          participants: ch.participants || [],
+          updatedAt: ch.updatedAt, messages: msgs, participants: ch.participants || [],
           unreadCount: msgs.filter(m => !m.lu).length,
         };
       });
@@ -489,17 +516,18 @@ export const ExtraDashboard = ({
     } catch (e) { console.error('[postuler]', e); }
   };
 
+  const handleContratSigned = (contratId: string) => {
+    setContrats(prev => prev.map(c => c._id === contratId ? { ...c, statut: 'signé', signéLe: new Date().toISOString() } : c));
+    setContratASignerModal(null);
+  };
+
+  const markAllNotifsRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchQuery(value);
+    const value = e.target.value; setSearchQuery(value);
     if (value.length < 2) return;
-    const q = value.toLowerCase().trim();
-    const match = Object.keys(NAV_SEARCH_MAP).find(k => q.includes(k));
-    if (match) {
-      const target = NAV_SEARCH_MAP[match];
-      setActiveSection(target);
-      if (target !== 'messagerie') setSelectedChannel(null);
-    }
+    const match = Object.keys(NAV_SEARCH_MAP).find(k => value.toLowerCase().includes(k));
+    if (match) { const t = NAV_SEARCH_MAP[match]; setActiveSection(t); if (t !== 'messagerie') setSelectedChannel(null); }
   };
 
   const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -509,25 +537,32 @@ export const ExtraDashboard = ({
   })();
 
   const filteredMissions = missions.filter(m =>
-    !searchQuery ||
-    titreMission(m).toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.briefing?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    !searchQuery || titreMission(m).toLowerCase().includes(searchQuery.toLowerCase()) ||
+    m.briefing?.toLowerCase().includes(searchQuery.toLowerCase()) || m.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const totalUnread = channels.reduce((s, c) => s + (c.unreadCount || 0), 0);
   const totalPaye   = paiements.reduce((s, p) => s + (p.montant || 0), 0);
+  const contratsASigner = contrats.filter(c => c.statut === 'en_attente_signature');
 
-  const formatDate = (d?: string) =>
-    d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+  const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
   const formatTime = (d?: string) => {
     if (!d) return '';
     const date = new Date(d), now = new Date();
-    if (date.toDateString() === now.toDateString())
-      return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    if (date.toDateString() === now.toDateString()) return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
   };
   const formatMontant = (n?: number) => n != null ? `${n.toLocaleString('fr-FR')} €` : '—';
+
+  // ── Données graphiques ─────────────────────────────────────────────────────
+  const paiementsChartData = paiements.map(p => ({
+    name: p.mois || formatDate(p.dateEmission),
+    montant: p.montant || 0,
+  }));
+  const contratsChartData = [
+    { name: 'Signés',    value: contrats.filter(c => c.statut === 'signé').length },
+    { name: 'En attente', value: contrats.filter(c => c.statut !== 'signé').length },
+  ];
 
   const navSections = [
     { label: 'PRINCIPAL', items: [
@@ -536,7 +571,7 @@ export const ExtraDashboard = ({
     ]},
     { label: 'GESTION', items: [
       { id: 'planning',  label: 'Planning',  icon: <Calendar size={16} /> },
-      { id: 'contrats',  label: 'Contrats',  icon: <FileText size={16} />, badge: contrats.length },
+      { id: 'contrats',  label: 'Contrats',  icon: <FileText size={16} />, badge: contratsASigner.length || contrats.length },
       { id: 'rapports',  label: 'Rapports',  icon: <BarChart2 size={16} /> },
       { id: 'paiements', label: 'Paiements', icon: <Euro size={16} /> },
     ]},
@@ -554,7 +589,16 @@ export const ExtraDashboard = ({
   return (
     <div className="min-h-screen flex bg-[#F4F1EA]">
 
-      {/* ── SIDEBAR ── */}
+      {/* Modal signature */}
+      {contratASignerModal && (
+        <SignaturePad
+          contrat={contratASignerModal}
+          onSigned={handleContratSigned}
+          onClose={() => setContratASignerModal(null)}
+        />
+      )}
+
+      {/* SIDEBAR */}
       <aside className="w-[260px] bg-[#073B4C] text-white flex flex-col fixed h-full z-20">
         <div className="p-6 pb-4">
           <div className="flex items-center gap-3 mb-1">
@@ -574,18 +618,15 @@ export const ExtraDashboard = ({
             <div key={section.label} className="mb-5">
               <p className="text-[10px] tracking-[3px] text-[#C5A46D] px-3 mb-2">{section.label}</p>
               {section.items.map(item => (
-                <button
-                  key={item.id}
+                <button key={item.id}
                   onClick={() => { setActiveSection(item.id); if (item.id !== 'messagerie') setSelectedChannel(null); }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl mb-0.5 transition-all text-sm ${
-                    activeSection === item.id ? 'bg-white/15 text-white font-semibold' : 'text-white/60 hover:bg-white/8 hover:text-white'
-                  }`}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl mb-0.5 transition-all text-sm ${activeSection === item.id ? 'bg-white/15 text-white font-semibold' : 'text-white/60 hover:bg-white/8 hover:text-white'}`}
                 >
                   <span className="flex items-center gap-2.5">{item.icon}{item.label}</span>
                   {item.badge != null && item.badge > 0 && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
-                      item.id === 'messagerie' ? 'bg-orange-400 text-white' : 'bg-[#C5A46D] text-[#073B4C]'
-                    }`}>{item.badge}</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${item.id === 'messagerie' ? 'bg-orange-400 text-white' : item.id === 'contrats' && contratsASigner.length > 0 ? 'bg-red-400 text-white' : 'bg-[#C5A46D] text-[#073B4C]'}`}>
+                      {item.badge}
+                    </span>
                   )}
                 </button>
               ))}
@@ -605,7 +646,7 @@ export const ExtraDashboard = ({
         </div>
       </aside>
 
-      {/* ── MAIN ── */}
+      {/* MAIN */}
       <div className="ml-[260px] flex-1 flex flex-col min-h-screen">
 
         {/* HEADER */}
@@ -617,19 +658,50 @@ export const ExtraDashboard = ({
           <div className="flex items-center gap-3">
             <div className="relative">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Missions, messagerie, contrats…"
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="pl-9 pr-4 py-2 bg-[#F4F1EA] rounded-xl text-sm text-gray-700 w-52 focus:outline-none focus:ring-2 focus:ring-[#073B4C]/20"
-              />
+              <input type="text" placeholder="Missions, messagerie, contrats…" value={searchQuery} onChange={handleSearchChange}
+                className="pl-9 pr-4 py-2 bg-[#F4F1EA] rounded-xl text-sm text-gray-700 w-52 focus:outline-none focus:ring-2 focus:ring-[#073B4C]/20" />
             </div>
-            <button onClick={() => { setActiveSection('messagerie'); setSelectedChannel(null); }}
-              className="relative w-9 h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors" title="Messagerie">
-              <Bell size={16} />
-              {totalUnread > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-400 rounded-full animate-pulse" />}
-            </button>
+
+            {/* Cloche notifications */}
+            <div className="relative">
+              <button onClick={() => { setShowNotifs(v => !v); markAllNotifsRead(); }}
+                className="relative w-9 h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors">
+                <Bell size={16} />
+                {(unreadNotifs > 0 || totalUnread > 0) && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-400 rounded-full animate-pulse" />
+                )}
+              </button>
+              {showNotifs && (
+                <div className="absolute right-0 top-11 w-80 bg-white border border-[#E6DDD1] rounded-2xl shadow-xl z-30 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-[#E6DDD1] flex items-center justify-between">
+                    <p className="font-semibold text-sm text-[#073B4C]">Notifications</p>
+                    <button onClick={() => setShowNotifs(false)} className="text-gray-400 hover:text-[#073B4C]"><X size={14} /></button>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto divide-y divide-[#F4F1EA]">
+                    {notifications.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-6">Aucune notification</p>
+                    ) : notifications.map(n => (
+                      <div key={n.id} className={`px-4 py-3 ${!n.read ? 'bg-[#F4F1EA]' : ''}`}>
+                        <p className="text-xs font-medium text-[#073B4C]">{n.message}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{formatTime(n.createdAt.toISOString())}</p>
+                        {n.contratId && (
+                          <button
+                            onClick={() => {
+                              const c = contrats.find(ct => ct._id === n.contratId);
+                              if (c) { setContratASignerModal(c); setShowNotifs(false); }
+                            }}
+                            className="text-[11px] text-[#073B4C] font-semibold mt-1 hover:underline flex items-center gap-1"
+                          >
+                            <PenLine size={11} /> Signer maintenant
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button onClick={() => { setActiveSection('missions'); setSelectedChannel(null); }}
               className="w-9 h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors" title="Voir les missions">
               <SlidersHorizontal size={16} />
@@ -648,6 +720,19 @@ export const ExtraDashboard = ({
             </div>
           )}
 
+          {/* Bannière contrats à signer */}
+          {contratsASigner.length > 0 && activeSection !== 'contrats' && (
+            <div className="mb-6 flex items-center justify-between bg-amber-50 border border-amber-200 text-amber-700 px-5 py-3 rounded-xl text-sm">
+              <span className="flex items-center gap-2">
+                <PenLine size={16} />
+                {contratsASigner.length} contrat{contratsASigner.length > 1 ? 's' : ''} en attente de votre signature
+              </span>
+              <button onClick={() => setActiveSection('contrats')} className="font-semibold text-amber-800 hover:underline flex items-center gap-1">
+                Voir <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
               <div className="flex flex-col items-center gap-3">
@@ -657,15 +742,16 @@ export const ExtraDashboard = ({
             </div>
           ) : (
             <>
-              {/* DASHBOARD */}
+              {/* ── DASHBOARD ── */}
               {activeSection === 'dashboard' && (
                 <div className="space-y-6">
+                  {/* KPIs */}
                   <div className="grid grid-cols-4 gap-5">
                     {[
                       { icon: <Star size={20} />, value: missions.length, label: 'Missions', sub: 'disponibles', action: () => setActiveSection('missions') },
                       { icon: <Calendar size={20} />, value: 0, label: 'Planning', sub: 'shifts' },
                       { icon: <FileText size={20} />, value: contrats.length, label: 'Contrats', sub: 'signés', action: () => setActiveSection('contrats') },
-                      { icon: <Euro size={20} />, value: paiements.length || '—', label: 'Fiches de paie', sub: paiements.length ? 'disponibles' : 'à venir', action: () => setActiveSection('paiements') },
+                      { icon: <Euro size={20} />, value: totalPaye > 0 ? formatMontant(totalPaye) : '—', label: 'Total perçu', sub: '', action: () => setActiveSection('paiements') },
                     ].map((kpi, i) => (
                       <div key={i} onClick={kpi.action} className={`bg-white rounded-2xl border border-[#E6DDD1] p-5 ${kpi.action ? 'cursor-pointer hover:border-[#073B4C]/30 hover:shadow-sm transition-all' : ''}`}>
                         <div className="w-10 h-10 rounded-xl bg-[#F4EFE8] flex items-center justify-center text-[#073B4C] mb-4">{kpi.icon}</div>
@@ -674,14 +760,53 @@ export const ExtraDashboard = ({
                       </div>
                     ))}
                   </div>
+
+                  {/* Graphiques */}
+                  <div className="grid grid-cols-2 gap-5">
+                    {/* Paiements */}
+                    <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
+                      <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Rémunération</p>
+                      <h3 className="font-bold text-[#073B4C] mb-4">Historique des paiements</h3>
+                      {paiementsChartData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={180}>
+                          <BarChart data={paiementsChartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#F4F1EA" />
+                            <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                            <YAxis tick={{ fontSize: 10 }} />
+                            <Tooltip formatter={(v: number) => `${v.toLocaleString('fr-FR')} €`} />
+                            <Bar dataKey="montant" fill="#073B4C" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-[180px] flex items-center justify-center text-gray-400 text-sm">Aucune donnée</div>
+                      )}
+                    </div>
+
+                    {/* Contrats */}
+                    <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
+                      <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Contrats</p>
+                      <h3 className="font-bold text-[#073B4C] mb-4">État des contrats</h3>
+                      {contrats.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={180}>
+                          <PieChart>
+                            <Pie data={contratsChartData} cx="50%" cy="50%" outerRadius={65} dataKey="value" label={({ name, value }) => `${name} (${value})`} labelLine={false}>
+                              {contratsChartData.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
+                            </Pie>
+                            <Tooltip />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-[180px] flex items-center justify-center text-gray-400 text-sm">Aucun contrat</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Profil + missions */}
                   <div className="grid grid-cols-3 gap-5">
                     <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6 flex flex-col gap-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-[#C5A46D] flex items-center justify-center font-bold text-[#073B4C] text-lg">{initiale}</div>
-                        <div>
-                          <p className="font-bold text-[#073B4C]">{displayName}</p>
-                          <p className="text-xs text-gray-400">{user?.email}</p>
-                        </div>
+                        <div><p className="font-bold text-[#073B4C]">{displayName}</p><p className="text-xs text-gray-400">{user?.email}</p></div>
                       </div>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between"><span className="text-gray-400">Rôle</span><span className="font-medium text-[#073B4C] capitalize">{user?.role || 'Extra'}</span></div>
@@ -699,15 +824,12 @@ export const ExtraDashboard = ({
                           <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Opportunités</p>
                           <h2 className="font-bold text-[#073B4C]">Missions disponibles</h2>
                         </div>
-                        <button onClick={() => setActiveSection('missions')} className="text-xs text-[#073B4C]/60 hover:text-[#073B4C] flex items-center gap-1">
-                          Voir tout <ChevronRight size={12} />
-                        </button>
+                        <button onClick={() => setActiveSection('missions')} className="text-xs text-[#073B4C]/60 hover:text-[#073B4C] flex items-center gap-1">Voir tout <ChevronRight size={12} /></button>
                       </div>
                       {missions.length === 0 ? (
                         <div className="rounded-xl border border-dashed border-[#E6DDD1] p-8 text-center">
                           <Briefcase className="mx-auto text-[#E6DDD1] mb-2" size={28} />
                           <p className="text-gray-400 text-sm">Aucune mission disponible.</p>
-                          <p className="text-gray-300 text-xs mt-1">Revenez prochainement.</p>
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -715,9 +837,7 @@ export const ExtraDashboard = ({
                             <div key={m._id} className="flex items-center justify-between rounded-xl border border-[#E6DDD1] px-4 py-3 hover:border-[#073B4C]/20 transition-all">
                               <div>
                                 <p className="font-semibold text-sm text-[#073B4C]">{titreMission(m)}</p>
-                                <p className="text-xs text-gray-400 mt-0.5">
-                                  {m.lieu || m.ville || ''}{(m.dateDebut || m.dateDebutMission) ? ` · ${formatDate(m.dateDebut || m.dateDebutMission)}` : ''}
-                                </p>
+                                <p className="text-xs text-gray-400 mt-0.5">{m.lieu || m.ville || ''}{(m.dateDebut || m.dateDebutMission) ? ` · ${formatDate(m.dateDebut || m.dateDebutMission)}` : ''}</p>
                               </div>
                               {applySuccess === m._id
                                 ? <span className="flex items-center gap-1 text-green-600 text-xs font-medium"><CheckCircle size={13} /> Envoyée</span>
@@ -732,7 +852,7 @@ export const ExtraDashboard = ({
                 </div>
               )}
 
-              {/* MISSIONS */}
+              {/* ── MISSIONS ── */}
               {activeSection === 'missions' && (
                 <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
                   <div className="flex items-center justify-between mb-5">
@@ -746,7 +866,6 @@ export const ExtraDashboard = ({
                     <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
                       <Briefcase className="mx-auto text-[#E6DDD1] mb-3" size={32} />
                       <p className="text-gray-400 text-sm">Aucune mission disponible actuellement.</p>
-                      <p className="text-gray-300 text-xs mt-1">Revenez prochainement pour de nouvelles opportunités.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -756,17 +875,12 @@ export const ExtraDashboard = ({
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className="font-semibold text-[#073B4C]">{titreMission(m)}</h3>
-                                <span className="text-[10px] bg-[#F4EFE8] text-[#C5A46D] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide">{m.statut || 'Disponible'}</span>
+                                <span className="text-[10px] bg-[#F4EFE8] text-[#C5A46D] px-2 py-0.5 rounded-full font-medium uppercase">{m.statut || 'Disponible'}</span>
                               </div>
-                              <p className="text-sm text-gray-500 leading-relaxed">{m.briefing || m.description || ''}</p>
+                              <p className="text-sm text-gray-500">{m.briefing || m.description || ''}</p>
                               <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
                                 {(m.lieu || m.ville) && <span className="flex items-center gap-1"><MapPin size={11} /> {m.lieu || m.ville}</span>}
-                                {(m.dateDebut || m.dateDebutMission) && (
-                                  <span className="flex items-center gap-1">
-                                    <Clock size={11} />{formatDate(m.dateDebut || m.dateDebutMission)}
-                                    {(m.dateFin || m.dateFinMission) ? ` → ${formatDate(m.dateFin || m.dateFinMission)}` : ''}
-                                  </span>
-                                )}
+                                {(m.dateDebut || m.dateDebutMission) && <span className="flex items-center gap-1"><Clock size={11} />{formatDate(m.dateDebut || m.dateDebutMission)}{(m.dateFin || m.dateFinMission) ? ` → ${formatDate(m.dateFin || m.dateFinMission)}` : ''}</span>}
                                 {(m.taux || m.tauxHoraire) && <span className="flex items-center gap-1"><Euro size={11} /> {m.taux || m.tauxHoraire} €/h</span>}
                               </div>
                             </div>
@@ -784,7 +898,7 @@ export const ExtraDashboard = ({
                 </div>
               )}
 
-              {/* PLANNING */}
+              {/* ── PLANNING ── */}
               {activeSection === 'planning' && (
                 <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
                   <div className="mb-5">
@@ -794,81 +908,112 @@ export const ExtraDashboard = ({
                   <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
                     <Calendar className="mx-auto text-[#E6DDD1] mb-3" size={32} />
                     <p className="text-gray-400 text-sm">Aucun shift planifié pour le moment.</p>
-                    <p className="text-gray-300 text-xs mt-1">Vos shifts confirmés apparaîtront ici.</p>
                   </div>
                 </div>
               )}
 
-              {/* CONTRATS */}
+              {/* ── CONTRATS ── */}
               {activeSection === 'contrats' && (
-                <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
-                  <div className="flex items-center justify-between mb-5">
-                    <div>
-                      <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Documents</p>
-                      <h2 className="text-xl font-bold text-[#073B4C]">Mes contrats</h2>
-                    </div>
-                    {contrats.length > 0 && <span className="text-sm text-gray-400">{contrats.length} contrat{contrats.length > 1 ? 's' : ''}</span>}
-                  </div>
-                  {contrats.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
-                      <FileText className="mx-auto text-[#E6DDD1] mb-3" size={32} />
-                      <p className="text-gray-400 text-sm">Aucun contrat disponible.</p>
-                      <p className="text-gray-300 text-xs mt-1">Vos contrats signés apparaîtront ici.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {contrats.map(c => (
-                        <div key={c._id} className="rounded-xl border border-[#E6DDD1] p-5 flex items-center justify-between hover:border-[#073B4C]/20 transition-all">
-                          <div>
-                            <p className="font-semibold text-[#073B4C]">{titreContrat(c)}</p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {nomEtabContrat(c) ? `${nomEtabContrat(c)} · ` : ''}{formatDate(c.dateDebut)}{c.dateFin ? ` → ${formatDate(c.dateFin)}` : ''}
-                            </p>
+                <div className="space-y-5">
+                  {/* Contrats à signer en priorité */}
+                  {contratsASigner.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                      <p className="text-[10px] tracking-[3px] text-amber-600 uppercase mb-2">Action requise</p>
+                      <h3 className="font-bold text-amber-800 mb-3">Contrats en attente de signature</h3>
+                      <div className="space-y-2">
+                        {contratsASigner.map(c => (
+                          <div key={c._id} className="bg-white rounded-xl border border-amber-200 p-4 flex items-center justify-between">
+                            <div>
+                              <p className="font-semibold text-[#073B4C]">{titreContrat(c)}</p>
+                              <p className="text-xs text-gray-400 mt-0.5">{nomEtabContrat(c)}{c.dateDebut ? ` · Du ${formatDate(c.dateDebut)}` : ''}</p>
+                            </div>
+                            <button onClick={() => setContratASignerModal(c)}
+                              className="flex items-center gap-1.5 bg-[#073B4C] hover:bg-[#0A5268] text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+                              <PenLine size={14} /> Signer
+                            </button>
                           </div>
-                          <div className="flex items-center gap-3">
-                            {c.statut && (
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide ${
-                                c.statut === 'signé' ? 'bg-green-50 text-green-600'
-                                : c.statut === 'en attente' ? 'bg-yellow-50 text-yellow-600'
-                                : 'bg-[#F4EFE8] text-[#C5A46D]'
-                              }`}>{c.statut}</span>
-                            )}
-                            <button className="text-gray-400 hover:text-[#073B4C] transition-colors" title="Télécharger"><Download size={15} /></button>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   )}
+
+                  <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
+                    <div className="flex items-center justify-between mb-5">
+                      <div>
+                        <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Documents</p>
+                        <h2 className="text-xl font-bold text-[#073B4C]">Mes contrats</h2>
+                      </div>
+                      {contrats.length > 0 && <span className="text-sm text-gray-400">{contrats.length} contrat{contrats.length > 1 ? 's' : ''}</span>}
+                    </div>
+                    {contrats.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
+                        <FileText className="mx-auto text-[#E6DDD1] mb-3" size={32} />
+                        <p className="text-gray-400 text-sm">Aucun contrat disponible.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {contrats.map(c => (
+                          <div key={c._id} className="rounded-xl border border-[#E6DDD1] p-5 flex items-center justify-between hover:border-[#073B4C]/20 transition-all">
+                            <div>
+                              <p className="font-semibold text-[#073B4C]">{titreContrat(c)}</p>
+                              <p className="text-xs text-gray-400 mt-1">{nomEtabContrat(c) ? `${nomEtabContrat(c)} · ` : ''}{formatDate(c.dateDebut)}{c.dateFin ? ` → ${formatDate(c.dateFin)}` : ''}</p>
+                              {c.signéLe && <p className="text-[11px] text-green-600 mt-0.5">Signé le {formatDate(c.signéLe)}</p>}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {c.statut && (
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${c.statut === 'signé' ? 'bg-green-50 text-green-600' : c.statut === 'en_attente_signature' ? 'bg-amber-50 text-amber-600' : c.statut === 'en attente' ? 'bg-yellow-50 text-yellow-600' : 'bg-[#F4EFE8] text-[#C5A46D]'}`}>{c.statut}</span>
+                              )}
+                              {c.statut === 'en_attente_signature' && (
+                                <button onClick={() => setContratASignerModal(c)}
+                                  className="flex items-center gap-1 bg-[#073B4C] text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-[#0A5268] transition-colors">
+                                  <PenLine size={12} /> Signer
+                                </button>
+                              )}
+                              <button className="text-gray-400 hover:text-[#073B4C] transition-colors" title="Télécharger"><Download size={15} /></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* RAPPORTS */}
+              {/* ── RAPPORTS ── */}
               {activeSection === 'rapports' && (
-                <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
-                  <div className="mb-5">
-                    <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Synthèse</p>
-                    <h2 className="text-xl font-bold text-[#073B4C]">Mes rapports</h2>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="space-y-5">
+                  <div className="grid grid-cols-3 gap-4">
                     {[
                       { label: 'Missions disponibles', value: missions.length },
-                      { label: 'Contrats signés', value: contrats.length },
-                      { label: 'Total perçu', value: totalPaye ? formatMontant(totalPaye) : '—' },
+                      { label: 'Contrats signés',      value: contrats.filter(c => c.statut === 'signé').length },
+                      { label: 'Total perçu',          value: totalPaye ? formatMontant(totalPaye) : '—' },
                     ].map((stat, i) => (
-                      <div key={i} className="bg-[#F4F1EA] rounded-xl p-5">
+                      <div key={i} className="bg-white rounded-2xl border border-[#E6DDD1] p-5">
                         <p className="text-2xl font-bold text-[#073B4C]">{stat.value}</p>
                         <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
                       </div>
                     ))}
                   </div>
-                  <div className="rounded-xl border border-dashed border-[#E6DDD1] p-10 text-center">
-                    <BarChart2 className="mx-auto text-[#E6DDD1] mb-3" size={32} />
-                    <p className="text-gray-400 text-sm">Rapports détaillés à venir.</p>
-                  </div>
+
+                  {paiementsChartData.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
+                      <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Évolution</p>
+                      <h3 className="font-bold text-[#073B4C] mb-4">Paiements reçus</h3>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <LineChart data={paiementsChartData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#F4F1EA" />
+                          <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} />
+                          <Tooltip formatter={(v: number) => `${v.toLocaleString('fr-FR')} €`} />
+                          <Line type="monotone" dataKey="montant" stroke="#073B4C" strokeWidth={2} dot={{ fill: '#C5A46D', r: 4 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* PAIEMENTS */}
+              {/* ── PAIEMENTS ── */}
               {activeSection === 'paiements' && (
                 <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
                   <div className="flex items-center justify-between mb-5">
@@ -882,7 +1027,6 @@ export const ExtraDashboard = ({
                     <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
                       <Euro className="mx-auto text-[#E6DDD1] mb-3" size={32} />
                       <p className="text-gray-400 text-sm">Aucune fiche de paie disponible.</p>
-                      <p className="text-gray-300 text-xs mt-1">Cette section sera disponible une fois les routes de paiement activées.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -894,9 +1038,7 @@ export const ExtraDashboard = ({
                           </div>
                           <div className="flex items-center gap-4">
                             <p className="font-bold text-[#073B4C]">{formatMontant(p.montant)}</p>
-                            {p.statut && (
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide ${p.statut === 'payé' ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600'}`}>{p.statut}</span>
-                            )}
+                            {p.statut && <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${p.statut === 'payé' ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600'}`}>{p.statut}</span>}
                             <button className="text-gray-400 hover:text-[#073B4C] transition-colors" title="Télécharger"><Download size={15} /></button>
                           </div>
                         </div>
@@ -906,7 +1048,7 @@ export const ExtraDashboard = ({
                 </div>
               )}
 
-              {/* MESSAGERIE */}
+              {/* ── MESSAGERIE ── */}
               {activeSection === 'messagerie' && (
                 <div className="bg-white rounded-2xl border border-[#E6DDD1] overflow-hidden" style={{ height: 'calc(100vh - 160px)' }}>
                   <div className="flex h-full">
@@ -923,7 +1065,6 @@ export const ExtraDashboard = ({
                           <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
                             <MessageSquare className="text-[#E6DDD1] mb-3" size={32} />
                             <p className="text-gray-400 text-sm">Aucune conversation.</p>
-                            <p className="text-gray-300 text-xs mt-1">Vos échanges avec EDÈN apparaîtront ici.</p>
                           </div>
                         ) : (
                           <div className="divide-y divide-[#F4F1EA]">
@@ -938,7 +1079,7 @@ export const ExtraDashboard = ({
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2 mb-1">
-                                      <p className={`text-sm truncate ${hasUnread ? 'font-bold text-[#073B4C]' : 'font-medium text-gray-700'}`}>{channelLabel(ch, currentUserId)}</p>
+                                      <p className={`text-sm truncate ${hasUnread ? 'font-bold text-[#073B4C]' : 'font-medium text-gray-700'}`}>{channelLabel(ch)}</p>
                                       <span className="text-[10px] text-gray-400 flex-shrink-0">{formatTime(ch.lastMessageAt)}</span>
                                     </div>
                                     <div className="flex items-center justify-between gap-2">
@@ -958,14 +1099,12 @@ export const ExtraDashboard = ({
                       <div className="flex-1 flex flex-col min-w-0">
                         <div className="px-6 py-4 border-b border-[#E6DDD1] flex items-center gap-3 flex-shrink-0 bg-white">
                           <button onClick={() => setSelectedChannel(null)} className="text-gray-400 hover:text-[#073B4C] transition-colors mr-1 md:hidden"><ArrowLeft size={18} /></button>
-                          <div className="w-9 h-9 rounded-full bg-[#073B4C] flex items-center justify-center flex-shrink-0">
-                            <span className="text-white text-xs font-bold">E</span>
-                          </div>
+                          <div className="w-9 h-9 rounded-full bg-[#073B4C] flex items-center justify-center flex-shrink-0"><span className="text-white text-xs font-bold">E</span></div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-[#073B4C] truncate">{channelLabel(selectedChannel, currentUserId)}</p>
+                            <p className="font-semibold text-[#073B4C] truncate">{channelLabel(selectedChannel)}</p>
                             <p className="text-xs text-gray-400">{selectedChannel.messages.length} message{selectedChannel.messages.length > 1 ? 's' : ''}</p>
                           </div>
-                          <button onClick={() => loadChannels()} className="text-gray-400 hover:text-[#073B4C] transition-colors text-xs flex items-center gap-1" title="Actualiser">
+                          <button onClick={() => loadChannels()} className="text-gray-400 hover:text-[#073B4C] transition-colors text-xs flex items-center gap-1">
                             <ChevronDown size={14} className="rotate-180" />
                           </button>
                         </div>
@@ -973,8 +1112,7 @@ export const ExtraDashboard = ({
                           {selectedChannel.messages.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full text-center">
                               <MessageSquare className="text-[#E6DDD1] mb-3" size={28} />
-                              <p className="text-gray-400 text-sm">Aucun message dans cette conversation.</p>
-                              <p className="text-gray-300 text-xs mt-1">Envoyez le premier message ci-dessous.</p>
+                              <p className="text-gray-400 text-sm">Aucun message.</p>
                             </div>
                           ) : (
                             <>
@@ -986,12 +1124,12 @@ export const ExtraDashboard = ({
                                     {showDate && (
                                       <div className="flex items-center gap-3 my-4">
                                         <div className="flex-1 h-px bg-[#E6DDD1]" />
-                                        <span className="text-[10px] text-gray-400 flex-shrink-0">{new Date(msg.createdAt ?? 0).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                                        <span className="text-[10px] text-gray-400">{new Date(msg.createdAt ?? 0).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
                                         <div className="flex-1 h-px bg-[#E6DDD1]" />
                                       </div>
                                     )}
                                     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                                      <div className={`max-w-[70%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+                                      <div className={`max-w-[70%] flex flex-col gap-1 ${isOwn ? 'items-end' : 'items-start'}`}>
                                         <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${isOwn ? 'bg-[#073B4C] text-white rounded-br-md' : 'bg-white text-gray-800 border border-[#E6DDD1] rounded-bl-md shadow-sm'}`}>
                                           {msg.contenu}
                                         </div>
@@ -1008,17 +1146,13 @@ export const ExtraDashboard = ({
                         <div className="px-6 py-4 border-t border-[#E6DDD1] bg-white flex-shrink-0">
                           {sendError && <p className="text-xs text-red-500 mb-2 flex items-center gap-1"><AlertCircle size={12} /> {sendError}</p>}
                           <div className="flex items-end gap-3">
-                            <textarea
-                              value={newMessage}
-                              onChange={e => setNewMessage(e.target.value)}
+                            <textarea value={newMessage} onChange={e => setNewMessage(e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-                              placeholder="Écrire un message… (Entrée pour envoyer)"
-                              rows={1}
+                              placeholder="Écrire un message… (Entrée pour envoyer)" rows={1}
                               className="flex-1 resize-none bg-[#F4F1EA] rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#073B4C]/20 min-h-[44px] max-h-32"
-                              style={{ lineHeight: '1.5' }}
-                            />
+                              style={{ lineHeight: '1.5' }} />
                             <button onClick={handleSendMessage} disabled={!newMessage.trim() || sendingMessage}
-                              className="flex-shrink-0 w-11 h-11 rounded-xl bg-[#073B4C] hover:bg-[#0A5268] disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-all" title="Envoyer">
+                              className="flex-shrink-0 w-11 h-11 rounded-xl bg-[#073B4C] hover:bg-[#0A5268] disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-all">
                               {sendingMessage ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={16} />}
                             </button>
                           </div>
@@ -1031,14 +1165,14 @@ export const ExtraDashboard = ({
                           <MessageSquare className="text-[#C5A46D]" size={28} />
                         </div>
                         <p className="font-semibold text-[#073B4C] mb-1">Sélectionnez une conversation</p>
-                        <p className="text-sm text-gray-400">Choisissez un échange dans la liste pour lire et répondre aux messages.</p>
+                        <p className="text-sm text-gray-400">Choisissez un échange dans la liste pour lire et répondre.</p>
                       </div>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* PARAMÈTRES */}
+              {/* ── PARAMÈTRES ── */}
               {activeSection === 'parametres' && (
                 <div className="space-y-6">
                   <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
@@ -1063,13 +1197,7 @@ export const ExtraDashboard = ({
                       </button>
                     </div>
                   </div>
-
-                  <DocumentsSection
-                    userId={getUserId(user)}
-                    token={getToken()}
-                    nationalite={user?.nationalite}
-                    titreSejour={user?.titreSejour}
-                  />
+                  <DocumentsSection userId={getUserId(user)} token={getToken()} nationalite={user?.nationalite} titreSejour={user?.titreSejour} />
                 </div>
               )}
             </>
@@ -1080,7 +1208,6 @@ export const ExtraDashboard = ({
       <button onClick={onLogout} className="fixed bottom-6 right-6 flex items-center gap-2 bg-[#073B4C] text-white/70 hover:text-white text-sm px-4 py-2.5 rounded-xl shadow-lg hover:bg-[#0A5268] transition-all">
         <LogOut size={14} /> Déconnexion
       </button>
-
     </div>
   );
 };
