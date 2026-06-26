@@ -1,26 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  Calendar,
-  FileText,
-  Euro,
-  Briefcase,
-  Clock,
-  LogOut,
-  Bell,
-  SlidersHorizontal,
-  Search,
-  CheckCircle,
-  ChevronRight,
-  MapPin,
-  Star,
-  MessageSquare,
-  Settings,
-  BarChart2,
-  Download,
-  AlertCircle,
-  Send,
-  ArrowLeft,
-  ChevronDown,
+  Calendar, FileText, Euro, Briefcase, Clock, LogOut, Bell,
+  SlidersHorizontal, Search, CheckCircle, ChevronRight, MapPin,
+  Star, MessageSquare, Settings, BarChart2, Download, AlertCircle,
+  Send, ArrowLeft, ChevronDown, Upload,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -34,6 +17,8 @@ interface UserType {
   role?: string;
   candidatRef?: string;
   etablissementRef?: string;
+  nationalite?: string;
+  titreSejour?: { type?: string; dateExpiration?: string };
 }
 
 interface Mission {
@@ -73,8 +58,6 @@ interface Paiement {
   dateEmission?: string;
 }
 
-// ─── Messagerie : types channel ───────────────────────────────────────────────
-
 interface ChannelMessage {
   _id: string;
   contenu: string;
@@ -94,6 +77,17 @@ interface Channel {
   unreadCount?: number;
 }
 
+interface DocumentsData {
+  idCardUrl?: string;
+  vitaleCardUrl?: string;
+  ribUrl?: string;
+  titreSejourUrl?: string;
+  idCardUploadedAt?: string;
+  vitaleCardUploadedAt?: string;
+  ribUploadedAt?: string;
+  titreSejourUploadedAt?: string;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const API = 'https://eden-hcr.onrender.com';
@@ -103,18 +97,12 @@ function getToken() {
 }
 
 function getLocalUser(): UserType {
-  try {
-    return JSON.parse(localStorage.getItem('eden_user') || '{}');
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(localStorage.getItem('eden_user') || '{}'); }
+  catch { return {}; }
 }
 
 function authHeaders() {
-  return {
-    Authorization: `Bearer ${getToken()}`,
-    'Content-Type': 'application/json',
-  };
+  return { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' };
 }
 
 function getUserId(user: UserType): string {
@@ -138,43 +126,256 @@ function titreMission(m: Mission): string {
   return m.posteRecherche || m.titre || m.poste || 'Mission';
 }
 
-function channelLabel(ch: Channel, userId: string): string {
-  if (ch.nom) return ch.nom;
-  return 'Conversation EDÈN';
+function channelLabel(ch: Channel, _userId: string): string {
+  return ch.nom || 'Conversation EDÈN';
 }
 
-// ─── Navigation search map ────────────────────────────────────────────────────
+// ─── Nav search map ───────────────────────────────────────────────────────────
 
 const NAV_SEARCH_MAP: Record<string, string> = {
-  mission: 'missions',
-  missions: 'missions',
-  planning: 'planning',
-  calendrier: 'planning',
-  agenda: 'planning',
-  contrat: 'contrats',
-  contrats: 'contrats',
-  document: 'contrats',
-  rapport: 'rapports',
-  rapports: 'rapports',
-  stats: 'rapports',
-  paiement: 'paiements',
-  paiements: 'paiements',
-  salaire: 'paiements',
-  fiche: 'paiements',
-  message: 'messagerie',
-  messagerie: 'messagerie',
-  chat: 'messagerie',
-  discussion: 'messagerie',
-  parametre: 'parametres',
-  parametres: 'parametres',
-  profil: 'parametres',
-  compte: 'parametres',
-  tableau: 'dashboard',
-  dashboard: 'dashboard',
-  accueil: 'dashboard',
+  mission: 'missions', missions: 'missions',
+  planning: 'planning', calendrier: 'planning', agenda: 'planning',
+  contrat: 'contrats', contrats: 'contrats', document: 'contrats',
+  rapport: 'rapports', rapports: 'rapports', stats: 'rapports',
+  paiement: 'paiements', paiements: 'paiements', salaire: 'paiements', fiche: 'paiements',
+  message: 'messagerie', messagerie: 'messagerie', chat: 'messagerie', discussion: 'messagerie',
+  parametre: 'parametres', parametres: 'parametres', profil: 'parametres', compte: 'parametres',
+  tableau: 'dashboard', dashboard: 'dashboard', accueil: 'dashboard',
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Titre statut ─────────────────────────────────────────────────────────────
+
+function getTitreStatus(dateStr?: string): 'valide' | 'expire_bientot' | 'expire' | null {
+  if (!dateStr) return null;
+  const diff = Math.floor((new Date(dateStr).getTime() - Date.now()) / 86400000);
+  if (diff < 0) return 'expire';
+  if (diff <= 90) return 'expire_bientot';
+  return 'valide';
+}
+
+// ─── DocumentsSection ────────────────────────────────────────────────────────
+
+const DocumentsSection: React.FC<{
+  userId: string;
+  token: string;
+  nationalite?: string;
+  titreSejour?: { type?: string; dateExpiration?: string };
+}> = ({ userId, token, nationalite, titreSejour }) => {
+  const [docs, setDocs]           = useState<DocumentsData>({});
+  const [loading, setLoading]     = useState(true);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [message, setMessage]     = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const isEtranger  = nationalite === 'etranger';
+  const titreStatus = getTitreStatus(titreSejour?.dateExpiration);
+  const expiration  = titreSejour?.dateExpiration
+    ? new Date(titreSejour.dateExpiration).toLocaleDateString('fr-FR')
+    : null;
+
+  useEffect(() => {
+    if (!userId || !token) { setLoading(false); return; }
+    fetch(`${API}/api/candidat/${userId}`, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const c = data?.data || data?.candidat || data;
+        if (c?.documents) setDocs(c.documents);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [userId, token]);
+
+  const handleUpload = async (file: File, field: string) => {
+    if (!userId || !token) return;
+    setUploading(field);
+    setMessage(null);
+    const fd = new FormData();
+    fd.append(field, file);
+    try {
+      const res  = await fetch(`${API}/api/candidat/${userId}/documents`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDocs(prev => ({ ...prev, ...data.data?.documents }));
+        setMessage({ type: 'success', text: 'Document enregistré avec succès.' });
+      } else {
+        setMessage({ type: 'error', text: data.message || "Erreur lors de l'upload." });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Impossible de contacter le serveur.' });
+    } finally {
+      setUploading(null);
+      setTimeout(() => setMessage(null), 4000);
+    }
+  };
+
+  const docList = [
+    { field: 'idCard',     label: "Pièce d'identité",    sub: 'CNI recto/verso, Passeport',     url: docs.idCardUrl,     uploadedAt: docs.idCardUploadedAt },
+    { field: 'vitaleCard', label: 'Attestation Vitale',   sub: 'Carte vitale ou attestation SS', url: docs.vitaleCardUrl, uploadedAt: docs.vitaleCardUploadedAt },
+    { field: 'rib',        label: 'RIB',                  sub: "Relevé d'identité bancaire",      url: docs.ribUrl,        uploadedAt: docs.ribUploadedAt },
+    ...(isEtranger ? [{
+      field: 'titreSejour',
+      label: 'Titre de séjour',
+      sub: titreSejour?.type || 'Document officiel',
+      url: docs.titreSejourUrl,
+      uploadedAt: docs.titreSejourUploadedAt,
+    }] : []),
+  ];
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6 flex items-center justify-center h-40">
+        <div className="w-6 h-6 border-2 border-[#073B4C]/20 border-t-[#073B4C] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Conformité</p>
+          <h2 className="text-xl font-bold text-[#073B4C]">Mes documents</h2>
+        </div>
+        <span className="text-xs text-gray-400">
+          {docList.filter(d => d.url).length} / {docList.length} fourni{docList.filter(d => d.url).length > 1 ? 's' : ''}
+        </span>
+      </div>
+
+      {isEtranger && titreStatus === 'expire' && (
+        <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl mb-4">
+          <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-red-600">Titre de séjour expiré</p>
+            <p className="text-[11px] text-red-500 mt-0.5">Expiré le {expiration}. Contactez EDÈN Group immédiatement.</p>
+          </div>
+        </div>
+      )}
+      {isEtranger && titreStatus === 'expire_bientot' && (
+        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-4">
+          <AlertCircle size={14} className="text-amber-500 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-amber-600">Titre expire bientôt</p>
+            <p className="text-[11px] text-amber-500 mt-0.5">Expire le {expiration}. Engagez le renouvellement rapidement.</p>
+          </div>
+        </div>
+      )}
+      {isEtranger && titreStatus === 'valide' && (
+        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl mb-4">
+          <CheckCircle size={14} className="text-green-500 shrink-0" />
+          <p className="text-xs font-semibold text-green-600">Titre valide jusqu'au {expiration}</p>
+        </div>
+      )}
+
+      {message && (
+        <div className={`flex items-center gap-2 p-3 rounded-xl mb-4 text-xs font-medium ${
+          message.type === 'success'
+            ? 'bg-green-50 border border-green-200 text-green-600'
+            : 'bg-red-50 border border-red-200 text-red-600'
+        }`}>
+          {message.type === 'success' ? <CheckCircle size={13} /> : <AlertCircle size={13} />}
+          {message.text}
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {docList.map(doc => {
+          const isUploaded  = !!doc.url;
+          const isUploading = uploading === doc.field;
+          const isTitre     = doc.field === 'titreSejour';
+          const titreExp    = isTitre && titreStatus === 'expire';
+          const titreSoon   = isTitre && titreStatus === 'expire_bientot';
+          const uploadedDate = doc.uploadedAt
+            ? new Date(doc.uploadedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+            : null;
+
+          return (
+            <div
+              key={doc.field}
+              className={`rounded-xl border p-4 flex items-center justify-between gap-4 transition-all ${
+                titreExp    ? 'border-red-200 bg-red-50/30'
+                : titreSoon ? 'border-amber-200 bg-amber-50/30'
+                : isUploaded ? 'border-green-200 bg-green-50/20'
+                : 'border-[#E6DDD1] bg-[#FAFAF8]'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  titreExp    ? 'bg-red-100 text-red-500'
+                  : titreSoon ? 'bg-amber-100 text-amber-500'
+                  : isUploaded ? 'bg-green-100 text-green-600'
+                  : 'bg-[#F4EFE8] text-[#073B4C]/40'
+                }`}>
+                  {titreExp || titreSoon
+                    ? <AlertCircle size={16} />
+                    : isUploaded ? <CheckCircle size={16} />
+                    : <FileText size={16} />
+                  }
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-[#073B4C]">{doc.label}</p>
+                    {titreExp  && <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-600">Expiré</span>}
+                    {titreSoon && <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-600">Expire bientôt</span>}
+                    {isUploaded && !titreExp && !titreSoon && <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-600">Fourni</span>}
+                    {!isUploaded && <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">Manquant</span>}
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                    {isUploaded && uploadedDate ? `Uploadé le ${uploadedDate}` : doc.sub}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {isUploaded && doc.url && (
+                  <a
+                    href={`${API}${doc.url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-lg bg-[#F4F1EA] hover:bg-[#E6DDD1] flex items-center justify-center text-gray-500 hover:text-[#073B4C] transition-colors"
+                    title="Voir le document"
+                  >
+                    <Download size={14} />
+                  </a>
+                )}
+                <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
+                  isUploading  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : isUploaded ? 'bg-[#F4F1EA] hover:bg-[#E6DDD1] text-[#073B4C]'
+                  : 'bg-[#073B4C] hover:bg-[#0A5268] text-white'
+                }`}>
+                  {isUploading ? (
+                    <><div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" /> Envoi…</>
+                  ) : isUploaded ? (
+                    <><Upload size={12} /> Remplacer</>
+                  ) : (
+                    <><Upload size={12} /> Uploader</>
+                  )}
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    disabled={uploading !== null}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f, doc.field); }}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="text-[10px] text-gray-400 text-center mt-4">
+        Documents chiffrés et stockés de manière sécurisée. Conformité RGPD.
+      </p>
+    </div>
+  );
+};
+
+// ─── ExtraDashboard ───────────────────────────────────────────────────────────
 
 export const ExtraDashboard = ({
   user: userProp,
@@ -183,203 +384,115 @@ export const ExtraDashboard = ({
   user?: UserType;
   onLogout?: () => void;
 }) => {
-  const [user, setUser] = useState<UserType>(() => ({
-    ...getLocalUser(),
-    ...(userProp || {}),
-  }));
-
+  const [user, setUser]           = useState<UserType>(() => ({ ...getLocalUser(), ...(userProp || {}) }));
   const [missions, setMissions]   = useState<Mission[]>([]);
   const [contrats, setContrats]   = useState<Contrat[]>([]);
   const [paiements, setPaiements] = useState<Paiement[]>([]);
-
-  // ── Messagerie ──────────────────────────────────────────────────────────────
   const [channels, setChannels]               = useState<Channel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [newMessage, setNewMessage]           = useState('');
   const [sendingMessage, setSendingMessage]   = useState(false);
   const [sendError, setSendError]             = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // ── UI ──────────────────────────────────────────────────────────────────────
   const [activeSection, setActiveSection] = useState('dashboard');
   const [searchQuery, setSearchQuery]     = useState('');
   const [applySuccess, setApplySuccess]   = useState<string | null>(null);
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState<string | null>(null);
 
-  // ─── Scroll to bottom des messages ────────────────────────────────────────
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [selectedChannel]);
 
-  // ─── Chargement données ────────────────────────────────────────────────────
   useEffect(() => {
     const token = getToken();
-    if (!token) {
-      setError('Session expirée. Veuillez vous reconnecter.');
-      setLoading(false);
-      return;
-    }
-
+    if (!token) { setError('Session expirée. Veuillez vous reconnecter.'); setLoading(false); return; }
     const h = authHeaders();
-
     const loadData = async () => {
-      setLoading(true);
-      setError(null);
-
+      setLoading(true); setError(null);
       try {
-        // 1. Profil frais
         const meRes = await fetch(`${API}/api/auth/me`, { headers: h });
-        if (meRes.ok) {
-          const { user: freshUser } = await meRes.json();
-          setUser(prev => ({ ...prev, ...freshUser }));
-        }
+        if (meRes.ok) { const { user: u } = await meRes.json(); setUser(prev => ({ ...prev, ...u })); }
 
-        // 2. Missions ouvertes
         const missionsRes = await fetch(`${API}/api/mission/ouvertes`, { headers: h });
-        if (missionsRes.ok) {
-          const json = await missionsRes.json();
-          setMissions(Array.isArray(json) ? json : (json.data || []));
-        }
+        if (missionsRes.ok) { const j = await missionsRes.json(); setMissions(Array.isArray(j) ? j : (j.data || [])); }
 
-        // 3. Contrats du candidat
         const userId = getUserId({ ...getLocalUser(), ...(userProp || {}) });
         if (userId) {
-          const contratsRes = await fetch(`${API}/api/contrats/candidat/${userId}`, { headers: h });
-          if (contratsRes.ok) {
-            const json = await contratsRes.json();
-            setContrats(Array.isArray(json) ? json : (json.data || json.contrats || []));
-          }
+          const cRes = await fetch(`${API}/api/contrats/candidat/${userId}`, { headers: h });
+          if (cRes.ok) { const j = await cRes.json(); setContrats(Array.isArray(j) ? j : (j.data || j.contrats || [])); }
         }
-
-        // 4. Paiements
         try {
-          const userId2 = getUserId({ ...getLocalUser(), ...(userProp || {}) });
-          if (userId2) {
-            const paiementsRes = await fetch(`${API}/api/paiements/candidat/${userId2}`, { headers: h });
-            if (paiementsRes.ok) {
-              const json = await paiementsRes.json();
-              setPaiements(Array.isArray(json) ? json : (json.data || json.paiements || []));
-            }
+          const uid2 = getUserId({ ...getLocalUser(), ...(userProp || {}) });
+          if (uid2) {
+            const pRes = await fetch(`${API}/api/paiements/candidat/${uid2}`, { headers: h });
+            if (pRes.ok) { const j = await pRes.json(); setPaiements(Array.isArray(j) ? j : (j.data || j.paiements || [])); }
           }
-        } catch { /* route pas encore dispo */ }
-
-        // 5. Channels de messagerie
+        } catch { /* pas encore dispo */ }
         await loadChannels(h);
-
       } catch (err) {
-        console.error('[ExtraDashboard] loadData:', err);
+        console.error('[ExtraDashboard]', err);
         setError('Erreur de connexion au serveur EDÈN.');
-      } finally {
-        setLoading(false);
-      }
+      } finally { setLoading(false); }
     };
-
     loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ─── Chargement des channels ───────────────────────────────────────────────
   const loadChannels = async (h = authHeaders()) => {
     try {
       const res = await fetch(`${API}/api/messagerie/channels`, { headers: h });
       if (!res.ok) return;
       const json = await res.json();
       const raw: any[] = Array.isArray(json) ? json : (json.data || json.channels || []);
-
       const parsed: Channel[] = raw.map((ch: any) => {
         const msgs: ChannelMessage[] = (ch.messages || []).map((msg: any) => ({
-          _id: msg._id,
-          contenu: msg.contenu || '',
-          expediteurId: msg.expediteurId,
-          createdAt: msg.createdAt,
-          lu: msg.lu ?? false,
+          _id: msg._id, contenu: msg.contenu || '',
+          expediteurId: msg.expediteurId, createdAt: msg.createdAt, lu: msg.lu ?? false,
         }));
-
         msgs.sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
-
-        const unread = msgs.filter(m => !m.lu).length;
-
         return {
-          _id: ch._id,
-          nom: ch.nom,
+          _id: ch._id, nom: ch.nom,
           lastMessage: ch.lastMessage || msgs[msgs.length - 1]?.contenu || '',
           lastMessageAt: ch.lastMessageAt || ch.updatedAt || msgs[msgs.length - 1]?.createdAt,
-          updatedAt: ch.updatedAt,
-          messages: msgs,
+          updatedAt: ch.updatedAt, messages: msgs,
           participants: ch.participants || [],
-          unreadCount: unread,
+          unreadCount: msgs.filter(m => !m.lu).length,
         };
       });
-
-      parsed.sort((a, b) =>
-        new Date(b.lastMessageAt ?? 0).getTime() - new Date(a.lastMessageAt ?? 0).getTime()
-      );
-
+      parsed.sort((a, b) => new Date(b.lastMessageAt ?? 0).getTime() - new Date(a.lastMessageAt ?? 0).getTime());
       setChannels(parsed);
-
       if (selectedChannel) {
         const updated = parsed.find(c => c._id === selectedChannel._id);
         if (updated) setSelectedChannel(updated);
       }
-    } catch {
-      /* messagerie pas encore dispo */
-    }
+    } catch { /* pas encore dispo */ }
   };
 
-  // ─── Envoi d'un message ────────────────────────────────────────────────────
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedChannel) return;
-    setSendingMessage(true);
-    setSendError(null);
-
+    setSendingMessage(true); setSendError(null);
     try {
-      const res = await fetch(
-        `${API}/api/messagerie/channels/${selectedChannel._id}/messages`,
-        {
-          method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify({ text: newMessage.trim() }),
-        }
-      );
-
-      if (res.ok) {
-        setNewMessage('');
-        await loadChannels();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        setSendError(err.message || "Erreur lors de l'envoi.");
-      }
-    } catch {
-      setSendError('Impossible de contacter le serveur.');
-    } finally {
-      setSendingMessage(false);
-    }
+      const res = await fetch(`${API}/api/messagerie/channels/${selectedChannel._id}/messages`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ text: newMessage.trim() }),
+      });
+      if (res.ok) { setNewMessage(''); await loadChannels(); }
+      else { const e = await res.json().catch(() => ({})); setSendError(e.message || "Erreur lors de l'envoi."); }
+    } catch { setSendError('Impossible de contacter le serveur.'); }
+    finally { setSendingMessage(false); }
   };
 
-  // ─── Postuler à une mission ────────────────────────────────────────────────
   const handlePostuler = async (missionId: string) => {
     try {
-      const res = await fetch(`${API}/api/mission/${missionId}/postuler`, {
-        method: 'POST',
-        headers: authHeaders(),
-      });
-      if (res.ok) {
-        setApplySuccess(missionId);
-        setTimeout(() => setApplySuccess(null), 4000);
-      }
-    } catch (err) {
-      console.error('[ExtraDashboard] postuler:', err);
-    }
+      const res = await fetch(`${API}/api/mission/${missionId}/postuler`, { method: 'POST', headers: authHeaders() });
+      if (res.ok) { setApplySuccess(missionId); setTimeout(() => setApplySuccess(null), 4000); }
+    } catch (e) { console.error('[postuler]', e); }
   };
 
-  // ─── Recherche avec navigation sidebar ────────────────────────────────────
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
-
     if (value.length < 2) return;
-
     const q = value.toLowerCase().trim();
     const match = Object.keys(NAV_SEARCH_MAP).find(k => q.includes(k));
     if (match) {
@@ -389,23 +502,17 @@ export const ExtraDashboard = ({
     }
   };
 
-  // ─── Helpers UI ───────────────────────────────────────────────────────────
-  const today = new Date().toLocaleDateString('fr-FR', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
-
+  const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const semaine = (() => {
-    const now   = new Date();
-    const start = new Date(now.getFullYear(), 0, 1);
+    const now = new Date(), start = new Date(now.getFullYear(), 0, 1);
     return Math.ceil(((now.getTime() - start.getTime()) / 86400000 + start.getDay() + 1) / 7);
   })();
 
-  const filteredMissions = missions.filter(
-    m =>
-      !searchQuery ||
-      titreMission(m).toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.briefing?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.description?.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredMissions = missions.filter(m =>
+    !searchQuery ||
+    titreMission(m).toLowerCase().includes(searchQuery.toLowerCase()) ||
+    m.briefing?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    m.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const totalUnread = channels.reduce((s, c) => s + (c.unreadCount || 0), 0);
@@ -413,64 +520,41 @@ export const ExtraDashboard = ({
 
   const formatDate = (d?: string) =>
     d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-
   const formatTime = (d?: string) => {
     if (!d) return '';
-    const date = new Date(d);
-    const now  = new Date();
-    const isToday =
-      date.getDate() === now.getDate() &&
-      date.getMonth() === now.getMonth() &&
-      date.getFullYear() === now.getFullYear();
-    if (isToday) return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const date = new Date(d), now = new Date();
+    if (date.toDateString() === now.toDateString())
+      return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
   };
+  const formatMontant = (n?: number) => n != null ? `${n.toLocaleString('fr-FR')} €` : '—';
 
-  const formatMontant = (n?: number) =>
-    n != null ? `${n.toLocaleString('fr-FR')} €` : '—';
-
-  // ─── Nav ──────────────────────────────────────────────────────────────────
   const navSections = [
-    {
-      label: 'PRINCIPAL',
-      items: [
-        { id: 'dashboard', label: 'Tableau de bord', icon: <BarChart2 size={16} /> },
-        { id: 'missions',  label: 'Missions',        icon: <Star size={16} />, badge: missions.length },
-      ],
-    },
-    {
-      label: 'GESTION',
-      items: [
-        { id: 'planning',  label: 'Planning',  icon: <Calendar size={16} /> },
-        { id: 'contrats',  label: 'Contrats',  icon: <FileText size={16} />, badge: contrats.length },
-        { id: 'rapports',  label: 'Rapports',  icon: <BarChart2 size={16} /> },
-        { id: 'paiements', label: 'Paiements', icon: <Euro size={16} /> },
-      ],
-    },
-    {
-      label: 'OUTILS',
-      items: [
-        { id: 'messagerie', label: 'Messagerie', icon: <MessageSquare size={16} />, badge: totalUnread || undefined },
-        { id: 'parametres', label: 'Paramètres', icon: <Settings size={16} /> },
-      ],
-    },
+    { label: 'PRINCIPAL', items: [
+      { id: 'dashboard', label: 'Tableau de bord', icon: <BarChart2 size={16} /> },
+      { id: 'missions',  label: 'Missions',        icon: <Star size={16} />, badge: missions.length },
+    ]},
+    { label: 'GESTION', items: [
+      { id: 'planning',  label: 'Planning',  icon: <Calendar size={16} /> },
+      { id: 'contrats',  label: 'Contrats',  icon: <FileText size={16} />, badge: contrats.length },
+      { id: 'rapports',  label: 'Rapports',  icon: <BarChart2 size={16} /> },
+      { id: 'paiements', label: 'Paiements', icon: <Euro size={16} /> },
+    ]},
+    { label: 'OUTILS', items: [
+      { id: 'messagerie', label: 'Messagerie', icon: <MessageSquare size={16} />, badge: totalUnread || undefined },
+      { id: 'parametres', label: 'Paramètres', icon: <Settings size={16} /> },
+    ]},
   ];
 
-  const getSectionTitle = () => {
-    const all = navSections.flatMap(s => s.items);
-    return all.find(i => i.id === activeSection)?.label || 'Tableau de bord';
-  };
-
-  const displayName = `${user?.prenom || ''} ${user?.nom || ''}`.trim() || 'Extra';
-  const initiale    = user?.prenom?.[0]?.toUpperCase() || user?.nom?.[0]?.toUpperCase() || 'E';
-
+  const getSectionTitle = () => navSections.flatMap(s => s.items).find(i => i.id === activeSection)?.label || 'Tableau de bord';
+  const displayName   = `${user?.prenom || ''} ${user?.nom || ''}`.trim() || 'Extra';
+  const initiale      = user?.prenom?.[0]?.toUpperCase() || user?.nom?.[0]?.toUpperCase() || 'E';
   const currentUserId = getUserId(user);
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex bg-[#F4F1EA]">
 
-      {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
+      {/* ── SIDEBAR ── */}
       <aside className="w-[260px] bg-[#073B4C] text-white flex flex-col fixed h-full z-20">
         <div className="p-6 pb-4">
           <div className="flex items-center gap-3 mb-1">
@@ -484,9 +568,7 @@ export const ExtraDashboard = ({
           </div>
           <p className="text-[10px] text-white/40 mt-2">Flexibilité · Qualité · Simplicité</p>
         </div>
-
         <div className="mx-4 h-px bg-white/10 mb-2" />
-
         <nav className="flex-1 px-3 overflow-y-auto py-2">
           {navSections.map(section => (
             <div key={section.label} className="mb-5">
@@ -494,64 +576,45 @@ export const ExtraDashboard = ({
               {section.items.map(item => (
                 <button
                   key={item.id}
-                  onClick={() => {
-                    setActiveSection(item.id);
-                    if (item.id !== 'messagerie') setSelectedChannel(null);
-                  }}
+                  onClick={() => { setActiveSection(item.id); if (item.id !== 'messagerie') setSelectedChannel(null); }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl mb-0.5 transition-all text-sm ${
-                    activeSection === item.id
-                      ? 'bg-white/15 text-white font-semibold'
-                      : 'text-white/60 hover:bg-white/8 hover:text-white'
+                    activeSection === item.id ? 'bg-white/15 text-white font-semibold' : 'text-white/60 hover:bg-white/8 hover:text-white'
                   }`}
                 >
-                  <span className="flex items-center gap-2.5">
-                    {item.icon}
-                    {item.label}
-                  </span>
+                  <span className="flex items-center gap-2.5">{item.icon}{item.label}</span>
                   {item.badge != null && item.badge > 0 && (
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
-                      item.id === 'messagerie'
-                        ? 'bg-orange-400 text-white'
-                        : 'bg-[#C5A46D] text-[#073B4C]'
-                    }`}>
-                      {item.badge}
-                    </span>
+                      item.id === 'messagerie' ? 'bg-orange-400 text-white' : 'bg-[#C5A46D] text-[#073B4C]'
+                    }`}>{item.badge}</span>
                   )}
                 </button>
               ))}
             </div>
           ))}
         </nav>
-
         <div className="mx-4 h-px bg-white/10 mb-3" />
         <div className="p-4 pt-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#C5A46D] flex items-center justify-center font-bold text-[#073B4C] text-sm flex-shrink-0">
-              {initiale}
-            </div>
+            <div className="w-9 h-9 rounded-full bg-[#C5A46D] flex items-center justify-center font-bold text-[#073B4C] text-sm flex-shrink-0">{initiale}</div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate">{displayName}</p>
               <p className="text-[11px] text-white/50">Extra EDÈN</p>
             </div>
-            <button onClick={onLogout} className="text-white/40 hover:text-white transition-colors" title="Déconnexion">
-              <LogOut size={15} />
-            </button>
+            <button onClick={onLogout} className="text-white/40 hover:text-white transition-colors" title="Déconnexion"><LogOut size={15} /></button>
           </div>
         </div>
       </aside>
 
-      {/* ── MAIN ────────────────────────────────────────────────────────── */}
+      {/* ── MAIN ── */}
       <div className="ml-[260px] flex-1 flex flex-col min-h-screen">
 
-        {/* ── HEADER ── */}
+        {/* HEADER */}
         <header className="bg-white border-b border-[#E6DDD1] px-8 py-4 flex items-center justify-between sticky top-0 z-10">
           <div>
             <h1 className="text-2xl font-bold text-[#073B4C]">{getSectionTitle()}</h1>
             <p className="text-sm text-gray-400 capitalize">{today} · Semaine {semaine}</p>
           </div>
           <div className="flex items-center gap-3">
-
-            {/* Recherche avec navigation sidebar */}
             <div className="relative">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
@@ -562,50 +625,23 @@ export const ExtraDashboard = ({
                 className="pl-9 pr-4 py-2 bg-[#F4F1EA] rounded-xl text-sm text-gray-700 w-52 focus:outline-none focus:ring-2 focus:ring-[#073B4C]/20"
               />
             </div>
-
-            {/* Cloche → ouvre Messagerie */}
-            <button
-              onClick={() => {
-                setActiveSection('messagerie');
-                setSelectedChannel(null);
-              }}
-              className="relative w-9 h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors"
-              title="Messagerie"
-            >
+            <button onClick={() => { setActiveSection('messagerie'); setSelectedChannel(null); }}
+              className="relative w-9 h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors" title="Messagerie">
               <Bell size={16} />
-              {totalUnread > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-400 rounded-full animate-pulse" />
-              )}
+              {totalUnread > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-400 rounded-full animate-pulse" />}
             </button>
-
-            {/* Filtres → ouvre Missions */}
-            <button
-              onClick={() => {
-                setActiveSection('missions');
-                setSelectedChannel(null);
-              }}
-              className="w-9 h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors"
-              title="Voir les missions"
-            >
+            <button onClick={() => { setActiveSection('missions'); setSelectedChannel(null); }}
+              className="w-9 h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors" title="Voir les missions">
               <SlidersHorizontal size={16} />
             </button>
-
-            {/* Bouton principal → Missions */}
-            <button
-              onClick={() => {
-                setActiveSection('missions');
-                setSelectedChannel(null);
-              }}
-              className="flex items-center gap-2 bg-[#073B4C] hover:bg-[#0A5268] text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
-            >
+            <button onClick={() => { setActiveSection('missions'); setSelectedChannel(null); }}
+              className="flex items-center gap-2 bg-[#073B4C] hover:bg-[#0A5268] text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">
               + Voir missions
             </button>
           </div>
         </header>
 
-        {/* Content */}
         <main className="flex-1 p-8">
-
           {error && (
             <div className="mb-6 flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-5 py-3 rounded-xl text-sm">
               <AlertCircle size={16} /> {error}
@@ -621,114 +657,52 @@ export const ExtraDashboard = ({
             </div>
           ) : (
             <>
-
-              {/* ── TABLEAU DE BORD ── */}
+              {/* DASHBOARD */}
               {activeSection === 'dashboard' && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-4 gap-5">
                     {[
-                      {
-                        icon: <Star size={20} />,
-                        value: missions.length,
-                        label: 'Missions',
-                        sub: 'disponibles',
-                        action: () => setActiveSection('missions'),
-                      },
-                      {
-                        icon: <Calendar size={20} />,
-                        value: 0,
-                        label: 'Planning',
-                        sub: 'shifts',
-                      },
-                      {
-                        icon: <FileText size={20} />,
-                        value: contrats.length,
-                        label: 'Contrats',
-                        sub: 'signés',
-                        action: () => setActiveSection('contrats'),
-                      },
-                      {
-                        icon: <Euro size={20} />,
-                        value: paiements.length || '—',
-                        label: 'Fiches de paie',
-                        sub: paiements.length ? 'disponibles' : 'à venir',
-                        action: () => setActiveSection('paiements'),
-                      },
+                      { icon: <Star size={20} />, value: missions.length, label: 'Missions', sub: 'disponibles', action: () => setActiveSection('missions') },
+                      { icon: <Calendar size={20} />, value: 0, label: 'Planning', sub: 'shifts' },
+                      { icon: <FileText size={20} />, value: contrats.length, label: 'Contrats', sub: 'signés', action: () => setActiveSection('contrats') },
+                      { icon: <Euro size={20} />, value: paiements.length || '—', label: 'Fiches de paie', sub: paiements.length ? 'disponibles' : 'à venir', action: () => setActiveSection('paiements') },
                     ].map((kpi, i) => (
-                      <div
-                        key={i}
-                        onClick={kpi.action}
-                        className={`bg-white rounded-2xl border border-[#E6DDD1] p-5 ${
-                          kpi.action ? 'cursor-pointer hover:border-[#073B4C]/30 hover:shadow-sm transition-all' : ''
-                        }`}
-                      >
-                        <div className="w-10 h-10 rounded-xl bg-[#F4EFE8] flex items-center justify-center text-[#073B4C] mb-4">
-                          {kpi.icon}
-                        </div>
-                        <p className="text-3xl font-bold text-[#073B4C]">
-                          {kpi.value}{' '}
-                          <span className="text-base font-normal text-gray-400">{kpi.sub}</span>
-                        </p>
+                      <div key={i} onClick={kpi.action} className={`bg-white rounded-2xl border border-[#E6DDD1] p-5 ${kpi.action ? 'cursor-pointer hover:border-[#073B4C]/30 hover:shadow-sm transition-all' : ''}`}>
+                        <div className="w-10 h-10 rounded-xl bg-[#F4EFE8] flex items-center justify-center text-[#073B4C] mb-4">{kpi.icon}</div>
+                        <p className="text-3xl font-bold text-[#073B4C]">{kpi.value} <span className="text-base font-normal text-gray-400">{kpi.sub}</span></p>
                         <p className="text-sm text-gray-500 mt-1">{kpi.label}</p>
                       </div>
                     ))}
                   </div>
-
                   <div className="grid grid-cols-3 gap-5">
-                    {/* Card profil */}
                     <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6 flex flex-col gap-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-[#C5A46D] flex items-center justify-center font-bold text-[#073B4C] text-lg">
-                          {initiale}
-                        </div>
+                        <div className="w-12 h-12 rounded-full bg-[#C5A46D] flex items-center justify-center font-bold text-[#073B4C] text-lg">{initiale}</div>
                         <div>
                           <p className="font-bold text-[#073B4C]">{displayName}</p>
                           <p className="text-xs text-gray-400">{user?.email}</p>
                         </div>
                       </div>
                       <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Rôle</span>
-                          <span className="font-medium text-[#073B4C] capitalize">{user?.role || 'Extra'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Missions dispo.</span>
-                          <span className="font-medium text-[#073B4C]">{missions.length}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Contrats</span>
-                          <span className="font-medium text-[#073B4C]">{contrats.length}</span>
-                        </div>
-                        {totalPaye > 0 && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Total perçu</span>
-                            <span className="font-medium text-[#073B4C]">{formatMontant(totalPaye)}</span>
-                          </div>
-                        )}
+                        <div className="flex justify-between"><span className="text-gray-400">Rôle</span><span className="font-medium text-[#073B4C] capitalize">{user?.role || 'Extra'}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-400">Missions dispo.</span><span className="font-medium text-[#073B4C]">{missions.length}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-400">Contrats</span><span className="font-medium text-[#073B4C]">{contrats.length}</span></div>
+                        {totalPaye > 0 && <div className="flex justify-between"><span className="text-gray-400">Total perçu</span><span className="font-medium text-[#073B4C]">{formatMontant(totalPaye)}</span></div>}
                       </div>
-                      <button
-                        onClick={() => setActiveSection('parametres')}
-                        className="mt-auto text-xs text-[#073B4C]/60 hover:text-[#073B4C] flex items-center gap-1 transition-colors"
-                      >
+                      <button onClick={() => setActiveSection('parametres')} className="mt-auto text-xs text-[#073B4C]/60 hover:text-[#073B4C] flex items-center gap-1 transition-colors">
                         <Settings size={12} /> Voir mon profil
                       </button>
                     </div>
-
-                    {/* Missions récentes */}
                     <div className="col-span-2 bg-white rounded-2xl border border-[#E6DDD1] p-6">
                       <div className="flex items-center justify-between mb-4">
                         <div>
                           <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Opportunités</p>
                           <h2 className="font-bold text-[#073B4C]">Missions disponibles</h2>
                         </div>
-                        <button
-                          onClick={() => setActiveSection('missions')}
-                          className="text-xs text-[#073B4C]/60 hover:text-[#073B4C] flex items-center gap-1"
-                        >
+                        <button onClick={() => setActiveSection('missions')} className="text-xs text-[#073B4C]/60 hover:text-[#073B4C] flex items-center gap-1">
                           Voir tout <ChevronRight size={12} />
                         </button>
                       </div>
-
                       {missions.length === 0 ? (
                         <div className="rounded-xl border border-dashed border-[#E6DDD1] p-8 text-center">
                           <Briefcase className="mx-auto text-[#E6DDD1] mb-2" size={28} />
@@ -738,29 +712,17 @@ export const ExtraDashboard = ({
                       ) : (
                         <div className="space-y-3">
                           {missions.slice(0, 3).map(m => (
-                            <div
-                              key={m._id}
-                              className="flex items-center justify-between rounded-xl border border-[#E6DDD1] px-4 py-3 hover:border-[#073B4C]/20 transition-all"
-                            >
+                            <div key={m._id} className="flex items-center justify-between rounded-xl border border-[#E6DDD1] px-4 py-3 hover:border-[#073B4C]/20 transition-all">
                               <div>
                                 <p className="font-semibold text-sm text-[#073B4C]">{titreMission(m)}</p>
                                 <p className="text-xs text-gray-400 mt-0.5">
-                                  {m.lieu || m.ville || ''}
-                                  {(m.dateDebut || m.dateDebutMission) ? ` · ${formatDate(m.dateDebut || m.dateDebutMission)}` : ''}
+                                  {m.lieu || m.ville || ''}{(m.dateDebut || m.dateDebutMission) ? ` · ${formatDate(m.dateDebut || m.dateDebutMission)}` : ''}
                                 </p>
                               </div>
-                              {applySuccess === m._id ? (
-                                <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
-                                  <CheckCircle size={13} /> Envoyée
-                                </span>
-                              ) : (
-                                <button
-                                  onClick={() => handlePostuler(m._id)}
-                                  className="text-xs bg-[#073B4C] text-white px-3 py-1.5 rounded-lg hover:bg-[#0A5268] transition-colors"
-                                >
-                                  Postuler
-                                </button>
-                              )}
+                              {applySuccess === m._id
+                                ? <span className="flex items-center gap-1 text-green-600 text-xs font-medium"><CheckCircle size={13} /> Envoyée</span>
+                                : <button onClick={() => handlePostuler(m._id)} className="text-xs bg-[#073B4C] text-white px-3 py-1.5 rounded-lg hover:bg-[#0A5268] transition-colors">Postuler</button>
+                              }
                             </div>
                           ))}
                         </div>
@@ -770,7 +732,7 @@ export const ExtraDashboard = ({
                 </div>
               )}
 
-              {/* ── MISSIONS ── */}
+              {/* MISSIONS */}
               {activeSection === 'missions' && (
                 <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
                   <div className="flex items-center justify-between mb-5">
@@ -778,13 +740,8 @@ export const ExtraDashboard = ({
                       <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Opportunités</p>
                       <h2 className="text-xl font-bold text-[#073B4C]">Missions disponibles</h2>
                     </div>
-                    {filteredMissions.length > 0 && (
-                      <span className="text-sm text-gray-400">
-                        {filteredMissions.length} mission{filteredMissions.length > 1 ? 's' : ''}
-                      </span>
-                    )}
+                    {filteredMissions.length > 0 && <span className="text-sm text-gray-400">{filteredMissions.length} mission{filteredMissions.length > 1 ? 's' : ''}</span>}
                   </div>
-
                   {filteredMissions.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
                       <Briefcase className="mx-auto text-[#E6DDD1] mb-3" size={32} />
@@ -794,56 +751,30 @@ export const ExtraDashboard = ({
                   ) : (
                     <div className="space-y-3">
                       {filteredMissions.map(m => (
-                        <div
-                          key={m._id}
-                          className="rounded-xl border border-[#E6DDD1] p-5 hover:border-[#073B4C]/20 hover:shadow-sm transition-all"
-                        >
+                        <div key={m._id} className="rounded-xl border border-[#E6DDD1] p-5 hover:border-[#073B4C]/20 hover:shadow-sm transition-all">
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className="font-semibold text-[#073B4C]">{titreMission(m)}</h3>
-                                <span className="text-[10px] bg-[#F4EFE8] text-[#C5A46D] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide">
-                                  {m.statut || 'Disponible'}
-                                </span>
+                                <span className="text-[10px] bg-[#F4EFE8] text-[#C5A46D] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide">{m.statut || 'Disponible'}</span>
                               </div>
-                              <p className="text-sm text-gray-500 leading-relaxed">
-                                {m.briefing || m.description || ''}
-                              </p>
+                              <p className="text-sm text-gray-500 leading-relaxed">{m.briefing || m.description || ''}</p>
                               <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
-                                {(m.lieu || m.ville) && (
-                                  <span className="flex items-center gap-1">
-                                    <MapPin size={11} /> {m.lieu || m.ville}
-                                  </span>
-                                )}
+                                {(m.lieu || m.ville) && <span className="flex items-center gap-1"><MapPin size={11} /> {m.lieu || m.ville}</span>}
                                 {(m.dateDebut || m.dateDebutMission) && (
                                   <span className="flex items-center gap-1">
-                                    <Clock size={11} />
-                                    {formatDate(m.dateDebut || m.dateDebutMission)}
-                                    {(m.dateFin || m.dateFinMission)
-                                      ? ` → ${formatDate(m.dateFin || m.dateFinMission)}`
-                                      : ''}
+                                    <Clock size={11} />{formatDate(m.dateDebut || m.dateDebutMission)}
+                                    {(m.dateFin || m.dateFinMission) ? ` → ${formatDate(m.dateFin || m.dateFinMission)}` : ''}
                                   </span>
                                 )}
-                                {(m.taux || m.tauxHoraire) && (
-                                  <span className="flex items-center gap-1">
-                                    <Euro size={11} /> {m.taux || m.tauxHoraire} €/h
-                                  </span>
-                                )}
+                                {(m.taux || m.tauxHoraire) && <span className="flex items-center gap-1"><Euro size={11} /> {m.taux || m.tauxHoraire} €/h</span>}
                               </div>
                             </div>
                             <div className="flex-shrink-0">
-                              {applySuccess === m._id ? (
-                                <span className="flex items-center gap-1.5 text-green-600 text-sm font-medium">
-                                  <CheckCircle size={16} /> Candidature envoyée
-                                </span>
-                              ) : (
-                                <button
-                                  onClick={() => handlePostuler(m._id)}
-                                  className="flex items-center gap-1.5 bg-[#073B4C] hover:bg-[#0A5268] text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
-                                >
-                                  Postuler <ChevronRight size={14} />
-                                </button>
-                              )}
+                              {applySuccess === m._id
+                                ? <span className="flex items-center gap-1.5 text-green-600 text-sm font-medium"><CheckCircle size={16} /> Candidature envoyée</span>
+                                : <button onClick={() => handlePostuler(m._id)} className="flex items-center gap-1.5 bg-[#073B4C] hover:bg-[#0A5268] text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors">Postuler <ChevronRight size={14} /></button>
+                              }
                             </div>
                           </div>
                         </div>
@@ -853,7 +784,7 @@ export const ExtraDashboard = ({
                 </div>
               )}
 
-              {/* ── PLANNING ── */}
+              {/* PLANNING */}
               {activeSection === 'planning' && (
                 <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
                   <div className="mb-5">
@@ -868,7 +799,7 @@ export const ExtraDashboard = ({
                 </div>
               )}
 
-              {/* ── CONTRATS ── */}
+              {/* CONTRATS */}
               {activeSection === 'contrats' && (
                 <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
                   <div className="flex items-center justify-between mb-5">
@@ -876,13 +807,8 @@ export const ExtraDashboard = ({
                       <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Documents</p>
                       <h2 className="text-xl font-bold text-[#073B4C]">Mes contrats</h2>
                     </div>
-                    {contrats.length > 0 && (
-                      <span className="text-sm text-gray-400">
-                        {contrats.length} contrat{contrats.length > 1 ? 's' : ''}
-                      </span>
-                    )}
+                    {contrats.length > 0 && <span className="text-sm text-gray-400">{contrats.length} contrat{contrats.length > 1 ? 's' : ''}</span>}
                   </div>
-
                   {contrats.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
                       <FileText className="mx-auto text-[#E6DDD1] mb-3" size={32} />
@@ -892,33 +818,22 @@ export const ExtraDashboard = ({
                   ) : (
                     <div className="space-y-3">
                       {contrats.map(c => (
-                        <div
-                          key={c._id}
-                          className="rounded-xl border border-[#E6DDD1] p-5 flex items-center justify-between hover:border-[#073B4C]/20 transition-all"
-                        >
+                        <div key={c._id} className="rounded-xl border border-[#E6DDD1] p-5 flex items-center justify-between hover:border-[#073B4C]/20 transition-all">
                           <div>
                             <p className="font-semibold text-[#073B4C]">{titreContrat(c)}</p>
                             <p className="text-xs text-gray-400 mt-1">
-                              {nomEtabContrat(c) ? `${nomEtabContrat(c)} · ` : ''}
-                              {formatDate(c.dateDebut)}
-                              {c.dateFin ? ` → ${formatDate(c.dateFin)}` : ''}
+                              {nomEtabContrat(c) ? `${nomEtabContrat(c)} · ` : ''}{formatDate(c.dateDebut)}{c.dateFin ? ` → ${formatDate(c.dateFin)}` : ''}
                             </p>
                           </div>
                           <div className="flex items-center gap-3">
                             {c.statut && (
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide ${
-                                c.statut === 'signé'
-                                  ? 'bg-green-50 text-green-600'
-                                  : c.statut === 'en attente'
-                                  ? 'bg-yellow-50 text-yellow-600'
-                                  : 'bg-[#F4EFE8] text-[#C5A46D]'
-                              }`}>
-                                {c.statut}
-                              </span>
+                                c.statut === 'signé' ? 'bg-green-50 text-green-600'
+                                : c.statut === 'en attente' ? 'bg-yellow-50 text-yellow-600'
+                                : 'bg-[#F4EFE8] text-[#C5A46D]'
+                              }`}>{c.statut}</span>
                             )}
-                            <button className="text-gray-400 hover:text-[#073B4C] transition-colors" title="Télécharger">
-                              <Download size={15} />
-                            </button>
+                            <button className="text-gray-400 hover:text-[#073B4C] transition-colors" title="Télécharger"><Download size={15} /></button>
                           </div>
                         </div>
                       ))}
@@ -927,7 +842,7 @@ export const ExtraDashboard = ({
                 </div>
               )}
 
-              {/* ── RAPPORTS ── */}
+              {/* RAPPORTS */}
               {activeSection === 'rapports' && (
                 <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
                   <div className="mb-5">
@@ -937,8 +852,8 @@ export const ExtraDashboard = ({
                   <div className="grid grid-cols-3 gap-4 mb-6">
                     {[
                       { label: 'Missions disponibles', value: missions.length },
-                      { label: 'Contrats signés',       value: contrats.length },
-                      { label: 'Total perçu',           value: totalPaye ? formatMontant(totalPaye) : '—' },
+                      { label: 'Contrats signés', value: contrats.length },
+                      { label: 'Total perçu', value: totalPaye ? formatMontant(totalPaye) : '—' },
                     ].map((stat, i) => (
                       <div key={i} className="bg-[#F4F1EA] rounded-xl p-5">
                         <p className="text-2xl font-bold text-[#073B4C]">{stat.value}</p>
@@ -953,7 +868,7 @@ export const ExtraDashboard = ({
                 </div>
               )}
 
-              {/* ── PAIEMENTS ── */}
+              {/* PAIEMENTS */}
               {activeSection === 'paiements' && (
                 <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
                   <div className="flex items-center justify-between mb-5">
@@ -961,28 +876,18 @@ export const ExtraDashboard = ({
                       <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Rémunération</p>
                       <h2 className="text-xl font-bold text-[#073B4C]">Mes fiches de paie</h2>
                     </div>
-                    {paiements.length > 0 && (
-                      <span className="text-sm text-gray-400">
-                        {paiements.length} fiche{paiements.length > 1 ? 's' : ''}
-                      </span>
-                    )}
+                    {paiements.length > 0 && <span className="text-sm text-gray-400">{paiements.length} fiche{paiements.length > 1 ? 's' : ''}</span>}
                   </div>
-
                   {paiements.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
                       <Euro className="mx-auto text-[#E6DDD1] mb-3" size={32} />
                       <p className="text-gray-400 text-sm">Aucune fiche de paie disponible.</p>
-                      <p className="text-gray-300 text-xs mt-1">
-                        Cette section sera disponible une fois les routes de paiement activées.
-                      </p>
+                      <p className="text-gray-300 text-xs mt-1">Cette section sera disponible une fois les routes de paiement activées.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {paiements.map(p => (
-                        <div
-                          key={p._id}
-                          className="rounded-xl border border-[#E6DDD1] p-5 flex items-center justify-between hover:border-[#073B4C]/20 transition-all"
-                        >
+                        <div key={p._id} className="rounded-xl border border-[#E6DDD1] p-5 flex items-center justify-between hover:border-[#073B4C]/20 transition-all">
                           <div>
                             <p className="font-semibold text-[#073B4C]">{p.mois || formatDate(p.dateEmission)}</p>
                             <p className="text-xs text-gray-400 mt-1">{formatDate(p.dateEmission)}</p>
@@ -990,17 +895,9 @@ export const ExtraDashboard = ({
                           <div className="flex items-center gap-4">
                             <p className="font-bold text-[#073B4C]">{formatMontant(p.montant)}</p>
                             {p.statut && (
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide ${
-                                p.statut === 'payé'
-                                  ? 'bg-green-50 text-green-600'
-                                  : 'bg-yellow-50 text-yellow-600'
-                              }`}>
-                                {p.statut}
-                              </span>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide ${p.statut === 'payé' ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600'}`}>{p.statut}</span>
                             )}
-                            <button className="text-gray-400 hover:text-[#073B4C] transition-colors" title="Télécharger">
-                              <Download size={15} />
-                            </button>
+                            <button className="text-gray-400 hover:text-[#073B4C] transition-colors" title="Télécharger"><Download size={15} /></button>
                           </div>
                         </div>
                       ))}
@@ -1009,24 +906,18 @@ export const ExtraDashboard = ({
                 </div>
               )}
 
-              {/* ── MESSAGERIE ── */}
+              {/* MESSAGERIE */}
               {activeSection === 'messagerie' && (
                 <div className="bg-white rounded-2xl border border-[#E6DDD1] overflow-hidden" style={{ height: 'calc(100vh - 160px)' }}>
                   <div className="flex h-full">
-
                     <div className={`flex flex-col border-r border-[#E6DDD1] ${selectedChannel ? 'w-[300px]' : 'flex-1'} transition-all`}>
                       <div className="px-5 py-4 border-b border-[#E6DDD1] flex items-center justify-between flex-shrink-0">
                         <div>
                           <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-0.5">Communication</p>
                           <h2 className="font-bold text-[#073B4C] text-lg">Messagerie</h2>
                         </div>
-                        {totalUnread > 0 && (
-                          <span className="bg-orange-100 text-orange-600 text-xs font-semibold px-2.5 py-1 rounded-full">
-                            {totalUnread} non lu{totalUnread > 1 ? 's' : ''}
-                          </span>
-                        )}
+                        {totalUnread > 0 && <span className="bg-orange-100 text-orange-600 text-xs font-semibold px-2.5 py-1 rounded-full">{totalUnread} non lu{totalUnread > 1 ? 's' : ''}</span>}
                       </div>
-
                       <div className="flex-1 overflow-y-auto">
                         {channels.length === 0 ? (
                           <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
@@ -1040,36 +931,19 @@ export const ExtraDashboard = ({
                               const isActive  = selectedChannel?._id === ch._id;
                               const hasUnread = (ch.unreadCount || 0) > 0;
                               return (
-                                <button
-                                  key={ch._id}
-                                  onClick={() => setSelectedChannel(ch)}
-                                  className={`w-full text-left px-5 py-4 flex items-start gap-3 transition-all ${
-                                    isActive
-                                      ? 'bg-[#073B4C]/5 border-l-2 border-l-[#073B4C]'
-                                      : 'hover:bg-[#F4F1EA] border-l-2 border-l-transparent'
-                                  }`}
-                                >
+                                <button key={ch._id} onClick={() => setSelectedChannel(ch)}
+                                  className={`w-full text-left px-5 py-4 flex items-start gap-3 transition-all ${isActive ? 'bg-[#073B4C]/5 border-l-2 border-l-[#073B4C]' : 'hover:bg-[#F4F1EA] border-l-2 border-l-transparent'}`}>
                                   <div className="w-10 h-10 rounded-full bg-[#073B4C] flex items-center justify-center flex-shrink-0 mt-0.5">
                                     <span className="text-white text-xs font-bold">E</span>
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2 mb-1">
-                                      <p className={`text-sm truncate ${hasUnread ? 'font-bold text-[#073B4C]' : 'font-medium text-gray-700'}`}>
-                                        {channelLabel(ch, currentUserId)}
-                                      </p>
-                                      <span className="text-[10px] text-gray-400 flex-shrink-0">
-                                        {formatTime(ch.lastMessageAt)}
-                                      </span>
+                                      <p className={`text-sm truncate ${hasUnread ? 'font-bold text-[#073B4C]' : 'font-medium text-gray-700'}`}>{channelLabel(ch, currentUserId)}</p>
+                                      <span className="text-[10px] text-gray-400 flex-shrink-0">{formatTime(ch.lastMessageAt)}</span>
                                     </div>
                                     <div className="flex items-center justify-between gap-2">
-                                      <p className={`text-xs truncate ${hasUnread ? 'text-gray-600' : 'text-gray-400'}`}>
-                                        {ch.lastMessage || 'Aucun message'}
-                                      </p>
-                                      {hasUnread && (
-                                        <span className="flex-shrink-0 w-5 h-5 bg-orange-400 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                                          {ch.unreadCount}
-                                        </span>
-                                      )}
+                                      <p className={`text-xs truncate ${hasUnread ? 'text-gray-600' : 'text-gray-400'}`}>{ch.lastMessage || 'Aucun message'}</p>
+                                      {hasUnread && <span className="flex-shrink-0 w-5 h-5 bg-orange-400 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{ch.unreadCount}</span>}
                                     </div>
                                   </div>
                                 </button>
@@ -1083,23 +957,18 @@ export const ExtraDashboard = ({
                     {selectedChannel ? (
                       <div className="flex-1 flex flex-col min-w-0">
                         <div className="px-6 py-4 border-b border-[#E6DDD1] flex items-center gap-3 flex-shrink-0 bg-white">
-                          <button onClick={() => setSelectedChannel(null)} className="text-gray-400 hover:text-[#073B4C] transition-colors mr-1 md:hidden">
-                            <ArrowLeft size={18} />
-                          </button>
+                          <button onClick={() => setSelectedChannel(null)} className="text-gray-400 hover:text-[#073B4C] transition-colors mr-1 md:hidden"><ArrowLeft size={18} /></button>
                           <div className="w-9 h-9 rounded-full bg-[#073B4C] flex items-center justify-center flex-shrink-0">
                             <span className="text-white text-xs font-bold">E</span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-[#073B4C] truncate">{channelLabel(selectedChannel, currentUserId)}</p>
-                            <p className="text-xs text-gray-400">
-                              {selectedChannel.messages.length} message{selectedChannel.messages.length > 1 ? 's' : ''}
-                            </p>
+                            <p className="text-xs text-gray-400">{selectedChannel.messages.length} message{selectedChannel.messages.length > 1 ? 's' : ''}</p>
                           </div>
                           <button onClick={() => loadChannels()} className="text-gray-400 hover:text-[#073B4C] transition-colors text-xs flex items-center gap-1" title="Actualiser">
                             <ChevronDown size={14} className="rotate-180" />
                           </button>
                         </div>
-
                         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-[#FAFAF8]">
                           {selectedChannel.messages.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full text-center">
@@ -1111,28 +980,19 @@ export const ExtraDashboard = ({
                             <>
                               {selectedChannel.messages.map((msg, idx) => {
                                 const isOwn    = msg.expediteurId === currentUserId;
-                                const showDate = idx === 0 ||
-                                  new Date(msg.createdAt ?? 0).toDateString() !==
-                                  new Date(selectedChannel.messages[idx - 1]?.createdAt ?? 0).toDateString();
-
+                                const showDate = idx === 0 || new Date(msg.createdAt ?? 0).toDateString() !== new Date(selectedChannel.messages[idx - 1]?.createdAt ?? 0).toDateString();
                                 return (
                                   <React.Fragment key={msg._id}>
                                     {showDate && (
                                       <div className="flex items-center gap-3 my-4">
                                         <div className="flex-1 h-px bg-[#E6DDD1]" />
-                                        <span className="text-[10px] text-gray-400 flex-shrink-0">
-                                          {new Date(msg.createdAt ?? 0).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                                        </span>
+                                        <span className="text-[10px] text-gray-400 flex-shrink-0">{new Date(msg.createdAt ?? 0).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
                                         <div className="flex-1 h-px bg-[#E6DDD1]" />
                                       </div>
                                     )}
                                     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                                       <div className={`max-w-[70%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                                        <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                                          isOwn
-                                            ? 'bg-[#073B4C] text-white rounded-br-md'
-                                            : 'bg-white text-gray-800 border border-[#E6DDD1] rounded-bl-md shadow-sm'
-                                        }`}>
+                                        <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${isOwn ? 'bg-[#073B4C] text-white rounded-br-md' : 'bg-white text-gray-800 border border-[#E6DDD1] rounded-bl-md shadow-sm'}`}>
                                           {msg.contenu}
                                         </div>
                                         <span className="text-[10px] text-gray-400 px-1">{formatTime(msg.createdAt)}</span>
@@ -1145,38 +1005,21 @@ export const ExtraDashboard = ({
                             </>
                           )}
                         </div>
-
                         <div className="px-6 py-4 border-t border-[#E6DDD1] bg-white flex-shrink-0">
-                          {sendError && (
-                            <p className="text-xs text-red-500 mb-2 flex items-center gap-1">
-                              <AlertCircle size={12} /> {sendError}
-                            </p>
-                          )}
+                          {sendError && <p className="text-xs text-red-500 mb-2 flex items-center gap-1"><AlertCircle size={12} /> {sendError}</p>}
                           <div className="flex items-end gap-3">
                             <textarea
                               value={newMessage}
                               onChange={e => setNewMessage(e.target.value)}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                  e.preventDefault();
-                                  handleSendMessage();
-                                }
-                              }}
+                              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                               placeholder="Écrire un message… (Entrée pour envoyer)"
                               rows={1}
                               className="flex-1 resize-none bg-[#F4F1EA] rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#073B4C]/20 min-h-[44px] max-h-32"
                               style={{ lineHeight: '1.5' }}
                             />
-                            <button
-                              onClick={handleSendMessage}
-                              disabled={!newMessage.trim() || sendingMessage}
-                              className="flex-shrink-0 w-11 h-11 rounded-xl bg-[#073B4C] hover:bg-[#0A5268] disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-all"
-                              title="Envoyer"
-                            >
-                              {sendingMessage
-                                ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                : <Send size={16} />
-                              }
+                            <button onClick={handleSendMessage} disabled={!newMessage.trim() || sendingMessage}
+                              className="flex-shrink-0 w-11 h-11 rounded-xl bg-[#073B4C] hover:bg-[#0A5268] disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-all" title="Envoyer">
+                              {sendingMessage ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={16} />}
                             </button>
                           </div>
                           <p className="text-[10px] text-gray-300 mt-2 text-right">Shift+Entrée pour aller à la ligne</p>
@@ -1195,42 +1038,46 @@ export const ExtraDashboard = ({
                 </div>
               )}
 
-              {/* ── PARAMÈTRES ── */}
+              {/* PARAMÈTRES */}
               {activeSection === 'parametres' && (
-                <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
-                  <div className="mb-6">
-                    <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Compte</p>
-                    <h2 className="text-xl font-bold text-[#073B4C]">Paramètres</h2>
+                <div className="space-y-6">
+                  <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
+                    <div className="mb-6">
+                      <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Compte</p>
+                      <h2 className="text-xl font-bold text-[#073B4C]">Mes informations</h2>
+                    </div>
+                    <div className="space-y-3 max-w-lg">
+                      {[
+                        { label: 'Prénom', value: user?.prenom },
+                        { label: 'Nom',    value: user?.nom },
+                        { label: 'Email',  value: user?.email },
+                        { label: 'Rôle',   value: user?.role },
+                      ].map((field, i) => (
+                        <div key={i} className="flex items-center justify-between py-3 border-b border-[#E6DDD1]">
+                          <span className="text-sm text-gray-500">{field.label}</span>
+                          <span className="text-sm font-medium text-[#073B4C]">{field.value || '—'}</span>
+                        </div>
+                      ))}
+                      <button onClick={onLogout} className="mt-4 flex items-center gap-2 text-sm text-red-500 hover:text-red-600 transition-colors">
+                        <LogOut size={14} /> Se déconnecter
+                      </button>
+                    </div>
                   </div>
-                  <div className="space-y-4 max-w-lg">
-                    {[
-                      { label: 'Prénom', value: user?.prenom },
-                      { label: 'Nom',    value: user?.nom },
-                      { label: 'Email',  value: user?.email },
-                      { label: 'Rôle',   value: user?.role },
-                    ].map((field, i) => (
-                      <div key={i} className="flex items-center justify-between py-3 border-b border-[#E6DDD1]">
-                        <span className="text-sm text-gray-500">{field.label}</span>
-                        <span className="text-sm font-medium text-[#073B4C]">{field.value || '—'}</span>
-                      </div>
-                    ))}
-                    <button onClick={onLogout} className="mt-4 flex items-center gap-2 text-sm text-red-500 hover:text-red-600 transition-colors">
-                      <LogOut size={14} /> Se déconnecter
-                    </button>
-                  </div>
+
+                  <DocumentsSection
+                    userId={getUserId(user)}
+                    token={getToken()}
+                    nationalite={user?.nationalite}
+                    titreSejour={user?.titreSejour}
+                  />
                 </div>
               )}
-
             </>
           )}
         </main>
       </div>
 
-      {/* Bouton déconnexion flottant */}
-      <button
-        onClick={onLogout}
-        className="fixed bottom-6 right-6 flex items-center gap-2 bg-[#073B4C] text-white/70 hover:text-white text-sm px-4 py-2.5 rounded-xl shadow-lg hover:bg-[#0A5268] transition-all"
-      >
+      <button onClick={onLogout} className="fixed bottom-6 right-6 flex items-center gap-2 bg-[#073B4C] text-white/70 hover:text-white text-sm px-4 py-2.5 rounded-xl shadow-lg hover:bg-[#0A5268] transition-all">
         <LogOut size={14} /> Déconnexion
       </button>
 

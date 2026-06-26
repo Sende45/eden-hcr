@@ -34,79 +34,68 @@ const candidatSchema = new mongoose.Schema(
     },
 
     adresse: {
-      ville: {
-        type: String,
-        default: ''
-      },
-
-      codePostal: {
-        type: String,
-        default: ''
-      }
+      ville:     { type: String, default: '' },
+      codePostal:{ type: String, default: '' }
     },
 
-    metier: {
-      type: String,
-      default: ''
-    },
+    metier:     { type: String, default: '' },
 
     experience: {
       type: String,
-      enum: [
-        'sans_experience',
-        '1_2_ans',
-        '3_5_ans',
-        'plus_5_ans'
-      ],
+      enum: ['sans_experience', '1_2_ans', '3_5_ans', 'plus_5_ans'],
       default: 'sans_experience'
     },
 
-    competences: {
-      type: [String],
-      default: []
+    competences:  { type: [String], default: [] },
+    cvUrl:        { type: String, default: '' },
+
+    // ── Nationalité & titre de séjour ─────────────────────────────────
+    nationalite: {
+      type: String,
+      enum: ['francais', 'ue', 'etranger', ''],
+      default: ''
     },
 
-    cvUrl: {
-      type: String,
-      default: ''
+    titreSejour: {
+      type: {
+        type: String,
+        default: ''
+      },
+      dateExpiration: {
+        type: Date,
+        default: null
+      }
+    },
+
+    // ── Documents réglementaires ──────────────────────────────────────
+    documents: {
+      idCardUrl:       { type: String, default: '' },
+      vitaleCardUrl:   { type: String, default: '' },
+      ribUrl:          { type: String, default: '' },
+      titreSejourUrl:  { type: String, default: '' },
+      // Dates d'upload pour traçabilité
+      idCardUploadedAt:      { type: Date, default: null },
+      vitaleCardUploadedAt:  { type: Date, default: null },
+      ribUploadedAt:         { type: Date, default: null },
+      titreSejourUploadedAt: { type: Date, default: null },
     },
 
     statutValidation: {
       type: String,
-      enum: [
-        'en_attente',
-        'approuve',
-        'rejete'
-      ],
+      enum: ['en_attente', 'approuve', 'rejete'],
       default: 'en_attente'
     },
 
-    disponibilites: {
-      type: [Date],
-      default: []
-    },
-
-    noteMoyenne: {
-      type: Number,
-      default: 0
-    },
-
-    nombreMissions: {
-      type: Number,
-      default: 0
-    },
-
-    // NOUVEAU CHAMP
     status: {
-  type: String,
-  enum: ['pending', 'validated', 'premium', 'inactive', 'rejected'],
-  default: 'pending'
-},
+      type: String,
+      enum: ['pending', 'validated', 'premium', 'inactive', 'rejected'],
+      default: 'pending'
+    },
 
-    actif: {
-      type: Boolean,
-      default: true
-    }
+    disponibilites:  { type: [Date], default: [] },
+    noteMoyenne:     { type: Number, default: 0 },
+    nombreMissions:  { type: Number, default: 0 },
+    actif:           { type: Boolean, default: true }
   },
   {
     timestamps: true,
