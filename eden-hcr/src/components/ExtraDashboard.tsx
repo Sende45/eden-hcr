@@ -10,6 +10,7 @@ import {
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { io as socketIO } from 'socket.io-client';
+import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -773,7 +774,7 @@ export const ExtraDashboard = ({
                             <CartesianGrid strokeDasharray="3 3" stroke="#F4F1EA" />
                             <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                             <YAxis tick={{ fontSize: 10 }} />
-                            <Tooltip formatter={(v: number) => `${v.toLocaleString('fr-FR')} €`} />
+                           <Tooltip formatter={(value) => value == null ? "" : `${Number(value).toLocaleString("fr-FR")} €`}/>
                             <Bar dataKey="montant" fill="#073B4C" radius={[4, 4, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
@@ -1004,7 +1005,7 @@ export const ExtraDashboard = ({
                           <CartesianGrid strokeDasharray="3 3" stroke="#F4F1EA" />
                           <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                           <YAxis tick={{ fontSize: 10 }} />
-                          <Tooltip formatter={(v: number) => `${v.toLocaleString('fr-FR')} €`} />
+                          <Tooltip formatter={(value) => value == null ? "" : `${Number(value).toLocaleString("fr-FR")} €` } />
                           <Line type="monotone" dataKey="montant" stroke="#073B4C" strokeWidth={2} dot={{ fill: '#C5A46D', r: 4 }} />
                         </LineChart>
                       </ResponsiveContainer>
