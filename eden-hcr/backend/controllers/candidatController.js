@@ -1,7 +1,5 @@
 // candidatController.js
 import Candidat from '../models/Candidat.js';
-import fs from 'fs';
-import path from 'path';
 
 // @desc    Soumettre une candidature
 // @route   POST /api/candidat
@@ -45,25 +43,40 @@ export const uploadDocuments = async (req, res) => {
     }
 
     const files = req.files || {};
-    const documents = {};
+    const now   = new Date();
+    const updates = {};
 
-    if (files.idCard?.[0])      documents.idCardUrl      = `/uploads/documents/${files.idCard[0].filename}`;
-    if (files.vitaleCard?.[0])  documents.vitaleCardUrl  = `/uploads/documents/${files.vitaleCard[0].filename}`;
-    if (files.rib?.[0])         documents.ribUrl         = `/uploads/documents/${files.rib[0].filename}`;
-    if (files.titreSejour?.[0]) documents.titreSejourUrl = `/uploads/documents/${files.titreSejour[0].filename}`;
+    if (files.idCard?.[0]) {
+      updates['documents.idCardUrl']        = `/uploads/documents/${files.idCard[0].filename}`;
+      updates['documents.idCardUploadedAt'] = now;
+    }
+    if (files.vitaleCard?.[0]) {
+      updates['documents.vitaleCardUrl']        = `/uploads/documents/${files.vitaleCard[0].filename}`;
+      updates['documents.vitaleCardUploadedAt'] = now;
+    }
+    if (files.rib?.[0]) {
+      updates['documents.ribUrl']        = `/uploads/documents/${files.rib[0].filename}`;
+      updates['documents.ribUploadedAt'] = now;
+    }
+    if (files.titreSejour?.[0]) {
+      updates['documents.titreSejourUrl']        = `/uploads/documents/${files.titreSejour[0].filename}`;
+      updates['documents.titreSejourUploadedAt'] = now;
+    }
 
-    if (Object.keys(documents).length === 0) {
+    if (Object.keys(updates).length === 0) {
       return res.status(400).json({ status: 'error', message: 'Aucun document reçu.' });
     }
 
-    // Merge avec les documents existants
-    candidat.documents = { ...(candidat.documents || {}), ...documents };
-    await candidat.save();
+    const updated = await Candidat.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true }
+    );
 
     res.status(200).json({
       status: 'success',
-      message: `${Object.keys(documents).length} document(s) enregistré(s).`,
-      data: { documents: candidat.documents }
+      message: `${Object.keys(updates).length / 2} document(s) enregistré(s).`,
+      data: { documents: updated.documents }
     });
   } catch (error) {
     res.status(500).json({
@@ -92,60 +105,6 @@ export const updateCandidateStatus = async (req, res) => {
     res.status(200).json({ status: 'success', message: 'Statut mis à jour avec succès', data: candidat });
   } catch (error) {
     res.status(500).json({ status: 'error', message: 'Erreur lors de la mise à jour du statut', error: error.message });
-  }
-};
-
-export const uploadDocuments = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const candidat = await Candidat.findById(id);
-    if (!candidat) {
-      return res.status(404).json({ status: 'error', message: 'Candidat introuvable.' });
-    }
-
-    const files = req.files || {};
-    const now   = new Date();
-    const updates = {};
-
-    if (files.idCard?.[0]) {
-      updates['documents.idCardUrl']      = `/uploads/documents/${files.idCard[0].filename}`;
-      updates['documents.idCardUploadedAt'] = now;
-    }
-    if (files.vitaleCard?.[0]) {
-      updates['documents.vitaleCardUrl']      = `/uploads/documents/${files.vitaleCard[0].filename}`;
-      updates['documents.vitaleCardUploadedAt'] = now;
-    }
-    if (files.rib?.[0]) {
-      updates['documents.ribUrl']      = `/uploads/documents/${files.rib[0].filename}`;
-      updates['documents.ribUploadedAt'] = now;
-    }
-    if (files.titreSejour?.[0]) {
-      updates['documents.titreSejourUrl']      = `/uploads/documents/${files.titreSejour[0].filename}`;
-      updates['documents.titreSejourUploadedAt'] = now;
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ status: 'error', message: 'Aucun document reçu.' });
-    }
-
-    const updated = await Candidat.findByIdAndUpdate(
-      id,
-      { $set: updates },
-      { new: true }
-    );
-
-    res.status(200).json({
-      status: 'success',
-      message: `${Object.keys(updates).length / 2} document(s) enregistré(s).`,
-      data: { documents: updated.documents }
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: "Erreur lors de l'upload des documents.",
-      error: error.message
-    });
   }
 };
 
