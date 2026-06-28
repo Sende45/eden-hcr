@@ -82,8 +82,21 @@ const corsOptions = {
 // Appliquer CORS
 app.use(cors(corsOptions));
 
-// ✅ Répondre à TOUTES les pré-requêtes OPTIONS
-app.options('*', cors(corsOptions));
+// ✅ CORRECTION DÉFINITIVE - Middleware explicite pour OPTIONS
+// Au lieu de app.options('*', cors(corsOptions)) qui cause l'erreur path-to-regexp
+app.use((req, res, next) => {
+  // Répondre immédiatement aux requêtes OPTIONS (preflight)
+  if (req.method === 'OPTIONS') {
+    // Définir les en-têtes CORS manuellement
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400'); // Cache preflight 24h
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // ✅ Middleware de logging pour debugger les requêtes
 app.use((req, res, next) => {
