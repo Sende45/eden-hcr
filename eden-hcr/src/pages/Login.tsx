@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import {
-  Mail, Lock, Loader2, ArrowRight, UserPlus,
-  Eye, EyeOff, ShieldCheck, UserCheck, AlertCircle
+  Mail, Lock, Loader2, ArrowRight, Building2,
+  Eye, ShieldCheck, UserCheck, AlertCircle, Briefcase, UserPlus
 } from 'lucide-react';
 import { AuthLayout } from '../components/AuthLayout';
 import { login, register } from '../services/authService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'prestataire' | 'agence' | 'inscription';
+type Tab = 'prestataire' | 'agence' | 'client';
+type ClientSubTab = 'connexion' | 'inscription';
 
 export type LoginProps = {
   onPrestataireLoginSuccess: (userData: { id: string; email: string; role: string }) => void;
   onAdminLoginSuccess: () => void;
+  onClientLoginSuccess: (userData: { id: string; email: string; role: string; societe?: string }) => void;
 };
 
 // ─── Composant racine unifié ──────────────────────────────────────────────────
@@ -20,6 +22,7 @@ export type LoginProps = {
 export const Login: React.FC<LoginProps> = ({
   onPrestataireLoginSuccess,
   onAdminLoginSuccess,
+  onClientLoginSuccess,
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('prestataire');
 
@@ -37,16 +40,16 @@ export const Login: React.FC<LoginProps> = ({
           </p>
         </div>
 
-        {/* ONGLETS */}
+        {/* ONGLETS PRINCIPAUX */}
         <div className="relative flex bg-eden-bg2 border border-eden-border rounded-xl p-1 gap-1">
           <div
             className="absolute top-1 bottom-1 bg-white rounded-lg shadow-sm transition-all duration-300 ease-in-out"
             style={{
               width: 'calc(33.33% - 4px)',
-              left: activeTab === 'prestataire' 
-                ? '4px' 
-                : activeTab === 'agence' 
-                  ? 'calc(33.33% + 2px)' 
+              left: activeTab === 'prestataire'
+                ? '4px'
+                : activeTab === 'agence'
+                  ? 'calc(33.33% + 2px)'
                   : 'calc(66.66% + 2px)'
             }}
           />
@@ -54,7 +57,7 @@ export const Login: React.FC<LoginProps> = ({
             active={activeTab === 'prestataire'}
             onClick={() => setActiveTab('prestataire')}
             icon={<UserCheck size={13} />}
-            label="Connexion Extra"
+            label="Espace Extra"
           />
           <TabButton
             active={activeTab === 'agence'}
@@ -63,22 +66,22 @@ export const Login: React.FC<LoginProps> = ({
             label="Admin Agence"
           />
           <TabButton
-            active={activeTab === 'inscription'}
-            onClick={() => setActiveTab('inscription')}
-            icon={<UserPlus size={13} />}
-            label="Rejoindre"
+            active={activeTab === 'client'}
+            onClick={() => setActiveTab('client')}
+            icon={<Building2 size={13} />}
+            label="Espace Client"
           />
         </div>
 
-        {/* FORMULAIRES DYNAMISÉS */}
+        {/* FORMULAIRES */}
         {activeTab === 'prestataire' && (
           <PrestataireForm key="login-prestataire" onSuccess={onPrestataireLoginSuccess} />
         )}
         {activeTab === 'agence' && (
           <AgenceForm key="login-agence" onSuccess={onAdminLoginSuccess} />
         )}
-        {activeTab === 'inscription' && (
-          <InscriptionForm key="register-candidat" onSuccess={onPrestataireLoginSuccess} />
+        {activeTab === 'client' && (
+          <ClientPanel key="client-panel" onSuccess={onClientLoginSuccess} />
         )}
 
       </div>
@@ -106,16 +109,63 @@ const TabButton: React.FC<{
   </button>
 );
 
-// ─── Formulaire Connexion Prestataire ─────────────────────────────────────────
+// ─── Panel Client (connexion + inscription) ───────────────────────────────────
+
+const ClientPanel: React.FC<{
+  onSuccess: (userData: { id: string; email: string; role: string; societe?: string }) => void;
+}> = ({ onSuccess }) => {
+  const [subTab, setSubTab] = useState<ClientSubTab>('connexion');
+
+  return (
+    <div className="space-y-4">
+      {/* Sous-onglets */}
+      <div className="flex gap-1 bg-eden-bg2 border border-eden-border rounded-xl p-1">
+        <div className="relative flex w-full gap-1">
+          <div
+            className="absolute top-0 bottom-0 bg-white rounded-lg shadow-sm transition-all duration-300 ease-in-out"
+            style={{ width: 'calc(50% - 2px)', left: subTab === 'connexion' ? '0px' : 'calc(50% + 2px)' }}
+          />
+          <button
+            type="button"
+            onClick={() => setSubTab('connexion')}
+            className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-semibold rounded-lg transition-colors border-none cursor-pointer bg-transparent ${
+              subTab === 'connexion' ? 'text-eden-navy' : 'text-eden-text-light'
+            }`}
+          >
+            <UserCheck size={12} />
+            Se connecter
+          </button>
+          <button
+            type="button"
+            onClick={() => setSubTab('inscription')}
+            className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-semibold rounded-lg transition-colors border-none cursor-pointer bg-transparent ${
+              subTab === 'inscription' ? 'text-eden-navy' : 'text-eden-text-light'
+            }`}
+          >
+            <UserPlus size={12} />
+            Créer un compte
+          </button>
+        </div>
+      </div>
+
+      {subTab === 'connexion'
+        ? <ClientConnexionForm onSuccess={onSuccess} />
+        : <ClientInscriptionForm onSuccess={onSuccess} />
+      }
+    </div>
+  );
+};
+
+// ─── Formulaire Connexion Extra ───────────────────────────────────────────────
 
 const PrestataireForm: React.FC<{
   onSuccess: (userData: { id: string; email: string; role: string }) => void;
 }> = ({ onSuccess }) => {
-  const [email, setEmail]             = useState('');
-  const [password, setPassword]       = useState('');
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading]     = useState(false);
-  const [error, setError]             = useState<string | null>(null);
+  const [isLoading, setIsLoading]       = useState(false);
+  const [error, setError]               = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +173,10 @@ const PrestataireForm: React.FC<{
     setIsLoading(true);
     try {
       const result = await login(email, password);
+      if (result.user.role !== 'extra') {
+        setError("Ce formulaire est réservé aux extras. Utilisez l'onglet correspondant à votre profil.");
+        return;
+      }
       onSuccess({ id: result.user.id, email: result.user.email, role: result.user.role });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erreur de connexion.');
@@ -150,28 +204,35 @@ const PrestataireForm: React.FC<{
   );
 };
 
-// ─── Formulaire Inscription Nouveau Candidat ───────────────────────────────────
+// ─── Formulaire Connexion Client ──────────────────────────────────────────────
 
-const InscriptionForm: React.FC<{
-  onSuccess: (userData: { id: string; email: string; role: string }) => void;
+const ClientConnexionForm: React.FC<{
+  onSuccess: (userData: { id: string; email: string; role: string; societe?: string }) => void;
 }> = ({ onSuccess }) => {
-  const [nom, setNom]                 = useState('');
-  const [prenom, setPrenom]           = useState('');
-  const [email, setEmail]             = useState('');
-  const [password, setPassword]       = useState('');
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading]     = useState(false);
-  const [error, setError]             = useState<string | null>(null);
+  const [isLoading, setIsLoading]       = useState(false);
+  const [error, setError]               = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
     try {
-      const result = await register({ email, password, nom, prenom, role: 'extra' });
-      onSuccess({ id: result.user.id, email: result.user.email, role: String(result.user.role) });
+      const result = await login(email, password);
+      if (result.user.role !== 'client') {
+        setError("Ce formulaire est réservé aux clients. Utilisez l'onglet correspondant à votre profil.");
+        return;
+      }
+      onSuccess({
+        id: result.user.id,
+        email: result.user.email,
+        role: result.user.role,
+        societe: result.user.societe
+      });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur lors de l'inscription.");
+      setError(err instanceof Error ? err.message : 'Erreur de connexion.');
     } finally {
       setIsLoading(false);
     }
@@ -179,7 +240,7 @@ const InscriptionForm: React.FC<{
 
   return (
     <LoginForm
-      subtitle="Rejoignez la brigade EDÈN HCR et accédez aux meilleures missions de prestige."
+      subtitle="Accédez à l'annuaire de nos extras qualifiés."
       error={error}
       onSubmit={handleSubmit}
       isLoading={isLoading}
@@ -189,35 +250,143 @@ const InscriptionForm: React.FC<{
       onPasswordChange={setPassword}
       showPassword={showPassword}
       onTogglePassword={() => setShowPassword(v => !v)}
-      emailPlaceholder="Ex: jean.dupont@email.com"
-      submitLabel="Créer mon compte candidat"
-      loadingLabel="Création du profil..."
-      isRegister={true}
-      nom={nom}
-      onNomChange={setNom}
-      prenom={prenom}
-      onPrenomChange={setPrenom}
+      emailPlaceholder="contact@monhotel.fr"
+      submitLabel="Accéder à mon espace client"
+      loadingLabel="Authentification..."
     />
   );
 };
 
-// ─── Formulaire Admin ────────────────────────────────────────────────────────
+// ─── Formulaire Inscription Client ────────────────────────────────────────────
 
-const AgenceForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
-  const [email, setEmail]             = useState('');
-  const [password, setPassword]       = useState('');
+const ClientInscriptionForm: React.FC<{
+  onSuccess: (userData: { id: string; email: string; role: string; societe?: string }) => void;
+}> = ({ onSuccess }) => {
+  const [societe, setSociete]           = useState('');
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading]     = useState(false);
-  const [error, setError]             = useState<string | null>(null);
+  const [isLoading, setIsLoading]       = useState(false);
+  const [error, setError]               = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
-    
+    try {
+      const result = await register({ email, password, societe, role: 'client' });
+      onSuccess({
+        id: result.user.id,
+        email: result.user.email,
+        role: String(result.user.role),
+        societe: result.user.societe
+      });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur lors de l'inscription.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-2.5 bg-eden-tan/10 border border-eden-tan/30 rounded-xl px-3 py-3">
+        <Briefcase size={13} className="text-eden-tan shrink-0 mt-0.5" />
+        <p className="text-[11px] text-eden-navy font-medium leading-relaxed">
+          Espace réservé aux <strong>établissements & entreprises clientes</strong>.
+          Accédez à la liste complète de nos extras qualifiés.
+        </p>
+      </div>
+
+      {error && (
+        <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 text-[11px] p-3 rounded-xl font-medium">
+          <AlertCircle size={13} className="shrink-0 mt-0.5" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4 text-xs" autoComplete="off">
+        <div className="space-y-1">
+          <label className="font-medium text-eden-navy block">Nom de l'établissement / société</label>
+          <div className="relative">
+            <Building2 size={14} className="absolute left-3 top-3.5 text-eden-text-light/60" />
+            <input
+              type="text"
+              required
+              disabled={isLoading}
+              placeholder="Ex : Hôtel Le Grand Paris"
+              value={societe}
+              onChange={e => setSociete(e.target.value)}
+              className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_12px_11px_36px] outline-none focus:border-eden-tan transition-all"
+            />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <label className="font-medium text-eden-navy block">Adresse email professionnelle</label>
+          <div className="relative">
+            <Mail size={14} className="absolute left-3 top-3.5 text-eden-text-light/60" />
+            <input
+              type="email"
+              required
+              disabled={isLoading}
+              placeholder="contact@monhotel.fr"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_12px_11px_36px] outline-none focus:border-eden-tan transition-all"
+            />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <label className="font-medium text-eden-navy block">Mot de passe</label>
+          <div className="relative">
+            <Lock size={14} className="absolute left-3 top-3.5 text-eden-text-light/60" />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              disabled={isLoading}
+              placeholder="••••••••"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_38px_11px_36px] outline-none focus:border-eden-tan transition-all"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(v => !v)}
+              className="absolute right-3 top-3.5 text-eden-text-light/60 hover:text-eden-navy"
+            >
+              <Eye size={14} />
+            </button>
+          </div>
+        </div>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full bg-eden-navy hover:bg-eden-light-navy text-white text-xs font-medium py-3.5 rounded-xl transition-all flex items-center justify-center gap-2"
+        >
+          {isLoading
+            ? <><Loader2 size={14} className="animate-spin" />Création du compte...</>
+            : <>Créer mon accès client <ArrowRight size={14} /></>}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+// ─── Formulaire Admin ─────────────────────────────────────────────────────────
+
+const AgenceForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading]       = useState(false);
+  const [error, setError]               = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
     try {
       const result = await login(email, password);
-      
       if (result.user.role === 'admin' || result.user.role === 'superadmin') {
         onSuccess();
       } else {
@@ -270,11 +439,6 @@ type LoginFormProps = {
   emailPlaceholder: string;
   submitLabel: string;
   loadingLabel: string;
-  isRegister?: boolean;
-  nom?: string;
-  onNomChange?: (v: string) => void;
-  prenom?: string;
-  onPrenomChange?: (v: string) => void;
 };
 
 const LoginForm: React.FC<LoginFormProps> = ({
@@ -282,7 +446,6 @@ const LoginForm: React.FC<LoginFormProps> = ({
   email, onEmailChange, password, onPasswordChange,
   showPassword, onTogglePassword,
   emailPlaceholder, submitLabel, loadingLabel,
-  isRegister = false, nom = '', onNomChange, prenom = '', onPrenomChange
 }) => (
   <div className="space-y-4">
     {subtitle && <p className="text-[11px] text-eden-text-light font-light">{subtitle}</p>}
@@ -293,25 +456,51 @@ const LoginForm: React.FC<LoginFormProps> = ({
       </div>
     )}
     <form onSubmit={onSubmit} className="space-y-4 text-xs" autoComplete="off">
-      {isRegister && onPrenomChange && onNomChange && (
-        <div className="grid grid-cols-2 gap-3 animate-[fadeIn_0.2s_ease-out]">
-          <div className="space-y-1"><label className="font-medium text-eden-navy block">Prénom</label>
-            <input type="text" required disabled={isLoading} placeholder="Jean" value={prenom} onChange={e => onPrenomChange(e.target.value)} className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_12px] focus:border-eden-tan outline-none transition-all" /></div>
-          <div className="space-y-1"><label className="font-medium text-eden-navy block">Nom</label>
-            <input type="text" required disabled={isLoading} placeholder="Dupont" value={nom} onChange={e => onNomChange(e.target.value)} className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_12px] focus:border-eden-tan outline-none transition-all" /></div>
-        </div>
-      )}
-      <div className="space-y-1"><label className="font-medium text-eden-navy block">Adresse email</label>
-        <div className="relative"><Mail size={14} className="absolute left-3 top-3.5 text-eden-text-light/60" />
-          <input type="email" required disabled={isLoading} placeholder={emailPlaceholder} value={email} onChange={e => onEmailChange(e.target.value)} className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_12px_11px_36px] outline-none focus:border-eden-tan transition-all" /></div></div>
-      <div className="space-y-1"><div className="flex items-center justify-between"><label className="font-medium text-eden-navy block">Mot de passe</label></div>
-        <div className="relative"><Lock size={14} className="absolute left-3 top-3.5 text-eden-text-light/60" />
-          <input type={showPassword ? 'text' : 'password'} required disabled={isLoading} placeholder="••••••••" value={password} onChange={e => onPasswordChange(e.target.value)} className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_38px_11px_36px] outline-none focus:border-eden-tan transition-all" />
-          <button type="button" onClick={onTogglePassword} className="absolute right-3 top-3.5 text-eden-text-light/60 hover:text-eden-navy"><Eye size={14} /></button>
+      <div className="space-y-1">
+        <label className="font-medium text-eden-navy block">Adresse email</label>
+        <div className="relative">
+          <Mail size={14} className="absolute left-3 top-3.5 text-eden-text-light/60" />
+          <input
+            type="email"
+            required
+            disabled={isLoading}
+            placeholder={emailPlaceholder}
+            value={email}
+            onChange={e => onEmailChange(e.target.value)}
+            className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_12px_11px_36px] outline-none focus:border-eden-tan transition-all"
+          />
         </div>
       </div>
-      <button type="submit" disabled={isLoading} className="w-full bg-eden-navy hover:bg-eden-light-navy text-white text-xs font-medium py-3.5 rounded-xl transition-all flex items-center justify-center gap-2">
-        {isLoading ? <><Loader2 size={14} className="animate-spin" />{loadingLabel}</> : <>{submitLabel}<ArrowRight size={14} /></>}
+      <div className="space-y-1">
+        <label className="font-medium text-eden-navy block">Mot de passe</label>
+        <div className="relative">
+          <Lock size={14} className="absolute left-3 top-3.5 text-eden-text-light/60" />
+          <input
+            type={showPassword ? 'text' : 'password'}
+            required
+            disabled={isLoading}
+            placeholder="••••••••"
+            value={password}
+            onChange={e => onPasswordChange(e.target.value)}
+            className="w-full bg-eden-bg2 border border-eden-border rounded-xl p-[11px_38px_11px_36px] outline-none focus:border-eden-tan transition-all"
+          />
+          <button
+            type="button"
+            onClick={onTogglePassword}
+            className="absolute right-3 top-3.5 text-eden-text-light/60 hover:text-eden-navy"
+          >
+            <Eye size={14} />
+          </button>
+        </div>
+      </div>
+      <button
+        type="submit"
+        disabled={isLoading}
+        className="w-full bg-eden-navy hover:bg-eden-light-navy text-white text-xs font-medium py-3.5 rounded-xl transition-all flex items-center justify-center gap-2"
+      >
+        {isLoading
+          ? <><Loader2 size={14} className="animate-spin" />{loadingLabel}</>
+          : <>{submitLabel}<ArrowRight size={14} /></>}
       </button>
     </form>
   </div>
