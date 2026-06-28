@@ -6,7 +6,6 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// ✅ Imports corrigés - Vérifiez que vos fichiers sont bien dans le dossier routes/
 import messagerieRoutes from './routes/messagerieRoutes.js';
 import candidatRoutes from './routes/candidatRoutes.js';
 import etablissementRoutes from './routes/etablissementRoutes.js';
@@ -36,7 +35,7 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ── CORS AMÉLIORÉ ─── EN PREMIER, AVANT TOUT ──────────────────────────────────
+// ── CORS ─── EN PREMIER, AVANT TOUT ──────────────────────────────────────────
 const allowedOrigins = [
   'https://app.eden-group.co',
   'https://eden-hcr.vercel.app',
@@ -53,22 +52,27 @@ const corsOptions = {
     if (!origin) {
       return callback(null, true);
     }
-    
+
     // En développement, tout est autorisé
     if (process.env.NODE_ENV === 'development') {
       return callback(null, true);
     }
-    
-    // Vérifier si l'origine est autorisée
+
+    // Vérifier si l'origine est dans la liste blanche
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    
+
     // Permettre les sous-domaines Render en production
     if (origin.includes('.onrender.com')) {
       return callback(null, true);
     }
-    
+
+    // ← AJOUT : Permettre toutes les previews et déploiements Vercel
+    if (origin.includes('.vercel.app')) {
+      return callback(null, true);
+    }
+
     console.warn(`[CORS] ❌ Origine bloquée : ${origin}`);
     callback(new Error("Bloqué par la politique CORS d'EDÈN Group"));
   },
@@ -82,23 +86,20 @@ const corsOptions = {
 // Appliquer CORS
 app.use(cors(corsOptions));
 
-// ✅ CORRECTION DÉFINITIVE - Middleware explicite pour OPTIONS
-// Au lieu de app.options('*', cors(corsOptions)) qui cause l'erreur path-to-regexp
+// ✅ Middleware explicite pour OPTIONS (preflight)
 app.use((req, res, next) => {
-  // Répondre immédiatement aux requêtes OPTIONS (preflight)
   if (req.method === 'OPTIONS') {
-    // Définir les en-têtes CORS manuellement
     res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
     res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Max-Age', '86400'); // Cache preflight 24h
+    res.header('Access-Control-Max-Age', '86400');
     return res.sendStatus(200);
   }
   next();
 });
 
-// ✅ Middleware de logging pour debugger les requêtes
+// ✅ Middleware de logging
 app.use((req, res, next) => {
   console.log(`[${req.method}] ${req.originalUrl} - Origin: ${req.headers.origin || 'N/A'}`);
   next();
@@ -158,19 +159,14 @@ app.use('/api/clients', clientRoutes);
 // ✅ Route de vérification des routes enregistrées
 app.get('/api/routes', (req, res) => {
   const routes = [];
-  
+
   try {
-    // Parcourir l'application pour récupérer les routes enregistrées
     if (app._router && app._router.stack) {
       app._router.stack.forEach((layer) => {
         if (layer.route) {
           const methods = Object.keys(layer.route.methods).join(', ').toUpperCase();
-          routes.push({
-            path: layer.route.path,
-            methods: methods
-          });
+          routes.push({ path: layer.route.path, methods });
         }
-        // Vérifier les routers
         if (layer.name === 'router' && layer.handle && layer.handle.stack) {
           const basePath = layer.regexp.source
             .replace(/\\\/\?/g, '/')
@@ -178,28 +174,25 @@ app.get('/api/routes', (req, res) => {
             .replace(/\^/g, '')
             .replace(/\?\(\?=\/\|$\)/g, '')
             .replace(/\(\?:\(\[\^\\\/\]\+\?\)\)/g, '');
-          
+
           layer.handle.stack.forEach((subLayer) => {
             if (subLayer.route) {
               const methods = Object.keys(subLayer.route.methods).join(', ').toUpperCase();
               const fullPath = (basePath + subLayer.route.path).replace(/\/\//g, '/');
-              routes.push({
-                path: fullPath,
-                methods: methods
-              });
+              routes.push({ path: fullPath, methods });
             }
           });
         }
       });
     }
   } catch (error) {
-    console.error('[Routes] Erreur lors de la récupération des routes:', error.message);
+    console.error('[Routes] Erreur:', error.message);
   }
-  
+
   res.status(200).json({
     status: 'success',
     totalRoutes: routes.length,
-    routes: routes.slice(0, 50) // Limiter pour lisibilité
+    routes: routes.slice(0, 50)
   });
 });
 
@@ -211,9 +204,9 @@ const connectDB = async () => {
     }
 
     const conn = await mongoose.connect(process.env.MONGO_URI, {
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-});
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
 
     console.log(`[MongoDB] ✅ Connecté : ${conn.connection.name}`);
     console.log(`[MongoDB] Host : ${conn.connection.host}`);
@@ -223,7 +216,6 @@ const connectDB = async () => {
     console.error('[Erreur MongoDB] ❌');
     console.error(error.message);
     console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    // En production, ne pas exit le processus mais logger l'erreur
     if (process.env.NODE_ENV === 'production') {
       console.error('⚠️ MongoDB non connecté - certaines fonctionnalités seront indisponibles');
     } else {
@@ -276,10 +268,7 @@ app.use((req, res) => {
   res.status(404).json({
     status: 'error',
     message: 'Route non définie',
-    requested: {
-      method: req.method,
-      url: req.originalUrl
-    }
+    requested: { method: req.method, url: req.originalUrl }
   });
 });
 
@@ -294,7 +283,6 @@ process.on('unhandledRejection', (error) => {
 process.on('uncaughtException', (error) => {
   console.error('❌ Uncaught Exception:', error);
   if (process.env.NODE_ENV === 'production') {
-    // En production, logger et continuer
     console.error('⚠️ Erreur non capturée - le serveur continue de tourner');
   } else {
     process.exit(1);
