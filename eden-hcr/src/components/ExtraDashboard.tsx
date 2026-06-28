@@ -3,7 +3,7 @@ import {
   Calendar, FileText, Euro, Briefcase, Clock, LogOut, Bell,
   SlidersHorizontal, Search, CheckCircle, ChevronRight, MapPin,
   Star, MessageSquare, Settings, BarChart2, Download, AlertCircle,
-  Send, ArrowLeft, ChevronDown, Upload, PenLine, X,
+  Send, ArrowLeft, ChevronDown, Upload, PenLine, X, Menu,
 } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -150,27 +150,25 @@ const SignaturePad: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
-        <div className="flex items-center justify-between p-5 border-b border-[#E6DDD1]">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#E6DDD1]">
           <div>
-            <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-0.5">Signature électronique</p>
-            <h3 className="font-bold text-[#073B4C]">{titreContrat(contrat)}</h3>
+            <p className="text-[9px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-[#C5A46D] uppercase mb-0.5">Signature électronique</p>
+            <h3 className="font-bold text-[#073B4C] text-sm sm:text-base">{titreContrat(contrat)}</h3>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-[#073B4C] transition-colors">
+          <button onClick={onClose} className="text-gray-400 hover:text-[#073B4C] transition-colors p-1">
             <X size={18} />
           </button>
         </div>
-        <div className="p-5 space-y-4">
-          <p className="text-xs text-gray-500">
-            En signant, vous acceptez les termes du contrat. Signez dans le cadre ci-dessous avec votre souris ou votre doigt.
-          </p>
+        <div className="p-4 sm:p-5 space-y-4">
+          <p className="text-xs text-gray-500">En signant, vous acceptez les termes du contrat. Signez dans le cadre ci-dessous avec votre souris ou votre doigt.</p>
           <div className="border-2 border-dashed border-[#E6DDD1] rounded-xl overflow-hidden bg-[#FAFAF8] touch-none">
             <canvas
               ref={canvasRef}
               width={460}
               height={160}
-              className="w-full cursor-crosshair"
+              className="w-full cursor-crosshair touch-none"
               onMouseDown={startDraw}
               onMouseMove={draw}
               onMouseUp={endDraw}
@@ -185,20 +183,20 @@ const SignaturePad: React.FC<{
           )}
           {error && (
             <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
-              <AlertCircle size={13} /> {error}
+              <AlertCircle size={13} /> <span className="break-words">{error}</span>
             </div>
           )}
-          <div className="flex gap-3">
+          <div className="flex flex-col xs:flex-row gap-2 xs:gap-3">
             <button
               onClick={clearCanvas}
-              className="flex-1 border border-[#E6DDD1] text-gray-500 hover:text-[#073B4C] py-2.5 rounded-xl text-sm transition-colors"
+              className="order-2 xs:order-1 flex-1 border border-[#E6DDD1] text-gray-500 hover:text-[#073B4C] py-2.5 rounded-xl text-sm transition-colors"
             >
               Effacer
             </button>
             <button
               onClick={handleSave}
               disabled={!hasDrawn || saving}
-              className="flex-1 bg-[#073B4C] hover:bg-[#0A5268] disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              className="order-1 xs:order-2 flex-1 bg-[#073B4C] hover:bg-[#0A5268] disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2"
             >
               {saving
                 ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Enregistrement…</>
@@ -261,17 +259,17 @@ const DocumentsSection: React.FC<{
   ];
 
   if (loading) return (
-    <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6 flex items-center justify-center h-40">
+    <div className="bg-white rounded-2xl border border-[#E6DDD1] p-4 sm:p-6 flex items-center justify-center h-32 sm:h-40">
       <div className="w-6 h-6 border-2 border-[#073B4C]/20 border-t-[#073B4C] rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white rounded-2xl border border-[#E6DDD1] p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 sm:mb-6">
         <div>
-          <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Conformité</p>
-          <h2 className="text-xl font-bold text-[#073B4C]">Mes documents</h2>
+          <p className="text-[9px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-[#C5A46D] uppercase mb-1">Conformité</p>
+          <h2 className="text-lg sm:text-xl font-bold text-[#073B4C]">Mes documents</h2>
         </div>
         <span className="text-xs text-gray-400">{docList.filter(d => d.url).length} / {docList.length} fourni{docList.filter(d => d.url).length > 1 ? 's' : ''}</span>
       </div>
@@ -299,7 +297,7 @@ const DocumentsSection: React.FC<{
       {message && (
         <div className={`flex items-center gap-2 p-3 rounded-xl mb-4 text-xs font-medium ${message.type === 'success' ? 'bg-green-50 border border-green-200 text-green-600' : 'bg-red-50 border border-red-200 text-red-600'}`}>
           {message.type === 'success' ? <CheckCircle size={13} /> : <AlertCircle size={13} />}
-          {message.text}
+          <span className="break-words">{message.text}</span>
         </div>
       )}
 
@@ -313,30 +311,30 @@ const DocumentsSection: React.FC<{
           const uploadedDate = doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
 
           return (
-            <div key={doc.field} className={`rounded-xl border p-4 flex items-center justify-between gap-4 transition-all ${titreExp ? 'border-red-200 bg-red-50/30' : titreSoon ? 'border-amber-200 bg-amber-50/30' : isUploaded ? 'border-green-200 bg-green-50/20' : 'border-[#E6DDD1] bg-[#FAFAF8]'}`}>
+            <div key={doc.field} className={`rounded-xl border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 transition-all ${titreExp ? 'border-red-200 bg-red-50/30' : titreSoon ? 'border-amber-200 bg-amber-50/30' : isUploaded ? 'border-green-200 bg-green-50/20' : 'border-[#E6DDD1] bg-[#FAFAF8]'}`}>
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${titreExp ? 'bg-red-100 text-red-500' : titreSoon ? 'bg-amber-100 text-amber-500' : isUploaded ? 'bg-green-100 text-green-600' : 'bg-[#F4EFE8] text-[#073B4C]/40'}`}>
-                  {titreExp || titreSoon ? <AlertCircle size={16} /> : isUploaded ? <CheckCircle size={16} /> : <FileText size={16} />}
+                <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 ${titreExp ? 'bg-red-100 text-red-500' : titreSoon ? 'bg-amber-100 text-amber-500' : isUploaded ? 'bg-green-100 text-green-600' : 'bg-[#F4EFE8] text-[#073B4C]/40'}`}>
+                  {titreExp || titreSoon ? <AlertCircle size={14} className="sm:w-4 sm:h-4" /> : isUploaded ? <CheckCircle size={14} className="sm:w-4 sm:h-4" /> : <FileText size={14} className="sm:w-4 sm:h-4" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-[#073B4C]">{doc.label}</p>
-                    {titreExp  && <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-600">Expiré</span>}
-                    {titreSoon && <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-600">Expire bientôt</span>}
-                    {isUploaded && !titreExp && !titreSoon && <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-600">Fourni</span>}
-                    {!isUploaded && <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">Manquant</span>}
+                    {titreExp  && <span className="text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-600">Expiré</span>}
+                    {titreSoon && <span className="text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-600">Expire bientôt</span>}
+                    {isUploaded && !titreExp && !titreSoon && <span className="text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-600">Fourni</span>}
+                    {!isUploaded && <span className="text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">Manquant</span>}
                   </div>
-                  <p className="text-[11px] text-gray-400 mt-0.5 truncate">{isUploaded && uploadedDate ? `Uploadé le ${uploadedDate}` : doc.sub}</p>
+                  <p className="text-[10px] sm:text-[11px] text-gray-400 mt-0.5 truncate">{isUploaded && uploadedDate ? `Uploadé le ${uploadedDate}` : doc.sub}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
                 {isUploaded && doc.url && (
                   <a href={`${API}${doc.url}`} target="_blank" rel="noopener noreferrer"
                     className="w-8 h-8 rounded-lg bg-[#F4F1EA] hover:bg-[#E6DDD1] flex items-center justify-center text-gray-500 hover:text-[#073B4C] transition-colors" title="Voir le document">
                     <Download size={14} />
                   </a>
                 )}
-                <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${isUploading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : isUploaded ? 'bg-[#F4F1EA] hover:bg-[#E6DDD1] text-[#073B4C]' : 'bg-[#073B4C] hover:bg-[#0A5268] text-white'}`}>
+                <label className={`flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-medium cursor-pointer transition-colors ${isUploading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : isUploaded ? 'bg-[#F4F1EA] hover:bg-[#E6DDD1] text-[#073B4C]' : 'bg-[#073B4C] hover:bg-[#0A5268] text-white'}`}>
                   {isUploading ? <><div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" /> Envoi…</> : isUploaded ? <><Upload size={12} /> Remplacer</> : <><Upload size={12} /> Uploader</>}
                   <input type="file" accept=".pdf,.png,.jpg,.jpeg" disabled={uploading !== null}
                     onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f, doc.field); }} className="hidden" />
@@ -346,7 +344,7 @@ const DocumentsSection: React.FC<{
           );
         })}
       </div>
-      <p className="text-[10px] text-gray-400 text-center mt-4">Documents chiffrés et stockés de manière sécurisée. Conformité RGPD.</p>
+      <p className="text-[9px] sm:text-[10px] text-gray-400 text-center mt-4">Documents chiffrés et stockés de manière sécurisée. Conformité RGPD.</p>
     </div>
   );
 };
@@ -376,6 +374,7 @@ export const ExtraDashboard = ({
   const [applySuccess, setApplySuccess]   = useState<string | null>(null);
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen]     = useState(false);
 
   // Notifications
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -404,7 +403,6 @@ export const ExtraDashboard = ({
       };
       setNotifications(prev => [notif, ...prev].slice(0, 20));
 
-      // Si c'est un contrat à signer → charger le contrat et ouvrir la modal
       if (payload.type === 'contrat_a_signer' && payload.contratId) {
         fetch(`${API}/api/contrats/${payload.contratId}`, { headers: authHeaders() })
           .then(r => r.ok ? r.json() : null)
@@ -599,33 +597,54 @@ export const ExtraDashboard = ({
         />
       )}
 
-      {/* SIDEBAR */}
-      <aside className="w-[260px] bg-[#073B4C] text-white flex flex-col fixed h-full z-20">
-        <div className="p-6 pb-4">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-9 h-9 rounded-lg bg-[#C5A46D] flex items-center justify-center">
-              <span className="text-[#073B4C] font-bold text-sm">E</span>
+      {/* SIDEBAR - Responsive avec overlay mobile */}
+      {/* Overlay mobile */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={`
+        fixed lg:static inset-y-0 left-0 z-40
+        w-[280px] sm:w-[260px] bg-[#073B4C] text-white 
+        flex flex-col transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        <div className="p-4 sm:p-6 pb-3 sm:pb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-[#C5A46D] flex items-center justify-center flex-shrink-0">
+              <span className="text-[#073B4C] font-bold text-xs sm:text-sm">E</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-wide">EDÈN <span className="font-light">Group</span></h1>
-              <p className="text-[10px] text-white/50 uppercase tracking-widest">Intérim HCR</p>
+              <h1 className="text-lg sm:text-xl font-bold tracking-wide">EDÈN <span className="font-light">Group</span></h1>
+              <p className="text-[9px] sm:text-[10px] text-white/50 uppercase tracking-widest">Intérim HCR</p>
             </div>
           </div>
-          <p className="text-[10px] text-white/40 mt-2">Flexibilité · Qualité · Simplicité</p>
+          <button 
+            onClick={() => setSidebarOpen(false)} 
+            className="lg:hidden text-white/60 hover:text-white transition-colors p-1"
+          >
+            <X size={20} />
+          </button>
         </div>
-        <div className="mx-4 h-px bg-white/10 mb-2" />
-        <nav className="flex-1 px-3 overflow-y-auto py-2">
+        <div className="mx-3 sm:mx-4 h-px bg-white/10 mb-2" />
+        <nav className="flex-1 px-2 sm:px-3 overflow-y-auto py-2">
           {navSections.map(section => (
-            <div key={section.label} className="mb-5">
-              <p className="text-[10px] tracking-[3px] text-[#C5A46D] px-3 mb-2">{section.label}</p>
+            <div key={section.label} className="mb-4 sm:mb-5">
+              <p className="text-[9px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-[#C5A46D] px-2 sm:px-3 mb-1.5 sm:mb-2">{section.label}</p>
               {section.items.map(item => (
                 <button key={item.id}
-                  onClick={() => { setActiveSection(item.id); if (item.id !== 'messagerie') setSelectedChannel(null); }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl mb-0.5 transition-all text-sm ${activeSection === item.id ? 'bg-white/15 text-white font-semibold' : 'text-white/60 hover:bg-white/8 hover:text-white'}`}
+                  onClick={() => { setActiveSection(item.id); if (item.id !== 'messagerie') setSelectedChannel(null); setSidebarOpen(false); }}
+                  className={`w-full flex items-center justify-between px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl mb-0.5 transition-all text-xs sm:text-sm ${activeSection === item.id ? 'bg-white/15 text-white font-semibold' : 'text-white/60 hover:bg-white/8 hover:text-white'}`}
                 >
-                  <span className="flex items-center gap-2.5">{item.icon}{item.label}</span>
+                  <span className="flex items-center gap-2 sm:gap-2.5">
+                    <span className="w-4 h-4 flex items-center justify-center">{item.icon}</span>
+                    <span className="truncate">{item.label}</span>
+                  </span>
                   {item.badge != null && item.badge > 0 && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${item.id === 'messagerie' ? 'bg-orange-400 text-white' : item.id === 'contrats' && contratsASigner.length > 0 ? 'bg-red-400 text-white' : 'bg-[#C5A46D] text-[#073B4C]'}`}>
+                    <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${item.id === 'messagerie' ? 'bg-orange-400 text-white' : item.id === 'contrats' && contratsASigner.length > 0 ? 'bg-red-400 text-white' : 'bg-[#C5A46D] text-[#073B4C]'}`}>
                       {item.badge}
                     </span>
                   )}
@@ -634,56 +653,65 @@ export const ExtraDashboard = ({
             </div>
           ))}
         </nav>
-        <div className="mx-4 h-px bg-white/10 mb-3" />
-        <div className="p-4 pt-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#C5A46D] flex items-center justify-center font-bold text-[#073B4C] text-sm flex-shrink-0">{initiale}</div>
+        <div className="mx-3 sm:mx-4 h-px bg-white/10 mb-3" />
+        <div className="p-3 sm:p-4 pt-0">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#C5A46D] flex items-center justify-center font-bold text-[#073B4C] text-xs sm:text-sm flex-shrink-0">{initiale}</div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate">{displayName}</p>
-              <p className="text-[11px] text-white/50">Extra EDÈN</p>
+              <p className="text-sm sm:text-base font-semibold truncate">{displayName}</p>
+              <p className="text-[10px] sm:text-[11px] text-white/50">Extra EDÈN</p>
             </div>
-            <button onClick={onLogout} className="text-white/40 hover:text-white transition-colors" title="Déconnexion"><LogOut size={15} /></button>
+            <button onClick={onLogout} className="text-white/40 hover:text-white transition-colors p-1" title="Déconnexion"><LogOut size={14} className="sm:w-4 sm:h-4" /></button>
           </div>
         </div>
       </aside>
 
       {/* MAIN */}
-      <div className="ml-[260px] flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col min-h-screen w-full overflow-x-hidden">
 
-        {/* HEADER */}
-        <header className="bg-white border-b border-[#E6DDD1] px-8 py-4 flex items-center justify-between sticky top-0 z-10">
-          <div>
-            <h1 className="text-2xl font-bold text-[#073B4C]">{getSectionTitle()}</h1>
-            <p className="text-sm text-gray-400 capitalize">{today} · Semaine {semaine}</p>
+        {/* HEADER - Responsive */}
+        <header className="bg-white border-b border-[#E6DDD1] px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-20 gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button 
+              onClick={() => setSidebarOpen(true)} 
+              className="lg:hidden text-[#073B4C] hover:text-[#C5A46D] transition-colors p-1 flex-shrink-0"
+            >
+              <Menu size={20} />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-xl lg:text-2xl font-bold text-[#073B4C] truncate">{getSectionTitle()}</h1>
+              <p className="text-[10px] sm:text-sm text-gray-400 truncate capitalize">{today} · Semaine {semaine}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" placeholder="Missions, messagerie, contrats…" value={searchQuery} onChange={handleSearchChange}
-                className="pl-9 pr-4 py-2 bg-[#F4F1EA] rounded-xl text-sm text-gray-700 w-52 focus:outline-none focus:ring-2 focus:ring-[#073B4C]/20" />
+          <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 flex-shrink-0">
+            {/* Barre de recherche - cachée sur très petit écran */}
+            <div className="hidden sm:flex relative">
+              <Search size={14} className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input type="text" placeholder="Rechercher…" value={searchQuery} onChange={handleSearchChange}
+                className="pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 bg-[#F4F1EA] rounded-xl text-xs sm:text-sm text-gray-700 w-28 sm:w-36 lg:w-52 focus:outline-none focus:ring-2 focus:ring-[#073B4C]/20" />
             </div>
 
             {/* Cloche notifications */}
             <div className="relative">
               <button onClick={() => { setShowNotifs(v => !v); markAllNotifsRead(); }}
-                className="relative w-9 h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors">
-                <Bell size={16} />
+                className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors">
+                <Bell size={14} className="sm:w-4 sm:h-4" />
                 {(unreadNotifs > 0 || totalUnread > 0) && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-400 rounded-full animate-pulse" />
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-orange-400 rounded-full animate-pulse" />
                 )}
               </button>
               {showNotifs && (
-                <div className="absolute right-0 top-11 w-80 bg-white border border-[#E6DDD1] rounded-2xl shadow-xl z-30 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-[#E6DDD1] flex items-center justify-between">
+                <div className="absolute right-0 top-10 sm:top-11 w-72 sm:w-80 bg-white border border-[#E6DDD1] rounded-2xl shadow-xl z-30 overflow-hidden max-h-[80vh]">
+                  <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#E6DDD1] flex items-center justify-between">
                     <p className="font-semibold text-sm text-[#073B4C]">Notifications</p>
                     <button onClick={() => setShowNotifs(false)} className="text-gray-400 hover:text-[#073B4C]"><X size={14} /></button>
                   </div>
-                  <div className="max-h-72 overflow-y-auto divide-y divide-[#F4F1EA]">
+                  <div className="max-h-60 sm:max-h-72 overflow-y-auto divide-y divide-[#F4F1EA]">
                     {notifications.length === 0 ? (
                       <p className="text-xs text-gray-400 text-center py-6">Aucune notification</p>
                     ) : notifications.map(n => (
-                      <div key={n.id} className={`px-4 py-3 ${!n.read ? 'bg-[#F4F1EA]' : ''}`}>
-                        <p className="text-xs font-medium text-[#073B4C]">{n.message}</p>
+                      <div key={n.id} className={`px-3 sm:px-4 py-2.5 sm:py-3 ${!n.read ? 'bg-[#F4F1EA]' : ''}`}>
+                        <p className="text-xs font-medium text-[#073B4C] break-words">{n.message}</p>
                         <p className="text-[10px] text-gray-400 mt-0.5">{formatTime(n.createdAt.toISOString())}</p>
                         {n.contratId && (
                           <button
@@ -703,41 +731,47 @@ export const ExtraDashboard = ({
               )}
             </div>
 
+            {/* Bouton recherche mobile */}
+            <button className="sm:hidden w-8 h-8 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors">
+              <Search size={14} />
+            </button>
+
             <button onClick={() => { setActiveSection('missions'); setSelectedChannel(null); }}
-              className="w-9 h-9 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors" title="Voir les missions">
-              <SlidersHorizontal size={16} />
+              className="hidden sm:flex w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#F4F1EA] items-center justify-center text-gray-500 hover:bg-[#E6DDD1] transition-colors" title="Voir les missions">
+              <SlidersHorizontal size={14} className="sm:w-4 sm:h-4" />
             </button>
             <button onClick={() => { setActiveSection('missions'); setSelectedChannel(null); }}
-              className="flex items-center gap-2 bg-[#073B4C] hover:bg-[#0A5268] text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+              className="hidden md:flex items-center gap-1.5 sm:gap-2 bg-[#073B4C] hover:bg-[#0A5268] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors whitespace-nowrap">
               + Voir missions
             </button>
           </div>
         </header>
 
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-x-hidden">
           {error && (
-            <div className="mb-6 flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-5 py-3 rounded-xl text-sm">
-              <AlertCircle size={16} /> {error}
+            <div className="mb-4 sm:mb-6 flex items-start sm:items-center gap-2 sm:gap-3 bg-red-50 border border-red-200 text-red-700 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm">
+              <AlertCircle size={14} className="sm:w-4 sm:h-4 shrink-0 mt-0.5 sm:mt-0" /> 
+              <span className="break-words">{error}</span>
             </div>
           )}
 
-          {/* Bannière contrats à signer */}
+          {/* Bannière contrats à signer - Responsive */}
           {contratsASigner.length > 0 && activeSection !== 'contrats' && (
-            <div className="mb-6 flex items-center justify-between bg-amber-50 border border-amber-200 text-amber-700 px-5 py-3 rounded-xl text-sm">
-              <span className="flex items-center gap-2">
-                <PenLine size={16} />
-                {contratsASigner.length} contrat{contratsASigner.length > 1 ? 's' : ''} en attente de votre signature
+            <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-amber-50 border border-amber-200 text-amber-700 px-4 sm:px-5 py-3 rounded-xl text-xs sm:text-sm">
+              <span className="flex items-center gap-2 break-words">
+                <PenLine size={14} className="shrink-0" />
+                {contratsASigner.length} contrat{contratsASigner.length > 1 ? 's' : ''} en attente de signature
               </span>
-              <button onClick={() => setActiveSection('contrats')} className="font-semibold text-amber-800 hover:underline flex items-center gap-1">
+              <button onClick={() => setActiveSection('contrats')} className="font-semibold text-amber-800 hover:underline flex items-center gap-1 self-start sm:self-auto">
                 Voir <ChevronRight size={14} />
               </button>
             </div>
           )}
 
           {loading ? (
-            <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
+            <div className="flex items-center justify-center h-40 sm:h-48 text-gray-400 text-xs sm:text-sm">
               <div className="flex flex-col items-center gap-3">
-                <div className="w-8 h-8 border-2 border-[#073B4C]/20 border-t-[#073B4C] rounded-full animate-spin" />
+                <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-[#073B4C]/20 border-t-[#073B4C] rounded-full animate-spin" />
                 Chargement de vos données…
               </div>
             </div>
@@ -745,104 +779,115 @@ export const ExtraDashboard = ({
             <>
               {/* ── DASHBOARD ── */}
               {activeSection === 'dashboard' && (
-                <div className="space-y-6">
-                  {/* KPIs */}
-                  <div className="grid grid-cols-4 gap-5">
+                <div className="space-y-4 sm:space-y-6">
+                  {/* KPIs - Grid responsive */}
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 lg:gap-5">
                     {[
-                      { icon: <Star size={20} />, value: missions.length, label: 'Missions', sub: 'disponibles', action: () => setActiveSection('missions') },
-                      { icon: <Calendar size={20} />, value: 0, label: 'Planning', sub: 'shifts' },
-                      { icon: <FileText size={20} />, value: contrats.length, label: 'Contrats', sub: 'signés', action: () => setActiveSection('contrats') },
-                      { icon: <Euro size={20} />, value: totalPaye > 0 ? formatMontant(totalPaye) : '—', label: 'Total perçu', sub: '', action: () => setActiveSection('paiements') },
+                      { icon: <Star size={16} className="sm:w-5 sm:h-5" />, value: missions.length, label: 'Missions', sub: 'disponibles', action: () => setActiveSection('missions') },
+                      { icon: <Calendar size={16} className="sm:w-5 sm:h-5" />, value: 0, label: 'Planning', sub: 'shifts' },
+                      { icon: <FileText size={16} className="sm:w-5 sm:h-5" />, value: contrats.length, label: 'Contrats', sub: 'signés', action: () => setActiveSection('contrats') },
+                      { icon: <Euro size={16} className="sm:w-5 sm:h-5" />, value: totalPaye > 0 ? formatMontant(totalPaye) : '—', label: 'Total perçu', sub: '', action: () => setActiveSection('paiements') },
                     ].map((kpi, i) => (
-                      <div key={i} onClick={kpi.action} className={`bg-white rounded-2xl border border-[#E6DDD1] p-5 ${kpi.action ? 'cursor-pointer hover:border-[#073B4C]/30 hover:shadow-sm transition-all' : ''}`}>
-                        <div className="w-10 h-10 rounded-xl bg-[#F4EFE8] flex items-center justify-center text-[#073B4C] mb-4">{kpi.icon}</div>
-                        <p className="text-3xl font-bold text-[#073B4C]">{kpi.value} <span className="text-base font-normal text-gray-400">{kpi.sub}</span></p>
-                        <p className="text-sm text-gray-500 mt-1">{kpi.label}</p>
+                      <div key={i} onClick={kpi.action} className={`bg-white rounded-xl sm:rounded-2xl border border-[#E6DDD1] p-3 sm:p-4 lg:p-5 ${kpi.action ? 'cursor-pointer hover:border-[#073B4C]/30 hover:shadow-sm transition-all' : ''}`}>
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-[#F4EFE8] flex items-center justify-center text-[#073B4C] mb-2 sm:mb-4">
+                          {kpi.icon}
+                        </div>
+                        <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-[#073B4C] break-words">
+                          {kpi.value} <span className="text-xs sm:text-base font-normal text-gray-400">{kpi.sub}</span>
+                        </p>
+                        <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">{kpi.label}</p>
                       </div>
                     ))}
                   </div>
 
-                  {/* Graphiques */}
-                  <div className="grid grid-cols-2 gap-5">
+                  {/* Graphiques - Responsive */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                     {/* Paiements */}
-                    <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
-                      <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Rémunération</p>
-                      <h3 className="font-bold text-[#073B4C] mb-4">Historique des paiements</h3>
+                    <div className="bg-white rounded-xl sm:rounded-2xl border border-[#E6DDD1] p-4 sm:p-6">
+                      <p className="text-[9px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-[#C5A46D] uppercase mb-1">Rémunération</p>
+                      <h3 className="font-bold text-[#073B4C] text-sm sm:text-base mb-3 sm:mb-4">Historique des paiements</h3>
                       {paiementsChartData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={180}>
-                          <BarChart data={paiementsChartData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#F4F1EA" />
-                            <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                            <YAxis tick={{ fontSize: 10 }} />
-                           <Tooltip formatter={(value) => value == null ? "" : `${Number(value).toLocaleString("fr-FR")} €`}/>
-                            <Bar dataKey="montant" fill="#073B4C" radius={[4, 4, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <div className="h-[150px] sm:h-[180px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={paiementsChartData}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#F4F1EA" />
+                              <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+                              <YAxis tick={{ fontSize: 9 }} />
+                              <Tooltip formatter={(value) => value == null ? "" : `${Number(value).toLocaleString("fr-FR")} €`} />
+                              <Bar dataKey="montant" fill="#073B4C" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
                       ) : (
-                        <div className="h-[180px] flex items-center justify-center text-gray-400 text-sm">Aucune donnée</div>
+                        <div className="h-[150px] sm:h-[180px] flex items-center justify-center text-gray-400 text-xs sm:text-sm">Aucune donnée</div>
                       )}
                     </div>
 
                     {/* Contrats */}
-                    <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
-                      <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Contrats</p>
-                      <h3 className="font-bold text-[#073B4C] mb-4">État des contrats</h3>
+                    <div className="bg-white rounded-xl sm:rounded-2xl border border-[#E6DDD1] p-4 sm:p-6">
+                      <p className="text-[9px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-[#C5A46D] uppercase mb-1">Contrats</p>
+                      <h3 className="font-bold text-[#073B4C] text-sm sm:text-base mb-3 sm:mb-4">État des contrats</h3>
                       {contrats.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={180}>
-                          <PieChart>
-                            <Pie data={contratsChartData} cx="50%" cy="50%" outerRadius={65} dataKey="value" label={({ name, value }) => `${name} (${value})`} labelLine={false}>
-                              {contratsChartData.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
-                            </Pie>
-                            <Tooltip />
-                          </PieChart>
-                        </ResponsiveContainer>
+                        <div className="h-[150px] sm:h-[180px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie data={contratsChartData} cx="50%" cy="50%" outerRadius={55} dataKey="value" label={({ name, value }) => `${name} (${value})`} labelLine={false} fontSize={9}>
+                                {contratsChartData.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
+                              </Pie>
+                              <Tooltip />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
                       ) : (
-                        <div className="h-[180px] flex items-center justify-center text-gray-400 text-sm">Aucun contrat</div>
+                        <div className="h-[150px] sm:h-[180px] flex items-center justify-center text-gray-400 text-xs sm:text-sm">Aucun contrat</div>
                       )}
                     </div>
                   </div>
 
-                  {/* Profil + missions */}
-                  <div className="grid grid-cols-3 gap-5">
-                    <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6 flex flex-col gap-4">
+                  {/* Profil + missions - Responsive */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+                    <div className="bg-white rounded-xl sm:rounded-2xl border border-[#E6DDD1] p-4 sm:p-6 flex flex-col gap-3 sm:gap-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-[#C5A46D] flex items-center justify-center font-bold text-[#073B4C] text-lg">{initiale}</div>
-                        <div><p className="font-bold text-[#073B4C]">{displayName}</p><p className="text-xs text-gray-400">{user?.email}</p></div>
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#C5A46D] flex items-center justify-center font-bold text-[#073B4C] text-base sm:text-lg">{initiale}</div>
+                        <div>
+                          <p className="font-bold text-[#073B4C] text-sm sm:text-base break-words">{displayName}</p>
+                          <p className="text-[10px] sm:text-xs text-gray-400 break-all">{user?.email}</p>
+                        </div>
                       </div>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between"><span className="text-gray-400">Rôle</span><span className="font-medium text-[#073B4C] capitalize">{user?.role || 'Extra'}</span></div>
+                      <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
+                        <div className="flex justify-between"><span className="text-gray-400">Rôle</span><span className="font-medium text-[#073B4C] capitalize break-words">{user?.role || 'Extra'}</span></div>
                         <div className="flex justify-between"><span className="text-gray-400">Missions dispo.</span><span className="font-medium text-[#073B4C]">{missions.length}</span></div>
                         <div className="flex justify-between"><span className="text-gray-400">Contrats</span><span className="font-medium text-[#073B4C]">{contrats.length}</span></div>
-                        {totalPaye > 0 && <div className="flex justify-between"><span className="text-gray-400">Total perçu</span><span className="font-medium text-[#073B4C]">{formatMontant(totalPaye)}</span></div>}
+                        {totalPaye > 0 && <div className="flex justify-between"><span className="text-gray-400">Total perçu</span><span className="font-medium text-[#073B4C] break-words">{formatMontant(totalPaye)}</span></div>}
                       </div>
                       <button onClick={() => setActiveSection('parametres')} className="mt-auto text-xs text-[#073B4C]/60 hover:text-[#073B4C] flex items-center gap-1 transition-colors">
                         <Settings size={12} /> Voir mon profil
                       </button>
                     </div>
-                    <div className="col-span-2 bg-white rounded-2xl border border-[#E6DDD1] p-6">
-                      <div className="flex items-center justify-between mb-4">
+                    <div className="md:col-span-2 bg-white rounded-xl sm:rounded-2xl border border-[#E6DDD1] p-4 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 sm:mb-4">
                         <div>
-                          <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Opportunités</p>
-                          <h2 className="font-bold text-[#073B4C]">Missions disponibles</h2>
+                          <p className="text-[9px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-[#C5A46D] uppercase mb-1">Opportunités</p>
+                          <h2 className="font-bold text-[#073B4C] text-sm sm:text-base">Missions disponibles</h2>
                         </div>
-                        <button onClick={() => setActiveSection('missions')} className="text-xs text-[#073B4C]/60 hover:text-[#073B4C] flex items-center gap-1">Voir tout <ChevronRight size={12} /></button>
+                        <button onClick={() => setActiveSection('missions')} className="text-xs text-[#073B4C]/60 hover:text-[#073B4C] flex items-center gap-1 self-start sm:self-auto">Voir tout <ChevronRight size={12} /></button>
                       </div>
                       {missions.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-[#E6DDD1] p-8 text-center">
-                          <Briefcase className="mx-auto text-[#E6DDD1] mb-2" size={28} />
-                          <p className="text-gray-400 text-sm">Aucune mission disponible.</p>
+                        <div className="rounded-xl border border-dashed border-[#E6DDD1] p-6 sm:p-8 text-center">
+                          <Briefcase className="mx-auto text-[#E6DDD1] mb-2" size={24} />
+                          <p className="text-gray-400 text-xs sm:text-sm">Aucune mission disponible.</p>
                         </div>
                       ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-2 sm:space-y-3">
                           {missions.slice(0, 3).map(m => (
-                            <div key={m._id} className="flex items-center justify-between rounded-xl border border-[#E6DDD1] px-4 py-3 hover:border-[#073B4C]/20 transition-all">
-                              <div>
-                                <p className="font-semibold text-sm text-[#073B4C]">{titreMission(m)}</p>
-                                <p className="text-xs text-gray-400 mt-0.5">{m.lieu || m.ville || ''}{(m.dateDebut || m.dateDebutMission) ? ` · ${formatDate(m.dateDebut || m.dateDebutMission)}` : ''}</p>
+                            <div key={m._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 rounded-xl border border-[#E6DDD1] px-3 sm:px-4 py-2.5 sm:py-3 hover:border-[#073B4C]/20 transition-all">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-sm text-[#073B4C] break-words">{titreMission(m)}</p>
+                                <p className="text-xs text-gray-400 mt-0.5 break-words">{m.lieu || m.ville || ''}{(m.dateDebut || m.dateDebutMission) ? ` · ${formatDate(m.dateDebut || m.dateDebutMission)}` : ''}</p>
                               </div>
                               {applySuccess === m._id
-                                ? <span className="flex items-center gap-1 text-green-600 text-xs font-medium"><CheckCircle size={13} /> Envoyée</span>
-                                : <button onClick={() => handlePostuler(m._id)} className="text-xs bg-[#073B4C] text-white px-3 py-1.5 rounded-lg hover:bg-[#0A5268] transition-colors">Postuler</button>
+                                ? <span className="flex items-center gap-1 text-green-600 text-xs font-medium whitespace-nowrap"><CheckCircle size={13} /> Envoyée</span>
+                                : <button onClick={() => handlePostuler(m._id)} className="text-xs bg-[#073B4C] text-white px-3 py-1.5 rounded-lg hover:bg-[#0A5268] transition-colors whitespace-nowrap self-start sm:self-auto">Postuler</button>
                               }
                             </div>
                           ))}
@@ -855,40 +900,40 @@ export const ExtraDashboard = ({
 
               {/* ── MISSIONS ── */}
               {activeSection === 'missions' && (
-                <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
-                  <div className="flex items-center justify-between mb-5">
+                <div className="bg-white rounded-xl sm:rounded-2xl border border-[#E6DDD1] p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 sm:mb-5">
                     <div>
-                      <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Opportunités</p>
-                      <h2 className="text-xl font-bold text-[#073B4C]">Missions disponibles</h2>
+                      <p className="text-[9px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-[#C5A46D] uppercase mb-1">Opportunités</p>
+                      <h2 className="text-lg sm:text-xl font-bold text-[#073B4C]">Missions disponibles</h2>
                     </div>
-                    {filteredMissions.length > 0 && <span className="text-sm text-gray-400">{filteredMissions.length} mission{filteredMissions.length > 1 ? 's' : ''}</span>}
+                    {filteredMissions.length > 0 && <span className="text-xs sm:text-sm text-gray-400">{filteredMissions.length} mission{filteredMissions.length > 1 ? 's' : ''}</span>}
                   </div>
                   {filteredMissions.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
-                      <Briefcase className="mx-auto text-[#E6DDD1] mb-3" size={32} />
-                      <p className="text-gray-400 text-sm">Aucune mission disponible actuellement.</p>
+                    <div className="rounded-xl border border-dashed border-[#E6DDD1] p-10 sm:p-14 text-center">
+                      <Briefcase className="mx-auto text-[#E6DDD1] mb-3" size={28} />
+                      <p className="text-gray-400 text-xs sm:text-sm">Aucune mission disponible actuellement.</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2 sm:space-y-3">
                       {filteredMissions.map(m => (
-                        <div key={m._id} className="rounded-xl border border-[#E6DDD1] p-5 hover:border-[#073B4C]/20 hover:shadow-sm transition-all">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-[#073B4C]">{titreMission(m)}</h3>
-                                <span className="text-[10px] bg-[#F4EFE8] text-[#C5A46D] px-2 py-0.5 rounded-full font-medium uppercase">{m.statut || 'Disponible'}</span>
+                        <div key={m._id} className="rounded-xl border border-[#E6DDD1] p-4 sm:p-5 hover:border-[#073B4C]/20 hover:shadow-sm transition-all">
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
+                                <h3 className="font-semibold text-[#073B4C] text-sm sm:text-base break-words">{titreMission(m)}</h3>
+                                <span className="text-[9px] sm:text-[10px] bg-[#F4EFE8] text-[#C5A46D] px-2 py-0.5 rounded-full font-medium uppercase">{m.statut || 'Disponible'}</span>
                               </div>
-                              <p className="text-sm text-gray-500">{m.briefing || m.description || ''}</p>
-                              <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
+                              <p className="text-xs sm:text-sm text-gray-500 break-words">{m.briefing || m.description || ''}</p>
+                              <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2 sm:mt-3 text-[10px] sm:text-xs text-gray-400">
                                 {(m.lieu || m.ville) && <span className="flex items-center gap-1"><MapPin size={11} /> {m.lieu || m.ville}</span>}
                                 {(m.dateDebut || m.dateDebutMission) && <span className="flex items-center gap-1"><Clock size={11} />{formatDate(m.dateDebut || m.dateDebutMission)}{(m.dateFin || m.dateFinMission) ? ` → ${formatDate(m.dateFin || m.dateFinMission)}` : ''}</span>}
                                 {(m.taux || m.tauxHoraire) && <span className="flex items-center gap-1"><Euro size={11} /> {m.taux || m.tauxHoraire} €/h</span>}
                               </div>
                             </div>
-                            <div className="flex-shrink-0">
+                            <div className="flex-shrink-0 self-start sm:self-auto">
                               {applySuccess === m._id
-                                ? <span className="flex items-center gap-1.5 text-green-600 text-sm font-medium"><CheckCircle size={16} /> Candidature envoyée</span>
-                                : <button onClick={() => handlePostuler(m._id)} className="flex items-center gap-1.5 bg-[#073B4C] hover:bg-[#0A5268] text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors">Postuler <ChevronRight size={14} /></button>
+                                ? <span className="flex items-center gap-1.5 text-green-600 text-xs sm:text-sm font-medium"><CheckCircle size={14} /> Candidature envoyée</span>
+                                : <button onClick={() => handlePostuler(m._id)} className="flex items-center gap-1 bg-[#073B4C] hover:bg-[#0A5268] text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors">Postuler <ChevronRight size={14} /></button>
                               }
                             </div>
                           </div>
@@ -901,35 +946,35 @@ export const ExtraDashboard = ({
 
               {/* ── PLANNING ── */}
               {activeSection === 'planning' && (
-                <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
-                  <div className="mb-5">
-                    <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Calendrier</p>
-                    <h2 className="text-xl font-bold text-[#073B4C]">Mon planning</h2>
+                <div className="bg-white rounded-xl sm:rounded-2xl border border-[#E6DDD1] p-4 sm:p-6">
+                  <div className="mb-4 sm:mb-5">
+                    <p className="text-[9px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-[#C5A46D] uppercase mb-1">Calendrier</p>
+                    <h2 className="text-lg sm:text-xl font-bold text-[#073B4C]">Mon planning</h2>
                   </div>
-                  <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
-                    <Calendar className="mx-auto text-[#E6DDD1] mb-3" size={32} />
-                    <p className="text-gray-400 text-sm">Aucun shift planifié pour le moment.</p>
+                  <div className="rounded-xl border border-dashed border-[#E6DDD1] p-10 sm:p-14 text-center">
+                    <Calendar className="mx-auto text-[#E6DDD1] mb-3" size={28} />
+                    <p className="text-gray-400 text-xs sm:text-sm">Aucun shift planifié pour le moment.</p>
                   </div>
                 </div>
               )}
 
               {/* ── CONTRATS ── */}
               {activeSection === 'contrats' && (
-                <div className="space-y-5">
+                <div className="space-y-4 sm:space-y-5">
                   {/* Contrats à signer en priorité */}
                   {contratsASigner.length > 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
-                      <p className="text-[10px] tracking-[3px] text-amber-600 uppercase mb-2">Action requise</p>
-                      <h3 className="font-bold text-amber-800 mb-3">Contrats en attente de signature</h3>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl sm:rounded-2xl p-4 sm:p-5">
+                      <p className="text-[9px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-amber-600 uppercase mb-2">Action requise</p>
+                      <h3 className="font-bold text-amber-800 text-sm sm:text-base mb-3">Contrats en attente de signature</h3>
                       <div className="space-y-2">
                         {contratsASigner.map(c => (
-                          <div key={c._id} className="bg-white rounded-xl border border-amber-200 p-4 flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold text-[#073B4C]">{titreContrat(c)}</p>
-                              <p className="text-xs text-gray-400 mt-0.5">{nomEtabContrat(c)}{c.dateDebut ? ` · Du ${formatDate(c.dateDebut)}` : ''}</p>
+                          <div key={c._id} className="bg-white rounded-xl border border-amber-200 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-[#073B4C] text-sm sm:text-base break-words">{titreContrat(c)}</p>
+                              <p className="text-xs text-gray-400 mt-0.5 break-words">{nomEtabContrat(c)}{c.dateDebut ? ` · Du ${formatDate(c.dateDebut)}` : ''}</p>
                             </div>
                             <button onClick={() => setContratASignerModal(c)}
-                              className="flex items-center gap-1.5 bg-[#073B4C] hover:bg-[#0A5268] text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+                              className="flex items-center gap-1.5 bg-[#073B4C] hover:bg-[#0A5268] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors self-start sm:self-auto">
                               <PenLine size={14} /> Signer
                             </button>
                           </div>
@@ -938,39 +983,39 @@ export const ExtraDashboard = ({
                     </div>
                   )}
 
-                  <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
-                    <div className="flex items-center justify-between mb-5">
+                  <div className="bg-white rounded-xl sm:rounded-2xl border border-[#E6DDD1] p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 sm:mb-5">
                       <div>
-                        <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Documents</p>
-                        <h2 className="text-xl font-bold text-[#073B4C]">Mes contrats</h2>
+                        <p className="text-[9px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-[#C5A46D] uppercase mb-1">Documents</p>
+                        <h2 className="text-lg sm:text-xl font-bold text-[#073B4C]">Mes contrats</h2>
                       </div>
-                      {contrats.length > 0 && <span className="text-sm text-gray-400">{contrats.length} contrat{contrats.length > 1 ? 's' : ''}</span>}
+                      {contrats.length > 0 && <span className="text-xs sm:text-sm text-gray-400">{contrats.length} contrat{contrats.length > 1 ? 's' : ''}</span>}
                     </div>
                     {contrats.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
-                        <FileText className="mx-auto text-[#E6DDD1] mb-3" size={32} />
-                        <p className="text-gray-400 text-sm">Aucun contrat disponible.</p>
+                      <div className="rounded-xl border border-dashed border-[#E6DDD1] p-10 sm:p-14 text-center">
+                        <FileText className="mx-auto text-[#E6DDD1] mb-3" size={28} />
+                        <p className="text-gray-400 text-xs sm:text-sm">Aucun contrat disponible.</p>
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-2 sm:space-y-3">
                         {contrats.map(c => (
-                          <div key={c._id} className="rounded-xl border border-[#E6DDD1] p-5 flex items-center justify-between hover:border-[#073B4C]/20 transition-all">
-                            <div>
-                              <p className="font-semibold text-[#073B4C]">{titreContrat(c)}</p>
-                              <p className="text-xs text-gray-400 mt-1">{nomEtabContrat(c) ? `${nomEtabContrat(c)} · ` : ''}{formatDate(c.dateDebut)}{c.dateFin ? ` → ${formatDate(c.dateFin)}` : ''}</p>
+                          <div key={c._id} className="rounded-xl border border-[#E6DDD1] p-3 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 hover:border-[#073B4C]/20 transition-all">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-[#073B4C] text-sm sm:text-base break-words">{titreContrat(c)}</p>
+                              <p className="text-xs text-gray-400 mt-1 break-words">{nomEtabContrat(c) ? `${nomEtabContrat(c)} · ` : ''}{formatDate(c.dateDebut)}{c.dateFin ? ` → ${formatDate(c.dateFin)}` : ''}</p>
                               {c.signéLe && <p className="text-[11px] text-green-600 mt-0.5">Signé le {formatDate(c.signéLe)}</p>}
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                               {c.statut && (
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${c.statut === 'signé' ? 'bg-green-50 text-green-600' : c.statut === 'en_attente_signature' ? 'bg-amber-50 text-amber-600' : c.statut === 'en attente' ? 'bg-yellow-50 text-yellow-600' : 'bg-[#F4EFE8] text-[#C5A46D]'}`}>{c.statut}</span>
+                                <span className={`text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${c.statut === 'signé' ? 'bg-green-50 text-green-600' : c.statut === 'en_attente_signature' ? 'bg-amber-50 text-amber-600' : c.statut === 'en attente' ? 'bg-yellow-50 text-yellow-600' : 'bg-[#F4EFE8] text-[#C5A46D]'}`}>{c.statut}</span>
                               )}
                               {c.statut === 'en_attente_signature' && (
                                 <button onClick={() => setContratASignerModal(c)}
-                                  className="flex items-center gap-1 bg-[#073B4C] text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-[#0A5268] transition-colors">
+                                  className="flex items-center gap-1 bg-[#073B4C] text-white px-2.5 sm:px-3 py-1 rounded-lg text-[10px] sm:text-xs font-medium hover:bg-[#0A5268] transition-colors">
                                   <PenLine size={12} /> Signer
                                 </button>
                               )}
-                              <button className="text-gray-400 hover:text-[#073B4C] transition-colors" title="Télécharger"><Download size={15} /></button>
+                              <button className="text-gray-400 hover:text-[#073B4C] transition-colors p-1" title="Télécharger"><Download size={14} /></button>
                             </div>
                           </div>
                         ))}
@@ -982,33 +1027,35 @@ export const ExtraDashboard = ({
 
               {/* ── RAPPORTS ── */}
               {activeSection === 'rapports' && (
-                <div className="space-y-5">
-                  <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-4 sm:space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4">
                     {[
                       { label: 'Missions disponibles', value: missions.length },
                       { label: 'Contrats signés',      value: contrats.filter(c => c.statut === 'signé').length },
                       { label: 'Total perçu',          value: totalPaye ? formatMontant(totalPaye) : '—' },
                     ].map((stat, i) => (
-                      <div key={i} className="bg-white rounded-2xl border border-[#E6DDD1] p-5">
-                        <p className="text-2xl font-bold text-[#073B4C]">{stat.value}</p>
-                        <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
+                      <div key={i} className="bg-white rounded-xl sm:rounded-2xl border border-[#E6DDD1] p-4 sm:p-5">
+                        <p className="text-xl sm:text-2xl font-bold text-[#073B4C] break-words">{stat.value}</p>
+                        <p className="text-xs sm:text-sm text-gray-500 mt-1 break-words">{stat.label}</p>
                       </div>
                     ))}
                   </div>
 
                   {paiementsChartData.length > 0 && (
-                    <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
-                      <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Évolution</p>
-                      <h3 className="font-bold text-[#073B4C] mb-4">Paiements reçus</h3>
-                      <ResponsiveContainer width="100%" height={220}>
-                        <LineChart data={paiementsChartData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#F4F1EA" />
-                          <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                          <YAxis tick={{ fontSize: 10 }} />
-                          <Tooltip formatter={(value) => value == null ? "" : `${Number(value).toLocaleString("fr-FR")} €` } />
-                          <Line type="monotone" dataKey="montant" stroke="#073B4C" strokeWidth={2} dot={{ fill: '#C5A46D', r: 4 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                    <div className="bg-white rounded-xl sm:rounded-2xl border border-[#E6DDD1] p-4 sm:p-6">
+                      <p className="text-[9px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-[#C5A46D] uppercase mb-1">Évolution</p>
+                      <h3 className="font-bold text-[#073B4C] text-sm sm:text-base mb-3 sm:mb-4">Paiements reçus</h3>
+                      <div className="h-[180px] sm:h-[220px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={paiementsChartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#F4F1EA" />
+                            <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+                            <YAxis tick={{ fontSize: 9 }} />
+                            <Tooltip formatter={(value) => value == null ? "" : `${Number(value).toLocaleString("fr-FR")} €`} />
+                            <Line type="monotone" dataKey="montant" stroke="#073B4C" strokeWidth={2} dot={{ fill: '#C5A46D', r: 4 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1016,31 +1063,31 @@ export const ExtraDashboard = ({
 
               {/* ── PAIEMENTS ── */}
               {activeSection === 'paiements' && (
-                <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
-                  <div className="flex items-center justify-between mb-5">
+                <div className="bg-white rounded-xl sm:rounded-2xl border border-[#E6DDD1] p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 sm:mb-5">
                     <div>
-                      <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Rémunération</p>
-                      <h2 className="text-xl font-bold text-[#073B4C]">Mes fiches de paie</h2>
+                      <p className="text-[9px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-[#C5A46D] uppercase mb-1">Rémunération</p>
+                      <h2 className="text-lg sm:text-xl font-bold text-[#073B4C]">Mes fiches de paie</h2>
                     </div>
-                    {paiements.length > 0 && <span className="text-sm text-gray-400">{paiements.length} fiche{paiements.length > 1 ? 's' : ''}</span>}
+                    {paiements.length > 0 && <span className="text-xs sm:text-sm text-gray-400">{paiements.length} fiche{paiements.length > 1 ? 's' : ''}</span>}
                   </div>
                   {paiements.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-[#E6DDD1] p-14 text-center">
-                      <Euro className="mx-auto text-[#E6DDD1] mb-3" size={32} />
-                      <p className="text-gray-400 text-sm">Aucune fiche de paie disponible.</p>
+                    <div className="rounded-xl border border-dashed border-[#E6DDD1] p-10 sm:p-14 text-center">
+                      <Euro className="mx-auto text-[#E6DDD1] mb-3" size={28} />
+                      <p className="text-gray-400 text-xs sm:text-sm">Aucune fiche de paie disponible.</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2 sm:space-y-3">
                       {paiements.map(p => (
-                        <div key={p._id} className="rounded-xl border border-[#E6DDD1] p-5 flex items-center justify-between hover:border-[#073B4C]/20 transition-all">
+                        <div key={p._id} className="rounded-xl border border-[#E6DDD1] p-3 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 hover:border-[#073B4C]/20 transition-all">
                           <div>
-                            <p className="font-semibold text-[#073B4C]">{p.mois || formatDate(p.dateEmission)}</p>
-                            <p className="text-xs text-gray-400 mt-1">{formatDate(p.dateEmission)}</p>
+                            <p className="font-semibold text-[#073B4C] text-sm sm:text-base break-words">{p.mois || formatDate(p.dateEmission)}</p>
+                            <p className="text-xs text-gray-400 mt-0.5 break-words">{formatDate(p.dateEmission)}</p>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <p className="font-bold text-[#073B4C]">{formatMontant(p.montant)}</p>
-                            {p.statut && <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${p.statut === 'payé' ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600'}`}>{p.statut}</span>}
-                            <button className="text-gray-400 hover:text-[#073B4C] transition-colors" title="Télécharger"><Download size={15} /></button>
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                            <p className="font-bold text-[#073B4C] text-sm sm:text-base break-words">{formatMontant(p.montant)}</p>
+                            {p.statut && <span className={`text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${p.statut === 'payé' ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600'}`}>{p.statut}</span>}
+                            <button className="text-gray-400 hover:text-[#073B4C] transition-colors p-1" title="Télécharger"><Download size={14} /></button>
                           </div>
                         </div>
                       ))}
@@ -1051,21 +1098,22 @@ export const ExtraDashboard = ({
 
               {/* ── MESSAGERIE ── */}
               {activeSection === 'messagerie' && (
-                <div className="bg-white rounded-2xl border border-[#E6DDD1] overflow-hidden" style={{ height: 'calc(100vh - 160px)' }}>
-                  <div className="flex h-full">
-                    <div className={`flex flex-col border-r border-[#E6DDD1] ${selectedChannel ? 'w-[300px]' : 'flex-1'} transition-all`}>
-                      <div className="px-5 py-4 border-b border-[#E6DDD1] flex items-center justify-between flex-shrink-0">
+                <div className="bg-white rounded-xl sm:rounded-2xl border border-[#E6DDD1] overflow-hidden" style={{ height: 'calc(100vh - 140px)' }}>
+                  <div className="flex flex-col md:flex-row h-full">
+                    {/* Liste des conversations - cachée sur mobile quand une conversation est sélectionnée */}
+                    <div className={`${selectedChannel ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[300px] lg:w-[320px] border-r border-[#E6DDD1] h-full`}>
+                      <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-[#E6DDD1] flex items-center justify-between flex-shrink-0">
                         <div>
-                          <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-0.5">Communication</p>
-                          <h2 className="font-bold text-[#073B4C] text-lg">Messagerie</h2>
+                          <p className="text-[9px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-[#C5A46D] uppercase mb-0.5">Communication</p>
+                          <h2 className="font-bold text-[#073B4C] text-base sm:text-lg">Messagerie</h2>
                         </div>
-                        {totalUnread > 0 && <span className="bg-orange-100 text-orange-600 text-xs font-semibold px-2.5 py-1 rounded-full">{totalUnread} non lu{totalUnread > 1 ? 's' : ''}</span>}
+                        {totalUnread > 0 && <span className="bg-orange-100 text-orange-600 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">{totalUnread} non lu{totalUnread > 1 ? 's' : ''}</span>}
                       </div>
                       <div className="flex-1 overflow-y-auto">
                         {channels.length === 0 ? (
-                          <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
-                            <MessageSquare className="text-[#E6DDD1] mb-3" size={32} />
-                            <p className="text-gray-400 text-sm">Aucune conversation.</p>
+                          <div className="flex flex-col items-center justify-center h-full text-center px-4 sm:px-6 py-8 sm:py-12">
+                            <MessageSquare className="text-[#E6DDD1] mb-3" size={28} />
+                            <p className="text-gray-400 text-xs sm:text-sm">Aucune conversation.</p>
                           </div>
                         ) : (
                           <div className="divide-y divide-[#F4F1EA]">
@@ -1074,18 +1122,18 @@ export const ExtraDashboard = ({
                               const hasUnread = (ch.unreadCount || 0) > 0;
                               return (
                                 <button key={ch._id} onClick={() => setSelectedChannel(ch)}
-                                  className={`w-full text-left px-5 py-4 flex items-start gap-3 transition-all ${isActive ? 'bg-[#073B4C]/5 border-l-2 border-l-[#073B4C]' : 'hover:bg-[#F4F1EA] border-l-2 border-l-transparent'}`}>
-                                  <div className="w-10 h-10 rounded-full bg-[#073B4C] flex items-center justify-center flex-shrink-0 mt-0.5">
-                                    <span className="text-white text-xs font-bold">E</span>
+                                  className={`w-full text-left px-4 sm:px-5 py-3 sm:py-4 flex items-start gap-2 sm:gap-3 transition-all ${isActive ? 'bg-[#073B4C]/5 border-l-2 border-l-[#073B4C]' : 'hover:bg-[#F4F1EA] border-l-2 border-l-transparent'}`}>
+                                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#073B4C] flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <span className="text-white text-[10px] sm:text-xs font-bold">E</span>
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between gap-2 mb-1">
-                                      <p className={`text-sm truncate ${hasUnread ? 'font-bold text-[#073B4C]' : 'font-medium text-gray-700'}`}>{channelLabel(ch)}</p>
-                                      <span className="text-[10px] text-gray-400 flex-shrink-0">{formatTime(ch.lastMessageAt)}</span>
+                                    <div className="flex items-center justify-between gap-1 sm:gap-2 mb-0.5 sm:mb-1">
+                                      <p className={`text-xs sm:text-sm truncate ${hasUnread ? 'font-bold text-[#073B4C]' : 'font-medium text-gray-700'}`}>{channelLabel(ch)}</p>
+                                      <span className="text-[9px] sm:text-[10px] text-gray-400 flex-shrink-0">{formatTime(ch.lastMessageAt)}</span>
                                     </div>
-                                    <div className="flex items-center justify-between gap-2">
-                                      <p className={`text-xs truncate ${hasUnread ? 'text-gray-600' : 'text-gray-400'}`}>{ch.lastMessage || 'Aucun message'}</p>
-                                      {hasUnread && <span className="flex-shrink-0 w-5 h-5 bg-orange-400 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{ch.unreadCount}</span>}
+                                    <div className="flex items-center justify-between gap-1 sm:gap-2">
+                                      <p className={`text-[10px] sm:text-xs truncate ${hasUnread ? 'text-gray-600' : 'text-gray-400'}`}>{ch.lastMessage || 'Aucun message'}</p>
+                                      {hasUnread && <span className="flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5 bg-orange-400 text-white text-[8px] sm:text-[10px] font-bold rounded-full flex items-center justify-center">{ch.unreadCount}</span>}
                                     </div>
                                   </div>
                                 </button>
@@ -1096,24 +1144,25 @@ export const ExtraDashboard = ({
                       </div>
                     </div>
 
+                    {/* Zone de conversation */}
                     {selectedChannel ? (
-                      <div className="flex-1 flex flex-col min-w-0">
-                        <div className="px-6 py-4 border-b border-[#E6DDD1] flex items-center gap-3 flex-shrink-0 bg-white">
-                          <button onClick={() => setSelectedChannel(null)} className="text-gray-400 hover:text-[#073B4C] transition-colors mr-1 md:hidden"><ArrowLeft size={18} /></button>
-                          <div className="w-9 h-9 rounded-full bg-[#073B4C] flex items-center justify-center flex-shrink-0"><span className="text-white text-xs font-bold">E</span></div>
+                      <div className="flex-1 flex flex-col min-w-0 h-full">
+                        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-[#E6DDD1] flex items-center gap-2 sm:gap-3 flex-shrink-0 bg-white">
+                          <button onClick={() => setSelectedChannel(null)} className="md:hidden text-gray-400 hover:text-[#073B4C] transition-colors p-1"><ArrowLeft size={18} /></button>
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#073B4C] flex items-center justify-center flex-shrink-0"><span className="text-white text-[10px] sm:text-xs font-bold">E</span></div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-[#073B4C] truncate">{channelLabel(selectedChannel)}</p>
-                            <p className="text-xs text-gray-400">{selectedChannel.messages.length} message{selectedChannel.messages.length > 1 ? 's' : ''}</p>
+                            <p className="font-semibold text-[#073B4C] text-sm sm:text-base truncate">{channelLabel(selectedChannel)}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-400">{selectedChannel.messages.length} message{selectedChannel.messages.length > 1 ? 's' : ''}</p>
                           </div>
-                          <button onClick={() => loadChannels()} className="text-gray-400 hover:text-[#073B4C] transition-colors text-xs flex items-center gap-1">
+                          <button onClick={() => loadChannels()} className="text-gray-400 hover:text-[#073B4C] transition-colors text-[10px] sm:text-xs flex items-center gap-1 p-1">
                             <ChevronDown size={14} className="rotate-180" />
                           </button>
                         </div>
-                        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-[#FAFAF8]">
+                        <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-3 sm:py-5 space-y-3 sm:space-y-4 bg-[#FAFAF8]">
                           {selectedChannel.messages.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full text-center">
-                              <MessageSquare className="text-[#E6DDD1] mb-3" size={28} />
-                              <p className="text-gray-400 text-sm">Aucun message.</p>
+                              <MessageSquare className="text-[#E6DDD1] mb-3" size={24} />
+                              <p className="text-gray-400 text-xs sm:text-sm">Aucun message.</p>
                             </div>
                           ) : (
                             <>
@@ -1123,18 +1172,18 @@ export const ExtraDashboard = ({
                                 return (
                                   <React.Fragment key={msg._id}>
                                     {showDate && (
-                                      <div className="flex items-center gap-3 my-4">
+                                      <div className="flex items-center gap-2 sm:gap-3 my-3 sm:my-4">
                                         <div className="flex-1 h-px bg-[#E6DDD1]" />
-                                        <span className="text-[10px] text-gray-400">{new Date(msg.createdAt ?? 0).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                                        <span className="text-[9px] sm:text-[10px] text-gray-400 text-center">{new Date(msg.createdAt ?? 0).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
                                         <div className="flex-1 h-px bg-[#E6DDD1]" />
                                       </div>
                                     )}
                                     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                                      <div className={`max-w-[70%] flex flex-col gap-1 ${isOwn ? 'items-end' : 'items-start'}`}>
-                                        <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${isOwn ? 'bg-[#073B4C] text-white rounded-br-md' : 'bg-white text-gray-800 border border-[#E6DDD1] rounded-bl-md shadow-sm'}`}>
+                                      <div className={`max-w-[85%] sm:max-w-[75%] flex flex-col gap-0.5 sm:gap-1 ${isOwn ? 'items-end' : 'items-start'}`}>
+                                        <div className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm leading-relaxed break-words ${isOwn ? 'bg-[#073B4C] text-white rounded-br-md' : 'bg-white text-gray-800 border border-[#E6DDD1] rounded-bl-md shadow-sm'}`}>
                                           {msg.contenu}
                                         </div>
-                                        <span className="text-[10px] text-gray-400 px-1">{formatTime(msg.createdAt)}</span>
+                                        <span className="text-[9px] sm:text-[10px] text-gray-400 px-1">{formatTime(msg.createdAt)}</span>
                                       </div>
                                     </div>
                                   </React.Fragment>
@@ -1144,29 +1193,29 @@ export const ExtraDashboard = ({
                             </>
                           )}
                         </div>
-                        <div className="px-6 py-4 border-t border-[#E6DDD1] bg-white flex-shrink-0">
-                          {sendError && <p className="text-xs text-red-500 mb-2 flex items-center gap-1"><AlertCircle size={12} /> {sendError}</p>}
-                          <div className="flex items-end gap-3">
+                        <div className="px-3 sm:px-6 py-3 sm:py-4 border-t border-[#E6DDD1] bg-white flex-shrink-0">
+                          {sendError && <p className="text-[10px] sm:text-xs text-red-500 mb-1.5 sm:mb-2 flex items-center gap-1"><AlertCircle size={12} /> <span className="break-words">{sendError}</span></p>}
+                          <div className="flex items-end gap-2 sm:gap-3">
                             <textarea value={newMessage} onChange={e => setNewMessage(e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-                              placeholder="Écrire un message… (Entrée pour envoyer)" rows={1}
-                              className="flex-1 resize-none bg-[#F4F1EA] rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#073B4C]/20 min-h-[44px] max-h-32"
+                              placeholder="Écrire un message…" rows={1}
+                              className="flex-1 resize-none bg-[#F4F1EA] rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#073B4C]/20 min-h-[36px] sm:min-h-[44px] max-h-28 sm:max-h-32"
                               style={{ lineHeight: '1.5' }} />
                             <button onClick={handleSendMessage} disabled={!newMessage.trim() || sendingMessage}
-                              className="flex-shrink-0 w-11 h-11 rounded-xl bg-[#073B4C] hover:bg-[#0A5268] disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-all">
-                              {sendingMessage ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={16} />}
+                              className="flex-shrink-0 w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#073B4C] hover:bg-[#0A5268] disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-all">
+                              {sendingMessage ? <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={14} className="sm:w-4 sm:h-4" />}
                             </button>
                           </div>
-                          <p className="text-[10px] text-gray-300 mt-2 text-right">Shift+Entrée pour aller à la ligne</p>
+                          <p className="text-[9px] sm:text-[10px] text-gray-300 mt-1 sm:mt-2 text-right">Shift+Entrée pour aller à la ligne</p>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center bg-[#FAFAF8] text-center px-12">
-                        <div className="w-16 h-16 rounded-2xl bg-[#F4EFE8] flex items-center justify-center mb-4">
-                          <MessageSquare className="text-[#C5A46D]" size={28} />
+                      <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-[#FAFAF8] text-center px-8 sm:px-12">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-[#F4EFE8] flex items-center justify-center mb-3 sm:mb-4">
+                          <MessageSquare className="text-[#C5A46D]" size={24} />
                         </div>
-                        <p className="font-semibold text-[#073B4C] mb-1">Sélectionnez une conversation</p>
-                        <p className="text-sm text-gray-400">Choisissez un échange dans la liste pour lire et répondre.</p>
+                        <p className="font-semibold text-[#073B4C] text-sm sm:text-base mb-0.5 sm:mb-1">Sélectionnez une conversation</p>
+                        <p className="text-xs sm:text-sm text-gray-400">Choisissez un échange dans la liste pour lire et répondre.</p>
                       </div>
                     )}
                   </div>
@@ -1175,25 +1224,25 @@ export const ExtraDashboard = ({
 
               {/* ── PARAMÈTRES ── */}
               {activeSection === 'parametres' && (
-                <div className="space-y-6">
-                  <div className="bg-white rounded-2xl border border-[#E6DDD1] p-6">
-                    <div className="mb-6">
-                      <p className="text-[10px] tracking-[3px] text-[#C5A46D] uppercase mb-1">Compte</p>
-                      <h2 className="text-xl font-bold text-[#073B4C]">Mes informations</h2>
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="bg-white rounded-xl sm:rounded-2xl border border-[#E6DDD1] p-4 sm:p-6">
+                    <div className="mb-4 sm:mb-6">
+                      <p className="text-[9px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-[#C5A46D] uppercase mb-1">Compte</p>
+                      <h2 className="text-lg sm:text-xl font-bold text-[#073B4C]">Mes informations</h2>
                     </div>
-                    <div className="space-y-3 max-w-lg">
+                    <div className="space-y-2 sm:space-y-3 max-w-lg">
                       {[
                         { label: 'Prénom', value: user?.prenom },
                         { label: 'Nom',    value: user?.nom },
                         { label: 'Email',  value: user?.email },
                         { label: 'Rôle',   value: user?.role },
                       ].map((field, i) => (
-                        <div key={i} className="flex items-center justify-between py-3 border-b border-[#E6DDD1]">
-                          <span className="text-sm text-gray-500">{field.label}</span>
-                          <span className="text-sm font-medium text-[#073B4C]">{field.value || '—'}</span>
+                        <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between py-2 sm:py-3 border-b border-[#E6DDD1] gap-1 sm:gap-0">
+                          <span className="text-xs sm:text-sm text-gray-500">{field.label}</span>
+                          <span className="text-xs sm:text-sm font-medium text-[#073B4C] break-words">{field.value || '—'}</span>
                         </div>
                       ))}
-                      <button onClick={onLogout} className="mt-4 flex items-center gap-2 text-sm text-red-500 hover:text-red-600 transition-colors">
+                      <button onClick={onLogout} className="mt-2 sm:mt-4 flex items-center gap-2 text-xs sm:text-sm text-red-500 hover:text-red-600 transition-colors">
                         <LogOut size={14} /> Se déconnecter
                       </button>
                     </div>
@@ -1206,8 +1255,9 @@ export const ExtraDashboard = ({
         </main>
       </div>
 
-      <button onClick={onLogout} className="fixed bottom-6 right-6 flex items-center gap-2 bg-[#073B4C] text-white/70 hover:text-white text-sm px-4 py-2.5 rounded-xl shadow-lg hover:bg-[#0A5268] transition-all">
-        <LogOut size={14} /> Déconnexion
+      {/* Bouton déconnexion flottant - responsive */}
+      <button onClick={onLogout} className="fixed bottom-3 sm:bottom-6 right-3 sm:right-6 flex items-center gap-1.5 sm:gap-2 bg-[#073B4C] text-white/70 hover:text-white text-[10px] sm:text-sm px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl shadow-lg hover:bg-[#0A5268] transition-all z-10">
+        <LogOut size={12} className="sm:w-3.5 sm:h-3.5" /> Déconnexion
       </button>
     </div>
   );
