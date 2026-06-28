@@ -1,6 +1,5 @@
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
 
 // ── Génération JWT ────────────────────────────────────────────────────────────
 const generateToken = (id) => {
@@ -88,11 +87,12 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // ✅ Créer l'utilisateur
+    const resolvedRole = role || 'extra';
+
     const userData = {
       email,
       password,
-      role: role || 'extra',
+      role: resolvedRole,
       nom: nom || '',
       prenom: prenom || '',
       societe: societe || '',
@@ -102,20 +102,21 @@ export const registerUser = async (req, res) => {
       statutCompte: 'actif'
     };
 
-    // ✅ Validation des champs requis selon le rôle
-    if (userData.role === 'client' || userData.role === 'extra') {
-      if (!userData.nom || !userData.prenom) {
+    // ✅ Validation nom/prenom uniquement pour les extras (pas les clients)
+    if (resolvedRole === 'extra') {
+      if (!nom || !prenom) {
         return res.status(400).json({
           status: 'error',
-          message: `Le nom et le prénom sont obligatoires pour le rôle "${userData.role}"`
+          message: 'Le nom et le prénom sont obligatoires pour les extras.'
         });
       }
     }
 
-    if ((userData.role === 'client' || userData.role === 'etablissement') && !userData.societe) {
+    // ✅ Validation société uniquement pour établissement (le client peut s'inscrire sans)
+    if (resolvedRole === 'etablissement' && !societe) {
       return res.status(400).json({
         status: 'error',
-        message: `Le nom de la société est obligatoire pour le rôle "${userData.role}"`
+        message: 'Le nom de la société est obligatoire pour un établissement.'
       });
     }
 
@@ -123,18 +124,12 @@ export const registerUser = async (req, res) => {
 
     console.log('✅ Utilisateur créé :', user._id);
 
-    // ✅ Générer le token
     const token = generateToken(user._id);
 
-    // ✅ Mettre à jour la date de dernière connexion
     await User.updateOne(
-  { _id: user._id },
-  {
-    $set: {
-      derniereConnexion: new Date()
-    }
-  }
-);
+      { _id: user._id },
+      { $set: { derniereConnexion: new Date() } }
+    );
 
     res.status(201).json({
       status: 'success',
@@ -157,7 +152,6 @@ export const registerUser = async (req, res) => {
   } catch (error) {
     console.error('❌ REGISTER ERROR:', error);
 
-    // ✅ Gestion des erreurs de validation MongoDB
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(e => e.message);
       return res.status(400).json({
@@ -167,7 +161,6 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // ✅ Gestion des erreurs de duplication
     if (error.code === 11000) {
       return res.status(400).json({
         status: 'error',
@@ -192,7 +185,6 @@ export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // ✅ Validation des champs
     if (!email || !password) {
       console.log('❌ Email ou mot de passe manquant');
       return res.status(400).json({
@@ -201,10 +193,7 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // ✅ Vérifier la connexion MongoDB
     console.log('🔍 Recherche de l\'utilisateur...');
-
-    // ⚠️ IMPORTANT: On doit inclure le password avec .select('+password')
     const user = await User.findOne({ email }).select('+password');
 
     console.log('👤 Utilisateur trouvé:', !!user);
@@ -216,7 +205,6 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // ✅ Vérifier le statut du compte
     if (user.statutCompte === 'suspendu') {
       return res.status(403).json({
         status: 'error',
@@ -231,7 +219,6 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // ✅ Vérifier le mot de passe
     console.log('🔑 Vérification du mot de passe...');
     const isMatch = await user.matchPassword(password);
     console.log('✅ Mot de passe valide:', isMatch);
@@ -245,16 +232,12 @@ export const loginUser = async (req, res) => {
     }
 
     console.log('✅ Connexion réussie pour:', email);
-
-    // ✅ Générer le token
     console.log('🎫 Génération du token...');
     const token = generateToken(user._id);
 
-    // ✅ Mettre à jour la date de dernière connexion
     user.derniereConnexion = new Date();
     await user.save();
 
-    // ✅ Réponse avec les données utilisateur (sans le mot de passe)
     res.status(200).json({
       status: 'success',
       token,
@@ -280,7 +263,6 @@ export const loginUser = async (req, res) => {
     console.error('📝 Stack:', error.stack);
     console.error('📝 Name:', error.name);
 
-    // ✅ Gestion des erreurs spécifiques
     if (error.name === 'JsonWebTokenError') {
       return res.status(500).json({
         status: 'error',
@@ -316,7 +298,6 @@ export const getMe = async (req, res) => {
       });
     }
 
-    // ✅ Récupérer l'utilisateur à jour depuis la base
     const user = await User.findById(req.user._id);
 
     if (!user) {
@@ -357,8 +338,6 @@ export const getMe = async (req, res) => {
 // ── Déconnexion ─────────────────────────────────────────────────────────────────
 export const logoutUser = async (req, res) => {
   try {
-    // Le token côté client doit être supprimé
-    // Le serveur peut juste valider la déconnexion
     res.status(200).json({
       status: 'success',
       message: 'Déconnexion réussie'
