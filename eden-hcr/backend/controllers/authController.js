@@ -1,10 +1,12 @@
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
-// Génération JWT
+// ── Génération JWT ────────────────────────────────────────────────────────────
 const generateToken = (id) => {
   if (!process.env.JWT_SECRET) {
-    throw new Error("JWT_SECRET manquant dans les variables d'environnement");
+    console.error('❌ JWT_SECRET manquant dans les variables d\'environnement');
+    throw new Error('JWT_SECRET manquant dans les variables d\'environnement');
   }
 
   return jwt.sign(
@@ -14,12 +16,19 @@ const generateToken = (id) => {
   );
 };
 
-// @desc    Inscription d'un utilisateur
-// @route   POST /api/auth/register
-export const registerUser = async (req, res, next) => {
+// ── Vérification des champs obligatoires ─────────────────────────────────────
+const validateRequiredFields = (fields, required) => {
+  const missing = required.filter(field => !fields[field]);
+  if (missing.length > 0) {
+    throw new Error(`Champs obligatoires manquants: ${missing.join(', ')}`);
+  }
+};
+
+// ── Inscription ────────────────────────────────────────────────────────────────
+export const registerUser = async (req, res) => {
   try {
     console.log('===== REGISTER REQUEST =====');
-    console.log(req.body);
+    console.log('📝 Corps de la requête:', req.body);
 
     const {
       email,
@@ -28,42 +37,88 @@ export const registerUser = async (req, res, next) => {
       prenom,
       role,
       societe,
+      telephone,
       candidatRef,
       etablissementRef
     } = req.body;
 
-    if (!email || !password) {
-      res.status(400);
-      throw new Error('Email et mot de passe sont obligatoires.');
+    // ✅ Validation des champs obligatoires
+    try {
+      validateRequiredFields({ email, password }, ['email', 'password']);
+    } catch (error) {
+      return res.status(400).json({
+        status: 'error',
+        message: error.message
+      });
     }
 
-    // Empêcher l'auto-inscription en tant qu'admin/superadmin
+    // ✅ Vérifier le format de l'email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Format d\'email invalide'
+      });
+    }
+
+    // ✅ Empêcher l'auto-inscription en tant qu'admin/superadmin
     if (role === 'admin' || role === 'superadmin') {
-      res.status(403);
-      throw new Error("Ce role ne peut pas etre attribue lors de l'inscription.");
+      return res.status(403).json({
+        status: 'error',
+        message: 'Ce rôle ne peut pas être attribué lors de l\'inscription.'
+      });
     }
 
+    // ✅ Vérifier si l'utilisateur existe déjà
     const userExists = await User.findOne({ email });
-
     if (userExists) {
-      res.status(400);
-      throw new Error('Cet utilisateur existe deja.');
+      return res.status(400).json({
+        status: 'error',
+        message: 'Cet utilisateur existe déjà.'
+      });
     }
 
-    const user = await User.create({
+    // ✅ Créer l'utilisateur
+    const userData = {
       email,
       password,
-      nom,
-      prenom,
-      societe: societe || '',
       role: role || 'extra',
-      candidatRef,
-      etablissementRef
-    });
+      nom: nom || '',
+      prenom: prenom || '',
+      societe: societe || '',
+      telephone: telephone || '',
+      candidatRef: candidatRef || null,
+      etablissementRef: etablissementRef || null,
+      statutCompte: 'actif'
+    };
 
-    console.log('Utilisateur cree :', user._id);
+    // ✅ Validation des champs requis selon le rôle
+    if (userData.role === 'client' || userData.role === 'extra') {
+      if (!userData.nom || !userData.prenom) {
+        return res.status(400).json({
+          status: 'error',
+          message: `Le nom et le prénom sont obligatoires pour le rôle "${userData.role}"`
+        });
+      }
+    }
 
+    if ((userData.role === 'client' || userData.role === 'etablissement') && !userData.societe) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Le nom de la société est obligatoire pour le rôle "${userData.role}"`
+      });
+    }
+
+    const user = await User.create(userData);
+
+    console.log('✅ Utilisateur créé :', user._id);
+
+    // ✅ Générer le token
     const token = generateToken(user._id);
+
+    // ✅ Mettre à jour la date de dernière connexion
+    user.derniereConnexion = new Date();
+    await user.save();
 
     res.status(201).json({
       status: 'success',
@@ -74,50 +129,105 @@ export const registerUser = async (req, res, next) => {
         role: user.role,
         nom: user.nom,
         prenom: user.prenom,
-        societe: user.societe
+        societe: user.societe,
+        telephone: user.telephone,
+        photoProfil: user.photoProfil,
+        candidatRef: user.candidatRef,
+        etablissementRef: user.etablissementRef,
+        statutCompte: user.statutCompte
       }
     });
 
   } catch (error) {
-    console.error('===== REGISTER ERROR =====');
-    console.error(error);
+    console.error('❌ REGISTER ERROR:', error);
+    
+    // ✅ Gestion des erreurs de validation MongoDB
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(e => e.message);
+      return res.status(400).json({
+        status: 'error',
+        message: 'Erreur de validation',
+        errors
+      });
+    }
 
-    return res.status(res.statusCode !== 200 ? res.statusCode : 500).json({
+    // ✅ Gestion des erreurs de duplication
+    if (error.code === 11000) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Cet email est déjà utilisé.'
+      });
+    }
+
+    return res.status(500).json({
       status: 'error',
-      name: error.name,
-      message: error.message,
-      validationErrors: error.errors || null
+      message: error.message || 'Erreur interne du serveur'
     });
   }
 };
 
-// @desc    Connexion utilisateur
-// @route   POST /api/auth/login
-export const loginUser = async (req, res, next) => {
+// ── Connexion ──────────────────────────────────────────────────────────────────
+export const loginUser = async (req, res) => {
   try {
+    console.log('===== LOGIN REQUEST =====');
+    console.log('📧 Email:', req.body.email);
+
     const { email, password } = req.body;
 
+    // ✅ Validation des champs
     if (!email || !password) {
-      res.status(400);
-      throw new Error('Email et mot de passe obligatoires.');
+      return res.status(400).json({
+        status: 'error',
+        message: 'Email et mot de passe obligatoires.'
+      });
     }
 
-    const user = await User.findOne({ email });
+    // ✅ Rechercher l'utilisateur (inclure le password pour comparaison)
+    const user = await User.findOne({ email }).select('+password');
 
     if (!user) {
-      res.status(401);
-      throw new Error('Utilisateur introuvable.');
+      console.log('❌ Utilisateur non trouvé:', email);
+      return res.status(401).json({
+        status: 'error',
+        message: 'Email ou mot de passe incorrect.'
+      });
     }
 
+    // ✅ Vérifier le statut du compte
+    if (user.statutCompte === 'suspendu') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Votre compte a été suspendu. Contactez l\'administrateur.'
+      });
+    }
+
+    if (user.statutCompte === 'en_attente') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Votre compte est en attente de validation.'
+      });
+    }
+
+    // ✅ Vérifier le mot de passe
     const isMatch = await user.matchPassword(password);
-
     if (!isMatch) {
-      res.status(401);
-      throw new Error('Mot de passe incorrect.');
+      console.log('❌ Mot de passe incorrect pour:', email);
+      return res.status(401).json({
+        status: 'error',
+        message: 'Email ou mot de passe incorrect.'
+      });
     }
 
+    console.log('✅ Connexion réussie pour:', email);
+
+    // ✅ Générer le token
     const token = generateToken(user._id);
 
+    // ✅ Mettre à jour la date de dernière connexion
+    user.derniereConnexion = new Date();
+    await user.save();
+
+    // ✅ Réponse avec les données utilisateur (sans le mot de passe)
     res.status(200).json({
       status: 'success',
       token,
@@ -125,56 +235,101 @@ export const loginUser = async (req, res, next) => {
         id: user._id,
         email: user.email,
         role: user.role,
-        nom: user.nom,
-        prenom: user.prenom,
-        societe: user.societe,
+        nom: user.nom || '',
+        prenom: user.prenom || '',
+        societe: user.societe || '',
+        telephone: user.telephone || '',
+        photoProfil: user.photoProfil || '',
         candidatRef: user.candidatRef,
-        etablissementRef: user.etablissementRef
+        etablissementRef: user.etablissementRef,
+        statutCompte: user.statutCompte,
+        derniereConnexion: user.derniereConnexion
       }
     });
 
   } catch (error) {
-    console.error('===== LOGIN ERROR =====');
-    console.error(error);
+    console.error('❌ LOGIN ERROR:', error);
 
-    return res.status(res.statusCode !== 200 ? res.statusCode : 500).json({
+    // ✅ Gestion des erreurs spécifiques
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Erreur de génération du token JWT.'
+      });
+    }
+
+    return res.status(500).json({
       status: 'error',
-      message: error.message
+      message: error.message || 'Erreur interne du serveur.'
     });
   }
 };
 
-// @desc    Profil utilisateur connecté
-// @route   GET /api/auth/me
-export const getMe = async (req, res, next) => {
+// ── Profil utilisateur ─────────────────────────────────────────────────────────
+export const getMe = async (req, res) => {
   try {
+    console.log('===== GET ME REQUEST =====');
+    console.log('👤 Utilisateur ID:', req.user?._id);
 
     if (!req.user) {
-      res.status(404);
-      throw new Error('Utilisateur non trouve.');
+      return res.status(404).json({
+        status: 'error',
+        message: 'Utilisateur non trouvé.'
+      });
+    }
+
+    // ✅ Récupérer l'utilisateur à jour depuis la base
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Utilisateur non trouvé.'
+      });
     }
 
     res.status(200).json({
       status: 'success',
       user: {
-        id: req.user._id,
-        email: req.user.email,
-        role: req.user.role,
-        nom: req.user.nom,
-        prenom: req.user.prenom,
-        societe: req.user.societe,
-        candidatRef: req.user.candidatRef,
-        etablissementRef: req.user.etablissementRef
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        nom: user.nom || '',
+        prenom: user.prenom || '',
+        societe: user.societe || '',
+        telephone: user.telephone || '',
+        photoProfil: user.photoProfil || '',
+        candidatRef: user.candidatRef,
+        etablissementRef: user.etablissementRef,
+        statutCompte: user.statutCompte,
+        derniereConnexion: user.derniereConnexion,
+        createdAt: user.createdAt
       }
     });
 
   } catch (error) {
-    console.error('===== GET ME ERROR =====');
-    console.error(error);
-
-    return res.status(res.statusCode !== 200 ? res.statusCode : 500).json({
+    console.error('❌ GET ME ERROR:', error);
+    return res.status(500).json({
       status: 'error',
-      message: error.message
+      message: error.message || 'Erreur interne du serveur.'
+    });
+  }
+};
+
+// ── Déconnexion ─────────────────────────────────────────────────────────────────
+export const logoutUser = async (req, res) => {
+  try {
+    // Le token côté client doit être supprimé
+    // Le serveur peut juste valider la déconnexion
+    res.status(200).json({
+      status: 'success',
+      message: 'Déconnexion réussie'
+    });
+  } catch (error) {
+    console.error('❌ LOGOUT ERROR:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erreur lors de la déconnexion'
     });
   }
 };
