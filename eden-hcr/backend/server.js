@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // ✅ Imports corrigés - Vérifiez que vos fichiers sont bien dans le dossier routes/
 import messagerieRoutes from './routes/messagerieRoutes.js';
@@ -16,6 +18,10 @@ import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import clientRoutes from './routes/clientRoutes.js';
 import { errorHandler } from './middlewares/errorMiddleware.js';
+
+// ── Configuration ES Modules ──────────────────────────────────────────────────
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -35,6 +41,7 @@ const allowedOrigins = [
   'https://app.eden-group.co',
   'https://eden-hcr.vercel.app',
   'https://eden-hcr-backend.onrender.com',
+  'https://eden-hcr.onrender.com',
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:5000'
@@ -102,6 +109,9 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// ── Static files ──────────────────────────────────────────────────────────────
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // ── Route de test pour debug ──────────────────────────────────────────────────
 app.get('/api/test', (req, res) => {
   res.status(200).json({
@@ -130,39 +140,48 @@ app.use('/api/contrats', contratsRoutes);
 app.use('/api/planning', planningRoutes);
 app.use('/api/paiements', paiementsRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/uploads', express.static('uploads'));
 app.use('/api/clients', clientRoutes);
 
 // ✅ Route de vérification des routes enregistrées
 app.get('/api/routes', (req, res) => {
   const routes = [];
   
-  // Parcourir l'application pour récupérer les routes enregistrées
-  app._router.stack.forEach((layer) => {
-    if (layer.route) {
-      const methods = Object.keys(layer.route.methods).join(', ').toUpperCase();
-      routes.push({
-        path: layer.route.path,
-        methods: methods
-      });
-    }
-    // Vérifier les routers
-    if (layer.name === 'router' && layer.handle.stack) {
-      layer.handle.stack.forEach((subLayer) => {
-        if (subLayer.route) {
-          const methods = Object.keys(subLayer.route.methods).join(', ').toUpperCase();
+  try {
+    // Parcourir l'application pour récupérer les routes enregistrées
+    if (app._router && app._router.stack) {
+      app._router.stack.forEach((layer) => {
+        if (layer.route) {
+          const methods = Object.keys(layer.route.methods).join(', ').toUpperCase();
           routes.push({
-            path: layer.regexp.source
-              .replace(/\\\/\?/g, '/')
-              .replace(/\\/g, '')
-              .replace(/\^/g, '')
-              .replace(/\?\(\?=\/\|$\)/g, '') + subLayer.route.path,
+            path: layer.route.path,
             methods: methods
+          });
+        }
+        // Vérifier les routers
+        if (layer.name === 'router' && layer.handle && layer.handle.stack) {
+          const basePath = layer.regexp.source
+            .replace(/\\\/\?/g, '/')
+            .replace(/\\/g, '')
+            .replace(/\^/g, '')
+            .replace(/\?\(\?=\/\|$\)/g, '')
+            .replace(/\(\?:\(\[\^\\\/\]\+\?\)\)/g, '');
+          
+          layer.handle.stack.forEach((subLayer) => {
+            if (subLayer.route) {
+              const methods = Object.keys(subLayer.route.methods).join(', ').toUpperCase();
+              const fullPath = (basePath + subLayer.route.path).replace(/\/\//g, '/');
+              routes.push({
+                path: fullPath,
+                methods: methods
+              });
+            }
           });
         }
       });
     }
-  });
+  } catch (error) {
+    console.error('[Routes] Erreur lors de la récupération des routes:', error.message);
+  }
   
   res.status(200).json({
     status: 'success',
@@ -181,6 +200,8 @@ const connectDB = async () => {
     const conn = await mongoose.connect(process.env.MONGO_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     });
 
     console.log(`[MongoDB] ✅ Connecté : ${conn.connection.name}`);
@@ -191,7 +212,12 @@ const connectDB = async () => {
     console.error('[Erreur MongoDB] ❌');
     console.error(error.message);
     console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    process.exit(1);
+    // En production, ne pas exit le processus mais logger l'erreur
+    if (process.env.NODE_ENV === 'production') {
+      console.error('⚠️ MongoDB non connecté - certaines fonctionnalités seront indisponibles');
+    } else {
+      process.exit(1);
+    }
   }
 };
 
@@ -199,12 +225,21 @@ connectDB();
 
 // ── Health check ───────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
+  const dbStatus = mongoose.connection.readyState;
+  const dbStatusText = {
+    0: '❌ Disconnected',
+    1: '✅ Connected',
+    2: '🔄 Connecting',
+    3: '🔄 Disconnecting'
+  }[dbStatus] || '❌ Unknown';
+
   res.status(200).json({
     status: 'success',
     message: 'Backend EDÈN HCR opérationnel',
-    database: mongoose.connection.readyState === 1 ? '✅ Connected' : '❌ Disconnected',
+    database: dbStatusText,
     uptime: process.uptime(),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -217,7 +252,9 @@ app.all('/', (req, res) => {
       health: '/api/health',
       test: '/api/test',
       routes: '/api/routes',
-      clients: '/api/clients/candidats'
+      clients: '/api/clients/candidats',
+      auth: '/api/auth',
+      mission: '/api/mission'
     }
   });
 });
@@ -238,10 +275,28 @@ app.use((req, res) => {
 // ── Middleware global d'erreur ────────────────────────────────────────────────
 app.use(errorHandler);
 
+// ── Gestion des erreurs non capturées ─────────────────────────────────────────
+process.on('unhandledRejection', (error) => {
+  console.error('❌ Unhandled Rejection:', error);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  if (process.env.NODE_ENV === 'production') {
+    // En production, logger et continuer
+    console.error('⚠️ Erreur non capturée - le serveur continue de tourner');
+  } else {
+    process.exit(1);
+  }
+});
+
 // ── Démarrage serveur ──────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`🚀 [Serveur] Port ${PORT}`);
   console.log(`🌐 Base URL: http://localhost:${PORT}`);
   console.log(`🧪 Test: http://localhost:${PORT}/api/test`);
   console.log(`❤️ Health: http://localhost:${PORT}/api/health`);
+  console.log(`📋 Routes: http://localhost:${PORT}/api/routes`);
 });
+
+export default app;
