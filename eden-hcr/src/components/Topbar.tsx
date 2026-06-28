@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import {
   Search, Bell, SlidersHorizontal, Plus, Eye, X,
   CheckCheck, Briefcase, User, ChevronRight,
-  Calendar, FileText, Euro, MessageSquare, BarChart2
+  Calendar, FileText, Euro, MessageSquare, BarChart2, Menu
 } from 'lucide-react';
 import { type DashboardView } from '../types/navigation';
 
@@ -11,6 +11,7 @@ interface TopbarProps {
   onViewMissionsClick?: () => void;
   onNavigate?: (view: DashboardView) => void;
   title?: string;
+  onMenuClick?: () => void;
 }
 
 interface Notification {
@@ -88,6 +89,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   onViewMissionsClick,
   onNavigate,
   title = 'Tableau de bord',
+  onMenuClick,
 }) => {
   const user        = getUser();
   const role        = user?.role || 'extra';
@@ -239,64 +241,76 @@ export const Topbar: React.FC<TopbarProps> = ({
   const hasDropdown = showResults && (navSuggestions.length > 0 || results.length > 0 || (search.length >= 2 && !searching));
 
   return (
-    <div className="flex items-center justify-between p-[18px_30px] border-b border-eden-border bg-eden-bg2 font-sans shrink-0 relative z-40">
+    <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 xs:gap-3 p-3 sm:p-[14px_20px] md:p-[18px_30px] border-b border-eden-border bg-eden-bg2 font-sans shrink-0 relative z-40">
 
-      {/* TITRE */}
-      <div>
-        <h1 className="font-serif font-semibold text-2xl text-eden-navy tracking-wide">{title}</h1>
-        <p className="text-xs text-eden-text-light font-light tracking-wide mt-[2px] capitalize">
-          {currentDate} · Semaine {getWeekNumber()}
-        </p>
+      {/* TITRE - Responsive */}
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        {/* Bouton menu pour mobile - optionnel */}
+        {onMenuClick && (
+          <button 
+            onClick={onMenuClick}
+            className="lg:hidden text-eden-navy hover:text-eden-tan transition-colors p-1 flex-shrink-0"
+          >
+            <Menu size={20} />
+          </button>
+        )}
+        <div className="min-w-0">
+          <h1 className="font-serif font-semibold text-base sm:text-xl md:text-2xl text-eden-navy tracking-wide truncate">
+            {title}
+          </h1>
+          <p className="text-[9px] sm:text-xs text-eden-text-light font-light tracking-wide mt-[1px] sm:mt-[2px] capitalize truncate">
+            {currentDate} · Semaine {getWeekNumber()}
+          </p>
+        </div>
       </div>
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-1.5 sm:gap-2 md:gap-2.5 flex-wrap xs:flex-nowrap">
 
         {/* ── RECHERCHE ── */}
-        <div className="relative" ref={searchRef}>
-          <div className={`flex items-center gap-2 bg-eden-bg border rounded-lg p-[8px_14px] text-eden-text-light transition-all duration-200 ${
-            search ? 'w-[300px] border-eden-tan' : 'w-[220px] border-eden-border'
+        <div className="relative flex-1 xs:flex-none" ref={searchRef}>
+          <div className={`flex items-center gap-1.5 sm:gap-2 bg-eden-bg border rounded-lg p-[6px_10px] sm:p-[8px_14px] text-eden-text-light transition-all duration-200 ${
+            search ? 'w-full xs:w-[180px] sm:w-[220px] md:w-[300px] border-eden-tan' : 'w-full xs:w-[140px] sm:w-[180px] md:w-[220px] border-eden-border'
           }`}>
             {searching
-              ? <div className="w-4 h-4 border-2 border-eden-tan border-t-transparent rounded-full animate-spin shrink-0" />
-              : <Search size={16} className="shrink-0" />
+              ? <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-eden-tan border-t-transparent rounded-full animate-spin shrink-0" />
+              : <Search size={14} className="sm:w-4 sm:h-4 shrink-0" />
             }
             <input
               value={search}
               onChange={handleSearch}
               type="text"
-              placeholder={isSuperAdmin ? 'Missions, candidats, contrats…' : 'Rechercher une mission…'}
-              className="bg-transparent border-none text-xs outline-none w-full text-eden-text-dark placeholder:text-eden-text-light/60"
+              placeholder={isSuperAdmin ? 'Rechercher…' : 'Mission…'}
+              className="bg-transparent border-none text-[10px] sm:text-xs outline-none w-full text-eden-text-dark placeholder:text-eden-text-light/60 min-w-[60px]"
             />
             {search && (
-              <button onClick={clearSearch}>
-                <X size={13} className="text-eden-text-light hover:text-eden-navy" />
+              <button onClick={clearSearch} className="flex-shrink-0">
+                <X size={12} className="sm:w-3.5 sm:h-3.5 text-eden-text-light hover:text-eden-navy" />
               </button>
             )}
           </div>
 
-          {/* Dropdown */}
+          {/* Dropdown - Responsive */}
           {hasDropdown && (
-            <div className="absolute top-full mt-2 left-0 w-[360px] bg-white border border-eden-border rounded-xl shadow-xl z-50 overflow-hidden">
-
+            <div className="absolute top-full mt-1 sm:mt-2 left-0 right-0 xs:right-auto xs:left-0 xs:w-[340px] sm:w-[360px] bg-white border border-eden-border rounded-xl shadow-xl z-50 overflow-hidden max-h-[80vh]">
               {/* Suggestions navigation sidebar */}
               {navSuggestions.length > 0 && (
                 <>
-                  <div className="px-4 py-2 bg-eden-bg2 border-b border-eden-border">
-                    <span className="text-[10px] text-eden-text-light uppercase tracking-widest font-medium">Navigation</span>
+                  <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-eden-bg2 border-b border-eden-border">
+                    <span className="text-[9px] sm:text-[10px] text-eden-text-light uppercase tracking-widest font-medium">Navigation</span>
                   </div>
                   {navSuggestions.map((s, i) => (
                     <div
                       key={i}
                       onClick={() => handleNavClick(s.view)}
-                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-eden-bg cursor-pointer border-b border-eden-border/40 last:border-b-0 transition-colors group"
+                      className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-eden-bg cursor-pointer border-b border-eden-border/40 last:border-b-0 transition-colors group"
                     >
-                      <div className="w-7 h-7 rounded-lg bg-eden-navy/5 border border-eden-border flex items-center justify-center text-eden-tan shrink-0">
+                      <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-eden-navy/5 border border-eden-border flex items-center justify-center text-eden-tan shrink-0">
                         {s.icon}
                       </div>
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-eden-navy">Aller vers · {s.label}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] sm:text-xs font-medium text-eden-navy truncate">Aller vers · {s.label}</p>
                       </div>
-                      <ChevronRight size={13} className="text-eden-border group-hover:text-eden-tan transition-colors" />
+                      <ChevronRight size={12} className="sm:w-3.5 sm:h-3.5 text-eden-border group-hover:text-eden-tan transition-colors shrink-0" />
                     </div>
                   ))}
                 </>
@@ -305,32 +319,32 @@ export const Topbar: React.FC<TopbarProps> = ({
               {/* Résultats API */}
               {results.length > 0 && (
                 <>
-                  <div className="px-4 py-2 bg-eden-bg2 border-b border-eden-border">
-                    <span className="text-[10px] text-eden-text-light uppercase tracking-widest font-medium">
-                      {results.length} résultat{results.length > 1 ? 's' : ''} en base
+                  <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-eden-bg2 border-b border-eden-border">
+                    <span className="text-[9px] sm:text-[10px] text-eden-text-light uppercase tracking-widest font-medium">
+                      {results.length} résultat{results.length > 1 ? 's' : ''}
                     </span>
                   </div>
-                  <div className="max-h-56 overflow-auto">
+                  <div className="max-h-48 sm:max-h-56 overflow-auto">
                     {results.map((item, i) => {
                       const meta = RESULT_META[item._type];
                       return (
                         <div
                           key={i}
                           onClick={() => handleResultClick(item)}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-eden-bg cursor-pointer border-b border-eden-border/50 last:border-b-0 transition-colors group"
+                          className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 hover:bg-eden-bg cursor-pointer border-b border-eden-border/50 last:border-b-0 transition-colors group"
                         >
-                          <div className="w-7 h-7 rounded-lg bg-eden-bg2 border border-eden-border flex items-center justify-center text-eden-text-light shrink-0">
+                          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-eden-bg2 border border-eden-border flex items-center justify-center text-eden-text-light shrink-0">
                             {meta?.icon}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-eden-navy truncate">
+                            <p className="text-[10px] sm:text-xs font-medium text-eden-navy truncate">
                               {item.titre || `${item.prenom || ''} ${item.nom || ''}`.trim() || 'Résultat'}
                             </p>
-                            <p className="text-[10px] text-eden-text-light mt-0.5">
+                            <p className="text-[9px] sm:text-[10px] text-eden-text-light mt-0.5 truncate">
                               {meta?.label}{item.statut ? ` · ${item.statut}` : ''}
                             </p>
                           </div>
-                          <ChevronRight size={13} className="text-eden-border group-hover:text-eden-tan transition-colors" />
+                          <ChevronRight size={12} className="sm:w-3.5 sm:h-3.5 text-eden-border group-hover:text-eden-tan transition-colors shrink-0" />
                         </div>
                       );
                     })}
@@ -340,8 +354,8 @@ export const Topbar: React.FC<TopbarProps> = ({
 
               {/* Aucun résultat */}
               {results.length === 0 && navSuggestions.length === 0 && search.length >= 2 && !searching && (
-                <div className="px-4 py-6 text-center">
-                  <p className="text-xs text-eden-text-light">Aucun résultat pour « {search} »</p>
+                <div className="px-3 sm:px-4 py-4 sm:py-6 text-center">
+                  <p className="text-[10px] sm:text-xs text-eden-text-light break-words">Aucun résultat pour « {search} »</p>
                 </div>
               )}
             </div>
@@ -349,56 +363,56 @@ export const Topbar: React.FC<TopbarProps> = ({
         </div>
 
         {/* ── NOTIFICATIONS ── */}
-        <div className="relative" ref={notifRef}>
+        <div className="relative flex-shrink-0" ref={notifRef}>
           <button
             onClick={() => { setShowNotifs(v => !v); if (!showNotifs) fetchNotifications(); }}
-            className="w-9 h-9 rounded-lg border border-eden-border bg-eden-bg flex items-center justify-center text-eden-text-light relative hover:border-eden-tan hover:text-eden-navy cursor-pointer transition-all"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg border border-eden-border bg-eden-bg flex items-center justify-center text-eden-text-light relative hover:border-eden-tan hover:text-eden-navy cursor-pointer transition-all"
           >
-            <Bell size={17} />
+            <Bell size={15} className="sm:w-[17px] sm:h-[17px]" />
             {unreadCount > 0 && (
-              <span className="absolute top-[4px] right-[4px] min-w-[16px] h-4 rounded-full bg-eden-orange text-white text-[10px] flex items-center justify-center px-1 animate-pulse">
+              <span className="absolute top-[2px] right-[2px] sm:top-[4px] sm:right-[4px] min-w-[14px] h-[14px] sm:min-w-[16px] sm:h-4 rounded-full bg-eden-orange text-white text-[8px] sm:text-[10px] flex items-center justify-center px-0.5 sm:px-1 animate-pulse">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </button>
 
           {showNotifs && (
-            <div className="absolute top-full right-0 mt-2 w-[340px] bg-white border border-eden-border rounded-xl shadow-xl z-50 overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-eden-border bg-eden-bg2">
-                <span className="text-xs font-semibold text-eden-navy">Notifications</span>
+            <div className="absolute top-full right-0 mt-1 sm:mt-2 w-[300px] sm:w-[340px] bg-white border border-eden-border rounded-xl shadow-xl z-50 overflow-hidden max-h-[80vh]">
+              <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-1 xs:gap-0 px-3 sm:px-4 py-2.5 sm:py-3 border-b border-eden-border bg-eden-bg2">
+                <span className="text-[10px] sm:text-xs font-semibold text-eden-navy">Notifications</span>
                 {unreadCount > 0 && (
-                  <button onClick={markAllRead} className="flex items-center gap-1 text-[10px] text-eden-tan hover:text-eden-navy transition-colors">
-                    <CheckCheck size={12} /> Tout marquer lu
+                  <button onClick={markAllRead} className="flex items-center gap-1 text-[9px] sm:text-[10px] text-eden-tan hover:text-eden-navy transition-colors">
+                    <CheckCheck size={11} className="sm:w-3 sm:h-3" /> Tout marquer lu
                   </button>
                 )}
               </div>
-              <div className="max-h-80 overflow-auto">
+              <div className="max-h-60 sm:max-h-80 overflow-auto">
                 {loadingNotifs ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="w-5 h-5 border-2 border-eden-tan border-t-transparent rounded-full animate-spin" />
+                  <div className="flex items-center justify-center py-6 sm:py-8">
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-eden-tan border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : notifications.length === 0 ? (
-                  <div className="px-4 py-8 text-center">
-                    <Bell size={24} className="text-eden-border mx-auto mb-2" />
-                    <p className="text-xs text-eden-text-light">Aucune notification</p>
+                  <div className="px-3 sm:px-4 py-6 sm:py-8 text-center">
+                    <Bell size={20} className="sm:w-6 sm:h-6 text-eden-border mx-auto mb-2" />
+                    <p className="text-[10px] sm:text-xs text-eden-text-light">Aucune notification</p>
                   </div>
                 ) : (
                   notifications.map(notif => (
                     <div
                       key={notif._id}
                       onClick={() => { onNavigate?.('messages'); setShowNotifs(false); }}
-                      className={`px-4 py-3 border-b border-eden-border/50 last:border-b-0 cursor-pointer hover:bg-eden-bg transition-colors ${!notif.lu ? 'bg-eden-bg2' : ''}`}
+                      className={`px-3 sm:px-4 py-2.5 sm:py-3 border-b border-eden-border/50 last:border-b-0 cursor-pointer hover:bg-eden-bg transition-colors ${!notif.lu ? 'bg-eden-bg2' : ''}`}
                     >
-                      <div className="flex items-start gap-2">
-                        {!notif.lu && <div className="w-1.5 h-1.5 rounded-full bg-eden-orange mt-1.5 shrink-0" />}
-                        <div className={!notif.lu ? '' : 'ml-3.5'}>
-                          <p className="text-xs text-eden-navy leading-relaxed">{notif.message}</p>
+                      <div className="flex items-start gap-1.5 sm:gap-2">
+                        {!notif.lu && <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-eden-orange mt-1.5 sm:mt-1.5 shrink-0" />}
+                        <div className={!notif.lu ? '' : 'ml-2.5 sm:ml-3.5'}>
+                          <p className="text-[10px] sm:text-xs text-eden-navy leading-relaxed break-words">{notif.message}</p>
                           {notif.expediteur && (
-                            <p className="text-[10px] text-eden-text-light mt-0.5">
+                            <p className="text-[9px] sm:text-[10px] text-eden-text-light mt-0.5 break-words">
                               De : {notif.expediteur.prenom} {notif.expediteur.nom}
                             </p>
                           )}
-                          <p className="text-[10px] text-eden-text-light mt-0.5">
+                          <p className="text-[9px] sm:text-[10px] text-eden-text-light mt-0.5">
                             {new Date(notif.createdAt).toLocaleDateString('fr-FR', {
                               day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
                             })}
@@ -414,33 +428,33 @@ export const Topbar: React.FC<TopbarProps> = ({
         </div>
 
         {/* ── FILTRES ── */}
-        <div className="relative" ref={filterRef}>
+        <div className="relative flex-shrink-0" ref={filterRef}>
           <button
             onClick={() => setShowFilters(v => !v)}
-            className={`w-9 h-9 rounded-lg border bg-eden-bg flex items-center justify-center cursor-pointer transition-all relative ${
+            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg border bg-eden-bg flex items-center justify-center cursor-pointer transition-all relative ${
               showFilters || Object.values(filters).some(Boolean)
                 ? 'border-eden-tan text-eden-navy'
                 : 'border-eden-border text-eden-text-light hover:border-eden-tan hover:text-eden-navy'
             }`}
           >
-            <SlidersHorizontal size={17} />
+            <SlidersHorizontal size={15} className="sm:w-[17px] sm:h-[17px]" />
             {Object.values(filters).some(Boolean) && (
-              <span className="absolute top-[4px] right-[4px] w-2 h-2 rounded-full bg-eden-tan" />
+              <span className="absolute top-[2px] right-[2px] sm:top-[4px] sm:right-[4px] w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-eden-tan" />
             )}
           </button>
 
           {showFilters && (
-            <div className="absolute top-full right-0 mt-2 w-[280px] bg-white border border-eden-border rounded-xl shadow-xl z-50 overflow-hidden">
-              <div className="px-4 py-3 border-b border-eden-border bg-eden-bg2">
-                <span className="text-xs font-semibold text-eden-navy">Filtres</span>
+            <div className="absolute top-full right-0 mt-1 sm:mt-2 w-[260px] sm:w-[280px] bg-white border border-eden-border rounded-xl shadow-xl z-50 overflow-hidden">
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-eden-border bg-eden-bg2">
+                <span className="text-[10px] sm:text-xs font-semibold text-eden-navy">Filtres</span>
               </div>
-              <div className="p-4 space-y-3">
+              <div className="p-3 sm:p-4 space-y-2.5 sm:space-y-3">
                 <div>
-                  <label className="text-[10px] text-eden-text-light uppercase tracking-widest font-medium block mb-1.5">Statut</label>
+                  <label className="text-[9px] sm:text-[10px] text-eden-text-light uppercase tracking-widest font-medium block mb-1">Statut</label>
                   <select
                     value={filters.statut}
                     onChange={e => setFilters(f => ({ ...f, statut: e.target.value }))}
-                    className="w-full text-xs border border-eden-border rounded-lg p-2 bg-eden-bg text-eden-navy outline-none focus:border-eden-tan"
+                    className="w-full text-[10px] sm:text-xs border border-eden-border rounded-lg p-1.5 sm:p-2 bg-eden-bg text-eden-navy outline-none focus:border-eden-tan"
                   >
                     <option value="">Tous</option>
                     <option value="ouverte">Ouverte</option>
@@ -450,11 +464,11 @@ export const Topbar: React.FC<TopbarProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] text-eden-text-light uppercase tracking-widest font-medium block mb-1.5">Secteur</label>
+                  <label className="text-[9px] sm:text-[10px] text-eden-text-light uppercase tracking-widest font-medium block mb-1">Secteur</label>
                   <select
                     value={filters.secteur}
                     onChange={e => setFilters(f => ({ ...f, secteur: e.target.value }))}
-                    className="w-full text-xs border border-eden-border rounded-lg p-2 bg-eden-bg text-eden-navy outline-none focus:border-eden-tan"
+                    className="w-full text-[10px] sm:text-xs border border-eden-border rounded-lg p-1.5 sm:p-2 bg-eden-bg text-eden-navy outline-none focus:border-eden-tan"
                   >
                     <option value="">Tous</option>
                     <option value="hcr">Hôtellerie</option>
@@ -463,24 +477,24 @@ export const Topbar: React.FC<TopbarProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] text-eden-text-light uppercase tracking-widest font-medium block mb-1.5">À partir du</label>
+                  <label className="text-[9px] sm:text-[10px] text-eden-text-light uppercase tracking-widest font-medium block mb-1">À partir du</label>
                   <input
                     type="date"
                     value={filters.dateDebut}
                     onChange={e => setFilters(f => ({ ...f, dateDebut: e.target.value }))}
-                    className="w-full text-xs border border-eden-border rounded-lg p-2 bg-eden-bg text-eden-navy outline-none focus:border-eden-tan"
+                    className="w-full text-[10px] sm:text-xs border border-eden-border rounded-lg p-1.5 sm:p-2 bg-eden-bg text-eden-navy outline-none focus:border-eden-tan"
                   />
                 </div>
-                <div className="flex gap-2 pt-1">
+                <div className="flex gap-2 pt-0.5 sm:pt-1">
                   <button
                     onClick={() => setFilters({ statut: '', secteur: '', dateDebut: '' })}
-                    className="flex-1 text-xs border border-eden-border rounded-lg py-2 text-eden-text-light hover:text-eden-navy hover:border-eden-tan transition-colors"
+                    className="flex-1 text-[10px] sm:text-xs border border-eden-border rounded-lg py-1.5 sm:py-2 text-eden-text-light hover:text-eden-navy hover:border-eden-tan transition-colors"
                   >
                     Réinitialiser
                   </button>
                   <button
                     onClick={() => setShowFilters(false)}
-                    className="flex-1 text-xs bg-eden-navy text-white rounded-lg py-2 hover:bg-eden-light-navy transition-colors"
+                    className="flex-1 text-[10px] sm:text-xs bg-eden-navy text-white rounded-lg py-1.5 sm:py-2 hover:bg-eden-light-navy transition-colors"
                   >
                     Appliquer
                   </button>
@@ -494,18 +508,20 @@ export const Topbar: React.FC<TopbarProps> = ({
         {isSuperAdmin ? (
           <button
             onClick={onNewMissionClick}
-            className="bg-eden-navy hover:bg-eden-light-navy text-white text-xs font-medium tracking-wide p-[9px_18px] rounded-lg flex items-center gap-1.5 border-none transition-colors shadow-sm cursor-pointer"
+            className="bg-eden-navy hover:bg-eden-light-navy text-white text-[10px] sm:text-xs font-medium tracking-wide p-[7px_12px] sm:p-[9px_18px] rounded-lg flex items-center gap-1 border-none transition-colors shadow-sm cursor-pointer whitespace-nowrap"
           >
-            <Plus size={15} />
-            Nouvelle mission
+            <Plus size={13} className="sm:w-[15px] sm:h-[15px]" />
+            <span className="hidden xs:inline">Nouvelle mission</span>
+            <span className="xs:hidden">Mission</span>
           </button>
         ) : (
           <button
             onClick={onViewMissionsClick}
-            className="bg-eden-navy hover:bg-eden-light-navy text-white text-xs font-medium tracking-wide p-[9px_18px] rounded-lg flex items-center gap-1.5 border-none transition-colors shadow-sm cursor-pointer"
+            className="bg-eden-navy hover:bg-eden-light-navy text-white text-[10px] sm:text-xs font-medium tracking-wide p-[7px_12px] sm:p-[9px_18px] rounded-lg flex items-center gap-1 border-none transition-colors shadow-sm cursor-pointer whitespace-nowrap"
           >
-            <Eye size={15} />
-            Voir missions
+            <Eye size={13} className="sm:w-[15px] sm:h-[15px]" />
+            <span className="hidden xs:inline">Voir missions</span>
+            <span className="xs:hidden">Missions</span>
           </button>
         )}
 
