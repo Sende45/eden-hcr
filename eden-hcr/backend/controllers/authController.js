@@ -127,8 +127,14 @@ export const registerUser = async (req, res) => {
     const token = generateToken(user._id);
 
     // ✅ Mettre à jour la date de dernière connexion
-    user.derniereConnexion = new Date();
-    await user.save();
+    await User.updateOne(
+  { _id: user._id },
+  {
+    $set: {
+      derniereConnexion: new Date()
+    }
+  }
+);
 
     res.status(201).json({
       status: 'success',
