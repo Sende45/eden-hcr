@@ -4,19 +4,22 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 
-import messagerieRoutes from './routes/messagerieRoutes.js';
-import candidatRoutes from './routes/candidatRoutes.js';
-import etablissementRoutes from './routes/etablissementRoutes.js';
-import missionRoutes from './routes/missionRoutes.js';
-import contratsRoutes from './routes/contratsRoutes.js';
-import planningRoutes from './routes/planningRoutes.js';
-import paiementsRoutes from './routes/paiementsRoutes.js';
-import authRoutes from './routes/authRoutes.js';
-import adminRoutes from './routes/adminRoutes.js';
+// ✅ Imports depuis le même dossier (sans ./routes/)
+import messagerieRoutes from './messagerieRoutes.js';
+import candidatRoutes from './candidatRoutes.js';
+import etablissementRoutes from './etablissementRoutes.js';
+import missionRoutes from './missionRoutes.js';
+import contratsRoutes from './contratsRoutes.js';
+import planningRoutes from './planningRoutes.js';
+import paiementsRoutes from './paiementsRoutes.js';
+import authRoutes from './authRoutes.js';
+import adminRoutes from './adminRoutes.js';
+import clientRoutes from './clientRoutes.js';
+
 import { errorHandler } from './middlewares/errorMiddleware.js';
-import clientRoutes from './routes/clientRoutes.js';
 
 dotenv.config();
+// ... le reste du code reste identique
 
 // ── Vérification des variables d'environnement ────────────────────────────────
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
