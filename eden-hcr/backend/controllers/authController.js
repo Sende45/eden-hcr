@@ -235,8 +235,10 @@ export const loginUser = async (req, res) => {
     console.log('🎫 Génération du token...');
     const token = generateToken(user._id);
 
-    user.derniereConnexion = new Date();
-    await user.save();
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { derniereConnexion: new Date() } }
+    );
 
     res.status(200).json({
       status: 'success',
