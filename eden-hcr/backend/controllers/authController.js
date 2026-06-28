@@ -4,16 +4,26 @@ import bcrypt from 'bcryptjs';
 
 // ── Génération JWT ────────────────────────────────────────────────────────────
 const generateToken = (id) => {
+  console.log('🔑 [generateToken] JWT_SECRET existe:', !!process.env.JWT_SECRET);
+  console.log('🔑 [generateToken] JWT_SECRET length:', process.env.JWT_SECRET?.length || 0);
+
   if (!process.env.JWT_SECRET) {
     console.error('❌ JWT_SECRET manquant dans les variables d\'environnement');
     throw new Error('JWT_SECRET manquant dans les variables d\'environnement');
   }
 
-  return jwt.sign(
-    { id },
-    process.env.JWT_SECRET,
-    { expiresIn: '30d' }
-  );
+  try {
+    const token = jwt.sign(
+      { id },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+    console.log('✅ Token généré avec succès');
+    return token;
+  } catch (error) {
+    console.error('❌ Erreur génération token:', error.message);
+    throw error;
+  }
 };
 
 // ── Vérification des champs obligatoires ─────────────────────────────────────
@@ -27,7 +37,7 @@ const validateRequiredFields = (fields, required) => {
 // ── Inscription ────────────────────────────────────────────────────────────────
 export const registerUser = async (req, res) => {
   try {
-    console.log('===== REGISTER REQUEST =====');
+    console.log('===== 📝 REGISTER REQUEST =====');
     console.log('📝 Corps de la requête:', req.body);
 
     const {
@@ -140,7 +150,7 @@ export const registerUser = async (req, res) => {
 
   } catch (error) {
     console.error('❌ REGISTER ERROR:', error);
-    
+
     // ✅ Gestion des erreurs de validation MongoDB
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(e => e.message);
@@ -168,23 +178,30 @@ export const registerUser = async (req, res) => {
 
 // ── Connexion ──────────────────────────────────────────────────────────────────
 export const loginUser = async (req, res) => {
-  try {
-    console.log('===== LOGIN REQUEST =====');
-    console.log('📧 Email:', req.body.email);
+  console.log('===== 🔐 LOGIN REQUEST =====');
+  console.log('📧 Email reçu:', req.body?.email);
+  console.log('🔑 JWT_SECRET existe:', !!process.env.JWT_SECRET);
+  console.log('📦 MONGO_URI existe:', !!process.env.MONGO_URI);
 
+  try {
     const { email, password } = req.body;
 
     // ✅ Validation des champs
     if (!email || !password) {
+      console.log('❌ Email ou mot de passe manquant');
       return res.status(400).json({
         status: 'error',
         message: 'Email et mot de passe obligatoires.'
       });
     }
 
-    // ✅ Rechercher l'utilisateur (inclure le password pour comparaison)
+    // ✅ Vérifier la connexion MongoDB
+    console.log('🔍 Recherche de l\'utilisateur...');
+
+    // ⚠️ IMPORTANT: On doit inclure le password avec .select('+password')
     const user = await User.findOne({ email }).select('+password');
 
+    console.log('👤 Utilisateur trouvé:', !!user);
     if (!user) {
       console.log('❌ Utilisateur non trouvé:', email);
       return res.status(401).json({
@@ -209,7 +226,10 @@ export const loginUser = async (req, res) => {
     }
 
     // ✅ Vérifier le mot de passe
+    console.log('🔑 Vérification du mot de passe...');
     const isMatch = await user.matchPassword(password);
+    console.log('✅ Mot de passe valide:', isMatch);
+
     if (!isMatch) {
       console.log('❌ Mot de passe incorrect pour:', email);
       return res.status(401).json({
@@ -221,6 +241,7 @@ export const loginUser = async (req, res) => {
     console.log('✅ Connexion réussie pour:', email);
 
     // ✅ Générer le token
+    console.log('🎫 Génération du token...');
     const token = generateToken(user._id);
 
     // ✅ Mettre à jour la date de dernière connexion
@@ -248,7 +269,10 @@ export const loginUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ LOGIN ERROR:', error);
+    console.error('❌ LOGIN ERROR DETAILS:');
+    console.error('📝 Message:', error.message);
+    console.error('📝 Stack:', error.stack);
+    console.error('📝 Name:', error.name);
 
     // ✅ Gestion des erreurs spécifiques
     if (error.name === 'JsonWebTokenError') {
@@ -258,9 +282,17 @@ export const loginUser = async (req, res) => {
       });
     }
 
+    if (error.name === 'MongoNetworkError') {
+      return res.status(503).json({
+        status: 'error',
+        message: 'Impossible de se connecter à la base de données.'
+      });
+    }
+
     return res.status(500).json({
       status: 'error',
-      message: error.message || 'Erreur interne du serveur.'
+      message: error.message || 'Erreur interne du serveur.',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
@@ -268,7 +300,7 @@ export const loginUser = async (req, res) => {
 // ── Profil utilisateur ─────────────────────────────────────────────────────────
 export const getMe = async (req, res) => {
   try {
-    console.log('===== GET ME REQUEST =====');
+    console.log('===== 👤 GET ME REQUEST =====');
     console.log('👤 Utilisateur ID:', req.user?._id);
 
     if (!req.user) {
@@ -280,7 +312,7 @@ export const getMe = async (req, res) => {
 
     // ✅ Récupérer l'utilisateur à jour depuis la base
     const user = await User.findById(req.user._id);
-    
+
     if (!user) {
       return res.status(404).json({
         status: 'error',
