@@ -19,7 +19,8 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ['admin', 'superadmin', 'extra', 'etablissement'],
+      // ← AJOUT : 'client' dans l'enum
+      enum: ['admin', 'superadmin', 'extra', 'etablissement', 'client'],
       required: [true, "Le rôle de l'utilisateur est obligatoire."]
     },
 
@@ -39,6 +40,13 @@ const userSchema = new mongoose.Schema(
       }
     },
 
+    // ← AJOUT : nom de société pour les clients
+    societe: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+
     candidatRef: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Candidat'
@@ -48,10 +56,6 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Etablissement'
     },
-
-    // ============================
-    // AJOUTS POUR LE DASHBOARD EXTRA
-    // ============================
 
     telephone: {
       type: String,

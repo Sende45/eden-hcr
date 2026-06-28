@@ -14,6 +14,7 @@ import paiementsRoutes from './routes/paiementsRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import { errorHandler } from './middlewares/errorMiddleware.js';
+import clientRoutes from './routes/clientRoutes.js';
 
 dotenv.config();
 
@@ -80,6 +81,7 @@ app.use('/api/planning', planningRoutes);
 app.use('/api/paiements', paiementsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/uploads', express.static('uploads'));
+app.use('/api/clients', clientRoutes);
 
 // ── MongoDB ────────────────────────────────────────────────────────────────────
 const connectDB = async () => {

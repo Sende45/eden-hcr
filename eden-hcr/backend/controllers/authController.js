@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 // Génération JWT
 const generateToken = (id) => {
   if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET manquant dans les variables d’environnement');
+    throw new Error("JWT_SECRET manquant dans les variables d'environnement");
   }
 
   return jwt.sign(
@@ -27,6 +27,7 @@ export const registerUser = async (req, res, next) => {
       nom,
       prenom,
       role,
+      societe,
       candidatRef,
       etablissementRef
     } = req.body;
@@ -36,11 +37,17 @@ export const registerUser = async (req, res, next) => {
       throw new Error('Email et mot de passe sont obligatoires.');
     }
 
+    // Empêcher l'auto-inscription en tant qu'admin/superadmin
+    if (role === 'admin' || role === 'superadmin') {
+      res.status(403);
+      throw new Error("Ce role ne peut pas etre attribue lors de l'inscription.");
+    }
+
     const userExists = await User.findOne({ email });
 
     if (userExists) {
       res.status(400);
-      throw new Error('Cet utilisateur existe déjà.');
+      throw new Error('Cet utilisateur existe deja.');
     }
 
     const user = await User.create({
@@ -48,12 +55,13 @@ export const registerUser = async (req, res, next) => {
       password,
       nom,
       prenom,
+      societe: societe || '',
       role: role || 'extra',
       candidatRef,
       etablissementRef
     });
 
-    console.log('Utilisateur créé :', user._id);
+    console.log('Utilisateur cree :', user._id);
 
     const token = generateToken(user._id);
 
@@ -65,7 +73,8 @@ export const registerUser = async (req, res, next) => {
         email: user.email,
         role: user.role,
         nom: user.nom,
-        prenom: user.prenom
+        prenom: user.prenom,
+        societe: user.societe
       }
     });
 
@@ -118,6 +127,7 @@ export const loginUser = async (req, res, next) => {
         role: user.role,
         nom: user.nom,
         prenom: user.prenom,
+        societe: user.societe,
         candidatRef: user.candidatRef,
         etablissementRef: user.etablissementRef
       }
@@ -141,7 +151,7 @@ export const getMe = async (req, res, next) => {
 
     if (!req.user) {
       res.status(404);
-      throw new Error('Utilisateur non trouvé.');
+      throw new Error('Utilisateur non trouve.');
     }
 
     res.status(200).json({
@@ -152,6 +162,7 @@ export const getMe = async (req, res, next) => {
         role: req.user.role,
         nom: req.user.nom,
         prenom: req.user.prenom,
+        societe: req.user.societe,
         candidatRef: req.user.candidatRef,
         etablissementRef: req.user.etablissementRef
       }

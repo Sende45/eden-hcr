@@ -4,6 +4,7 @@ import { Home } from './pages/Home';
 import { Footer } from './components/Footer';
 import { Dashboard } from './pages/Dashboard';
 import { Login } from './pages/Login';
+import { ClientDashboard } from './pages/ClientDashboard';
 import { Mail, Phone, MapPin, Send, CheckCircle2 } from 'lucide-react';
 import { getMe, isAuthenticated, logout } from './services/authService';
 import { ExtraDashboard } from './components/ExtraDashboard';
@@ -15,6 +16,7 @@ type AppView =
   | 'dashboard'
   | 'superadmin'
   | 'dashboard-prestataire'
+  | 'client-dashboard'
   | 'contact';
 
 interface AppUser {
@@ -23,6 +25,7 @@ interface AppUser {
   role: string;
   nom?: string;
   prenom?: string;
+  societe?: string;
   candidatRef?: string;
   etablissementRef?: string;
 }
@@ -39,6 +42,7 @@ function App() {
     if (r === 'superadmin') return 'superadmin';
     if (r === 'admin' || r === 'etablissement') return 'dashboard';
     if (r === 'extra' || r === 'prestataire' || r === 'candidat') return 'dashboard-prestataire';
+    if (r === 'client') return 'client-dashboard';
     return 'landing';
   };
 
@@ -107,6 +111,15 @@ function App() {
     );
   }
 
+  if (currentView === 'client-dashboard') {
+    return (
+      <ClientDashboard
+        user={user ?? { id: '', email: '', role: 'client' }}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   if (currentView === 'login') {
     return (
       <div className="relative">
@@ -131,6 +144,11 @@ function App() {
               .catch(() => {
                 setCurrentView('dashboard');
               });
+          }}
+          onClientLoginSuccess={(userData) => {
+            setUser(userData);
+            localStorage.setItem('eden_user', JSON.stringify(userData));
+            setCurrentView('client-dashboard');
           }}
         />
         <button onClick={() => setCurrentView('landing')} className="fixed bottom-4 right-4 bg-eden-navy hover:bg-eden-light-navy text-white text-xs font-medium p-2.5 rounded-xl shadow-lg z-50 transition-colors cursor-pointer border-none">
@@ -208,6 +226,7 @@ function App() {
         showOnboarding={showOnboarding}
         setShowOnboarding={setShowOnboarding}
         onOnboardingComplete={handleOnboardingComplete}
+        onFindExtra={() => { setShowOnboarding(false); setCurrentView('login'); }}
       />
     );
   };

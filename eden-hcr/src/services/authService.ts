@@ -11,6 +11,7 @@ export interface AuthUser {
   role: 'extra' | 'admin' | 'superadmin' | 'client';
   nom?: string;
   prenom?: string;
+  societe?: string; // ← AJOUT : pour les clients
 }
 
 export interface LoginResponse {
@@ -156,14 +157,15 @@ export const getMe = async (): Promise<AuthUser> => {
 };
 
 /**
- * Inscription candidat
+ * Inscription extra
  */
 export const register = async (payload: {
   email: string;
   password: string;
-  nom: string;
-  prenom: string;
-  role?: 'extra';
+  nom?: string;
+  prenom?: string;
+  societe?: string;        // ← AJOUT : pour les clients
+  role?: 'extra' | 'client'; // ← AJOUT : client accepté
 }): Promise<LoginResponse> => {
 
   const data = await apiFetch<{
@@ -172,8 +174,8 @@ export const register = async (payload: {
   }>('/auth/register', {
     method: 'POST',
     body: JSON.stringify({
-      role: 'extra',
-      ...payload,
+      role: 'extra', // valeur par défaut si non précisé
+      ...payload,    // écrase avec le role passé en paramètre
     }),
   });
 

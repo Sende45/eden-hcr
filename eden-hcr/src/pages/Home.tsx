@@ -5,20 +5,18 @@ import { Autoplay } from 'swiper/modules';
 import { CandidateOnboarding } from '../components/CandidateOnboarding';
 import type { OnboardingResult } from '../components/CandidateOnboarding';
 
-// Import des styles Swiper
 import 'swiper/css';
 
-// 1. DÉCLARATION STRICTE DES PROPS ATTENDUES
+// ← AJOUT : onFindExtra dans les props
 export type HomeProps = {
   showOnboarding: boolean;
   setShowOnboarding: (show: boolean) => void;
   onOnboardingComplete: (result: OnboardingResult) => void;
+  onFindExtra: () => void;
 };
 
-// 2. INJECTION DES PROPS DANS LE COMPOSANT
-export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, onOnboardingComplete }) => {
+export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, onOnboardingComplete, onFindExtra }) => {
 
-  // RENDER DU TUNNEL D'INSCRIPTION CANDIDAT (ÉTAPE 1)
   if (showOnboarding) {
     return (
       <div className="bg-eden-bg min-h-screen font-sans text-eden-text-dark py-12 px-6">
@@ -38,7 +36,6 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
   return (
     <div className="bg-eden-bg min-h-screen font-sans text-eden-text-dark selection:bg-eden-navy selection:text-white overflow-hidden scroll-smooth">
       
-      {/* HERO SECTION - ARCHITECTURE ASYMÉTRIQUE HAUT DE GAMME */}
       <section className="relative min-h-[90vh] flex items-center px-6 lg:px-16 bg-gradient-to-b from-eden-bg2 via-eden-bg2 to-eden-bg border-b border-eden-border/30">
         <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full border-[60px] border-eden-tan/5 pointer-events-none blur-3xl animate-pulse duration-[6000ms]" />
         <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full border-[50px] border-eden-teal/5 pointer-events-none blur-2xl" />
@@ -63,7 +60,11 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
             </p>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2">
-              <button className="group bg-eden-navy hover:bg-eden-light-navy text-white font-medium text-xs tracking-wider uppercase py-4 px-8 rounded-xl shadow-lg hover:shadow-eden-navy/20 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer">
+              {/* ← AJOUT onClick sur le bouton "Trouver un extra" */}
+              <button
+                onClick={onFindExtra}
+                className="group bg-eden-navy hover:bg-eden-light-navy text-white font-medium text-xs tracking-wider uppercase py-4 px-8 rounded-xl shadow-lg hover:shadow-eden-navy/20 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
+              >
                 Trouver un extra
                 <Zap size={14} className="text-eden-orange fill-eden-orange group-hover:scale-125 transition-transform" />
               </button>
@@ -128,7 +129,6 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
         </div>
       </section>
 
-      {/* SECTION IMMERSION - RENDU PROFESSIONNEL HARMONISÉ */}
       <section className="py-20 bg-eden-bg">
         <div className="max-w-7xl mx-auto px-6">
           <div className="bg-[#0c3948] p-4 rounded-3xl border border-eden-border shadow-xl">
@@ -158,7 +158,6 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
         </div>
       </section>
 
-      {/* VALUE PROPOSITION GRID */}
       <section id="solutions" className="max-w-7xl mx-auto px-6 py-24 relative z-10 scroll-mt-20">
         <div className="text-center max-w-xl mx-auto mb-16 space-y-3">
           <p className="text-[10px] text-eden-tan font-semibold uppercase tracking-[4px]">L'Exigence EDÈN</p>
@@ -210,7 +209,6 @@ export const Home: React.FC<HomeProps> = ({ showOnboarding, setShowOnboarding, o
         </div>
       </section>
 
-      {/* SECTION ÉTABLISSEMENTS */}
       <section id="etablissements" className="max-w-7xl mx-auto px-6 py-24 border-t border-eden-border/30 scroll-mt-20">
         <div className="text-center max-w-xl mx-auto mb-12 space-y-3">
           <p className="text-[10px] text-eden-tan font-semibold uppercase tracking-[4px]">Nos Partenaires</p>
