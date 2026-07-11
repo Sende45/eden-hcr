@@ -33,6 +33,8 @@ console.log('NODE_ENV :', process.env.NODE_ENV || 'non défini');
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
 const app = express();
+const server = http.createServer(app);
+
 const PORT = process.env.PORT || 5000;
 
 // ── CORS ─── EN PREMIER, AVANT TOUT ──────────────────────────────────────────
@@ -45,6 +47,35 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5000'
 ];
+
+// ── Socket.IO ────────────────────────────────────────────────────────────────
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log(`🔌 Socket connecté : ${socket.id}`);
+
+  const { userId } = socket.handshake.query;
+
+  if (userId) {
+    socket.join(userId);
+    console.log(`👤 Utilisateur connecté : ${userId}`);
+  }
+
+  socket.on('disconnect', () => {
+    console.log(`❌ Socket déconnecté : ${socket.id}`);
+  });
+
+  // Message privé
+  socket.on('sendMessage', ({ recipientId, message }) => {
+    io.to(recipientId).emit('newMessage', message);
+  });
+});
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -290,12 +321,15 @@ process.on('uncaughtException', (error) => {
 });
 
 // ── Démarrage serveur ──────────────────────────────────────────────────────────
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 [Serveur] Port ${PORT}`);
   console.log(`🌐 Base URL: http://localhost:${PORT}`);
   console.log(`🧪 Test: http://localhost:${PORT}/api/test`);
   console.log(`❤️ Health: http://localhost:${PORT}/api/health`);
   console.log(`📋 Routes: http://localhost:${PORT}/api/routes`);
+  console.log(`🔌 Socket.IO actif sur /socket.io`);
 });
+
+export { io };
 
 export default app;
