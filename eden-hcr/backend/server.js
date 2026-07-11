@@ -1,5 +1,6 @@
 import http from 'http';   // Si vous utilisez ES Modules (type: "module" dans package.json)
 import express from 'express';
+import { Server } from 'socket.io';   // ← AJOUTEZ CETTE LIGNE
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
